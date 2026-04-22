@@ -1,0 +1,138 @@
+"""Диалог настроек приложения."""
+
+from __future__ import annotations
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QDoubleSpinBox,
+    QFormLayout,
+    QGroupBox,
+    QLineEdit,
+    QPushButton,
+    QSpinBox,
+    QVBoxLayout,
+)
+
+from app.config import Settings
+from app.services import settings_store
+from app.services.crypto import mask_token
+
+
+class SettingsDialog(QDialog):
+    def __init__(self, settings: Settings, parent=None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Настройки")
+        self.resize(560, 520)
+        self.settings = settings
+        self._build_ui()
+        self._load()
+
+    def _build_ui(self) -> None:
+        layout = QVBoxLayout(self)
+
+        api_box = QGroupBox("API Lolzteam Market")
+        api_form = QFormLayout(api_box)
+        self.token_edit = QLineEdit()
+        self.token_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.token_edit.setPlaceholderText("Вставьте токен (scope: read+post+market)")
+        self.show_token_btn = QPushButton("Показать")
+        self.show_token_btn.setCheckable(True)
+        self.show_token_btn.toggled.connect(self._toggle_token)
+
+        token_row = QFormLayout()
+        token_row.addRow(self.token_edit)
+        api_form.addRow("Токен API:", self.token_edit)
+        api_form.addRow("", self.show_token_btn)
+
+        self.base_url_edit = QLineEdit()
+        api_form.addRow("Базовый URL:", self.base_url_edit)
+
+        self.lang_combo = QComboBox()
+        self.lang_combo.addItems(["ru", "en"])
+        api_form.addRow("Язык ответов:", self.lang_combo)
+
+        self.min_delay_spin = QDoubleSpinBox()
+        self.min_delay_spin.setRange(3.0, 30.0)
+        self.min_delay_spin.setSingleStep(0.5)
+        self.min_delay_spin.setSuffix(" сек")
+        api_form.addRow("Мин. задержка между запросами:", self.min_delay_spin)
+
+        self.max_retries_spin = QSpinBox()
+        self.max_retries_spin.setRange(0, 10)
+        api_form.addRow("Макс. повторов при ошибке:", self.max_retries_spin)
+
+        layout.addWidget(api_box)
+
+        cycle_box = QGroupBox("Цикл обновления")
+        cycle_form = QFormLayout(cycle_box)
+        self.interval_spin = QSpinBox()
+        self.interval_spin.setRange(1, 180)
+        self.interval_spin.setSuffix(" мин")
+        cycle_form.addRow("Интервал цикла:", self.interval_spin)
+        self.autostart_chk = QCheckBox("Автоматически запускать при старте приложения")
+        cycle_form.addRow(self.autostart_chk)
+        self.notify_sales_chk = QCheckBox("Уведомлять о продажах")
+        cycle_form.addRow(self.notify_sales_chk)
+        self.sound_sale_chk = QCheckBox("Звуковое оповещение о продаже")
+        cycle_form.addRow(self.sound_sale_chk)
+        layout.addWidget(cycle_box)
+
+        ui_box = QGroupBox("Интерфейс")
+        ui_form = QFormLayout(ui_box)
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItems(["dark", "light"])
+        ui_form.addRow("Тема:", self.theme_combo)
+        self.rows_spin = QSpinBox()
+        self.rows_spin.setRange(10, 500)
+        ui_form.addRow("Строк в таблице:", self.rows_spin)
+        layout.addWidget(ui_box)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _toggle_token(self, checked: bool) -> None:
+        self.token_edit.setEchoMode(QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password)
+        self.show_token_btn.setText("Скрыть" if checked else "Показать")
+
+    def _load(self) -> None:
+        self.token_edit.setText(settings_store.load_token() or self.settings.api_token)
+        self.base_url_edit.setText(self.settings.api_base_url)
+        self.lang_combo.setCurrentText(self.settings.api_lang)
+        self.min_delay_spin.setValue(self.settings.api_min_delay)
+        self.max_retries_spin.setValue(self.settings.api_max_retries)
+        self.interval_spin.setValue(self.settings.cycle_interval_minutes)
+        self.autostart_chk.setChecked(self.settings.cycle_autostart)
+        self.notify_sales_chk.setChecked(self.settings.notify_sales)
+        self.sound_sale_chk.setChecked(self.settings.sound_on_sale)
+        self.theme_combo.setCurrentText(self.settings.theme)
+        self.rows_spin.setValue(self.settings.rows_per_page)
+
+    def accept(self) -> None:
+        token = self.token_edit.text().strip()
+        if token:
+            settings_store.save_token(token)
+            self.settings.api_token = token
+
+        self.settings.api_base_url = self.base_url_edit.text().strip() or self.settings.api_base_url
+        self.settings.api_lang = self.lang_combo.currentText()
+        self.settings.api_min_delay = float(self.min_delay_spin.value())
+        self.settings.api_max_retries = int(self.max_retries_spin.value())
+        self.settings.cycle_interval_minutes = int(self.interval_spin.value())
+        self.settings.cycle_autostart = self.autostart_chk.isChecked()
+        self.settings.notify_sales = self.notify_sales_chk.isChecked()
+        self.settings.sound_on_sale = self.sound_sale_chk.isChecked()
+        self.settings.theme = self.theme_combo.currentText()
+        self.settings.rows_per_page = int(self.rows_spin.value())
+
+        settings_store.set_kv("api_base_url", self.settings.api_base_url)
+        settings_store.set_kv("api_lang", self.settings.api_lang)
+        settings_store.set_kv("cycle_interval_minutes", str(self.settings.cycle_interval_minutes))
+        settings_store.set_kv("ui_theme", self.settings.theme)
+
+        super().accept()
