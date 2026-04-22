@@ -36,7 +36,8 @@ class NicheEditor(QDialog):
         self.name_edit.setPlaceholderText("Например: UA Telegram")
         main_form.addRow("Название ниши *:", self.name_edit)
         self.category_edit = QLineEdit()
-        self.category_edit.setPlaceholderText("telegram / steam / vk / ...")
+        self.category_edit.setText("telegram")
+        self.category_edit.setPlaceholderText("telegram (основная категория)")
         main_form.addRow("Категория:", self.category_edit)
         self.country_edit = QLineEdit()
         self.country_edit.setPlaceholderText("UA / RU / US / ...")
@@ -80,10 +81,11 @@ class NicheEditor(QDialog):
         self.default_cost.setRange(0, 1_000_000)
         self.default_cost.setSuffix(" $")
         price_form.addRow("Себестоимость по умолчанию:", self.default_cost)
-        self.markup_percent = QDoubleSpinBox()
-        self.markup_percent.setRange(-100, 1000)
-        self.markup_percent.setSuffix(" %")
-        price_form.addRow("Наценка:", self.markup_percent)
+        self.markup = QDoubleSpinBox()
+        self.markup.setRange(0, 1_000_000)
+        self.markup.setDecimals(2)
+        self.markup.setSuffix(" $")
+        price_form.addRow("Наценка (сумма):", self.markup)
         layout.addWidget(price_box)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
@@ -93,7 +95,7 @@ class NicheEditor(QDialog):
 
     def _load(self, n: Niche) -> None:
         self.name_edit.setText(n.name)
-        self.category_edit.setText(n.category or "")
+        self.category_edit.setText(n.category or "telegram")
         self.country_edit.setText(n.country or "")
         self.price_min.setValue(n.price_min or 0)
         self.price_max.setValue(n.price_max or 0)
@@ -103,12 +105,12 @@ class NicheEditor(QDialog):
         self.auto_stick_chk.setChecked(n.auto_stick)
         self.priority_item.setValue(n.priority_item_id or 0)
         self.default_cost.setValue(n.default_cost)
-        self.markup_percent.setValue(n.markup_percent)
+        self.markup.setValue(n.markup)
 
     def values(self) -> dict:
         return {
             "name": self.name_edit.text().strip(),
-            "category": self.category_edit.text().strip(),
+            "category": self.category_edit.text().strip() or "telegram",
             "country": self.country_edit.text().strip(),
             "price_min": self.price_min.value() or None,
             "price_max": self.price_max.value() or None,
@@ -118,5 +120,5 @@ class NicheEditor(QDialog):
             "auto_stick": self.auto_stick_chk.isChecked(),
             "priority_item_id": int(self.priority_item.value()) or None,
             "default_cost": float(self.default_cost.value()),
-            "markup_percent": float(self.markup_percent.value()),
+            "markup": float(self.markup.value()),
         }

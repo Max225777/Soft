@@ -7,7 +7,6 @@ from typing import Callable
 from loguru import logger
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QDoubleSpinBox,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -19,7 +18,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.api.client import LolzMarketClient
 from app.core import bulk_actions, niche_manager
@@ -30,17 +29,38 @@ from app.ui.widgets.accounts_table import AccountsTable
 from app.ui.widgets.niche_card import NicheCard
 
 
+UNCLASSIFIED_ID = -1  # псевдо-ID для «Без классификации»
+
+
 class HomeTab(QWidget):
-    def __init__(self, client: LolzMarketClient, refresh_cb: Callable[[], None], parent=None) -> None:
+    def __init__(
+        self,
+        client: LolzMarketClient,
+        trigger_refresh: Callable[[], None],
+        parent=None,
+    ) -> None:
         super().__init__(parent)
         self.client = client
-        self.refresh_cb = refresh_cb
+        self.trigger_refresh = trigger_refresh  # дёргает цикл (fetch аккаунтов)
         self._current_niche_id: int | None = None
         self._build_ui()
         self.reload()
 
     def _build_ui(self) -> None:
-        root = QHBoxLayout(self)
+        root = QVBoxLayout(self)
+
+        # --- верхний бар со статистикой и кнопкой обновить ---
+        top_bar = QHBoxLayout()
+        self.summary_label = QLabel("Всего на продаже: —")
+        self.summary_label.setStyleSheet("font-size: 13pt; color: #4caf50;")
+        top_bar.addWidget(self.summary_label)
+        top_bar.addStretch()
+        btn_fetch = QPushButton("🔄 Обновить с API")
+        btn_fetch.setObjectName("primary")
+        btn_fetch.clicked.connect(self._fetch_now)
+        top_bar.addWidget(btn_fetch)
+        root.addLayout(top_bar)
+
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
         # --- левая панель: ниши ---
@@ -87,7 +107,7 @@ class HomeTab(QWidget):
         splitter.addWidget(right)
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 3)
-        root.addWidget(splitter)
+        root.addWidget(splitter, 1)
 
     def _bulk_actions_bar(self) -> QHBoxLayout:
         bar = QHBoxLayout()
@@ -119,7 +139,7 @@ class HomeTab(QWidget):
         btn_price.clicked.connect(self._bulk_price)
         bar.addWidget(btn_price)
 
-        btn_markup = QPushButton("% Наценка")
+        btn_markup = QPushButton("$ Наценка")
         btn_markup.clicked.connect(self._bulk_markup)
         bar.addWidget(btn_markup)
 
@@ -138,6 +158,23 @@ class HomeTab(QWidget):
     # ---------- state ----------
     def reload(self) -> None:
         niches = niche_manager.list_niches()
+
+        with get_session() as s:
+            total_on_sale = s.execute(
+                select(func.count(Account.id)).where(Account.status == "active")
+            ).scalar_one() or 0
+            unclassified_count = s.execute(
+                select(func.count(Account.id)).where(
+                    Account.status == "active", Account.niche_id.is_(None)
+                )
+            ).scalar_one() or 0
+
+        self.summary_label.setText(
+            f"Всего на продаже: <b>{total_on_sale}</b>  |  "
+            f"Ниш: <b>{len(niches)}</b>  |  "
+            f"Без классификации: <b>{unclassified_count}</b>"
+        )
+
         self.niche_list.clear()
         for n in niches:
             item = QListWidgetItem()
@@ -146,6 +183,12 @@ class HomeTab(QWidget):
             item.setData(Qt.ItemDataRole.UserRole, n.id)
             self.niche_list.addItem(item)
             self.niche_list.setItemWidget(item, card)
+
+        # псевдо-ниша «Без классификации»
+        pseudo = QListWidgetItem(f"📦 Без классификации ({unclassified_count})")
+        pseudo.setData(Qt.ItemDataRole.UserRole, UNCLASSIFIED_ID)
+        pseudo.setForeground(Qt.GlobalColor.yellow)
+        self.niche_list.addItem(pseudo)
 
         if self._current_niche_id is not None:
             for i in range(self.niche_list.count()):
@@ -158,12 +201,27 @@ class HomeTab(QWidget):
     def _reload_accounts(self) -> None:
         if self._current_niche_id is None:
             self.table.set_accounts([])
-            self.right_header.setText("<h3>Аккаунты ниши</h3><i>Выберите нишу слева</i>")
+            self.right_header.setText("<h3>Аккаунты</h3><i>Выберите нишу слева</i>")
             return
+
         with get_session() as s:
-            stmt = select(Account).where(Account.niche_id == self._current_niche_id).order_by(Account.price.desc())
+            if self._current_niche_id == UNCLASSIFIED_ID:
+                stmt = (
+                    select(Account)
+                    .where(Account.niche_id.is_(None), Account.status == "active")
+                    .order_by(Account.price.desc())
+                )
+                title = "Без классификации"
+            else:
+                stmt = (
+                    select(Account)
+                    .where(Account.niche_id == self._current_niche_id)
+                    .order_by(Account.price.desc())
+                )
+                title = "в нише"
             accounts = list(s.execute(stmt).scalars())
-        self.right_header.setText(f"<h3>Аккаунты в нише — {len(accounts)} шт.</h3>")
+
+        self.right_header.setText(f"<h3>Аккаунты {title} — {len(accounts)} шт.</h3>")
         self.table.set_accounts(accounts)
 
     # ---------- niche slots ----------
@@ -177,17 +235,28 @@ class HomeTab(QWidget):
 
     def _create_niche(self) -> None:
         dlg = NicheEditor(parent=self)
-        if dlg.exec() == NicheEditor.DialogCode.Accepted:
-            values = dlg.values()
-            if not values["name"]:
-                QMessageBox.warning(self, "Ошибка", "Введите название ниши")
-                return
-            niche_manager.create_niche(**values)
+        if dlg.exec() != NicheEditor.DialogCode.Accepted:
+            return
+        values = dlg.values()
+        if not values["name"]:
+            QMessageBox.warning(self, "Ошибка", "Введите название ниши")
+            return
+        niche_manager.create_niche(**values)
+
+        # если БД ещё пустая — подтягиваем аккаунты с API
+        if self._accounts_count() == 0:
+            QMessageBox.information(
+                self,
+                "Ниша создана",
+                "Ниша сохранена. Сейчас подтянем ваши аккаунты с Lolzteam Market — это может занять до минуты.",
+            )
+            self._fetch_now()
+        else:
             niche_manager.reclassify_accounts()
             self.reload()
 
     def _edit_niche(self) -> None:
-        if self._current_niche_id is None:
+        if self._current_niche_id is None or self._current_niche_id == UNCLASSIFIED_ID:
             return
         with get_session() as s:
             from app.db.models import Niche
@@ -201,14 +270,27 @@ class HomeTab(QWidget):
             self.reload()
 
     def _delete_niche(self) -> None:
-        if self._current_niche_id is None:
+        if self._current_niche_id is None or self._current_niche_id == UNCLASSIFIED_ID:
             return
         ok = QMessageBox.question(self, "Удаление", "Удалить нишу?") == QMessageBox.StandardButton.Yes
         if not ok:
             return
         niche_manager.delete_niche(self._current_niche_id)
         self._current_niche_id = None
+        niche_manager.reclassify_accounts()
         self.reload()
+
+    def _fetch_now(self) -> None:
+        self.window().statusBar().showMessage("Запрос списка аккаунтов с API…", 10000)
+        try:
+            self.trigger_refresh()
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.warning(self, "Ошибка обновления", str(exc))
+
+    @staticmethod
+    def _accounts_count() -> int:
+        with get_session() as s:
+            return s.execute(select(func.count(Account.id))).scalar_one() or 0
 
     # ---------- table slots ----------
     def _on_price_changed(self, item_id: int, new_price: float) -> None:
@@ -281,10 +363,13 @@ class HomeTab(QWidget):
         ids = self.table.selected_item_ids()
         if not ids:
             return
-        pct, ok = QInputDialog.getDouble(self, "Наценка", "Процент наценки:", 20, -50, 1000, 1)
+        amount, ok = QInputDialog.getDouble(
+            self, "Наценка", "Сумма наценки ($, прибавится к себестоимости):",
+            1.0, 0.0, 1_000_000.0, 2,
+        )
         if not ok:
             return
-        results = bulk_actions.apply_markup(self.client, ids, pct)
+        results = bulk_actions.apply_markup(self.client, ids, amount)
         self._toast_results("Наценка", results)
         self._reload_accounts()
 

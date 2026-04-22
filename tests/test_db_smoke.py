@@ -18,7 +18,7 @@ def test_db_smoke(tmp_path: Path):
         price_max=100.0,
         keywords="premium",
         default_cost=2.0,
-        markup_percent=20.0,
+        markup=1.0,
     )
     assert niche.id is not None
 

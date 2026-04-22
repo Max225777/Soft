@@ -96,9 +96,9 @@ def change_prices_by_percent(client: LolzMarketClient, item_ids: Iterable[int], 
     return results
 
 
-def apply_markup(client: LolzMarketClient, item_ids: Iterable[int], markup_percent: float) -> dict[int, str]:
+def apply_markup(client: LolzMarketClient, item_ids: Iterable[int], markup: float) -> dict[int, str]:
+    """Наценка в абсолютной сумме: new_price = cost + markup."""
     results: dict[int, str] = {}
-    factor = 1.0 + markup_percent / 100.0
     with get_session() as s:
         for item_id in item_ids:
             acc = s.execute(select(Account).where(Account.item_id == item_id)).scalar_one_or_none()
@@ -109,12 +109,12 @@ def apply_markup(client: LolzMarketClient, item_ids: Iterable[int], markup_perce
                 results[item_id] = "skipped: no cost"
                 _log(s, "markup", item_id, "Нет себестоимости для расчёта наценки", level="WARNING")
                 continue
-            new_price = round(acc.cost * factor, 2)
+            new_price = round(acc.cost + markup, 2)
             try:
                 client.update_item(item_id, price=new_price)
                 acc.price = new_price
                 results[item_id] = f"ok ({new_price})"
-                _log(s, "markup", item_id, f"Применена наценка {markup_percent}% → {new_price:.2f}")
+                _log(s, "markup", item_id, f"Применена наценка +{markup:.2f} → {new_price:.2f}")
             except ApiError as exc:
                 results[item_id] = f"error: {exc}"
                 _log(s, "markup", item_id, str(exc), level="ERROR")

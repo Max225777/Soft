@@ -68,7 +68,7 @@ class MainWindow(QMainWindow):
     # ---------- UI ----------
     def _build_ui(self) -> None:
         self.tabs = QTabWidget()
-        self.home_tab = HomeTab(client=self.client, refresh_cb=self._refresh_ui)
+        self.home_tab = HomeTab(client=self.client, trigger_refresh=self.cycle.trigger_now)
         self.stats_tab = StatsTab()
         self.tabs.addTab(self.home_tab, "Главная")
         self.tabs.addTab(self.stats_tab, "Статистика")

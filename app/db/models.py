@@ -41,7 +41,7 @@ class Niche(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
-    category: Mapped[str] = mapped_column(String(64), default="")
+    category: Mapped[str] = mapped_column(String(64), default="telegram")
     country: Mapped[str] = mapped_column(String(64), default="")
     price_min: Mapped[float | None] = mapped_column(Float, nullable=True)
     price_max: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -49,7 +49,7 @@ class Niche(Base):
     extra_filters: Mapped[dict] = mapped_column(JSON, default=dict)
 
     default_cost: Mapped[float] = mapped_column(Float, default=0.0)
-    markup_percent: Mapped[float] = mapped_column(Float, default=0.0)
+    markup: Mapped[float] = mapped_column(Float, default=0.0)  # наценка в абсолютной сумме ($)
 
     auto_bump: Mapped[bool] = mapped_column(Boolean, default=False)
     bump_interval_min: Mapped[int] = mapped_column(Integer, default=480)  # 8 часов по умолчанию
