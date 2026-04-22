@@ -51,9 +51,18 @@ class Niche(Base):
     default_cost: Mapped[float] = mapped_column(Float, default=0.0)
     markup: Mapped[float] = mapped_column(Float, default=0.0)  # наценка в абсолютной сумме ($)
 
+    # --- Автоподнятие (обычные, не закреплённые) ---
     auto_bump: Mapped[bool] = mapped_column(Boolean, default=False)
-    bump_interval_min: Mapped[int] = mapped_column(Integer, default=480)  # 8 часов по умолчанию
+    bumps_per_day: Mapped[int] = mapped_column(Integer, default=0)  # сколько поднятий в сутки от этой ниши (0 = не ограничено)
+
+    # --- Автозакрепление ---
     auto_stick: Mapped[bool] = mapped_column(Boolean, default=False)
+    stick_slots: Mapped[int] = mapped_column(Integer, default=0)  # сколько слотов закреплений занимает эта ниша
+
+    # --- Поднятие закреплённых (отдельный пул) ---
+    auto_bump_stuck: Mapped[bool] = mapped_column(Boolean, default=False)
+    stuck_bumps_per_day: Mapped[int] = mapped_column(Integer, default=0)  # поднятий среди закреплённых в сутки
+
     priority_item_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
@@ -83,6 +92,7 @@ class Account(Base):
 
     bumps_available: Mapped[int] = mapped_column(Integer, default=3)
     sticks_available: Mapped[int] = mapped_column(Integer, default=1)
+    is_stuck: Mapped[bool] = mapped_column(Boolean, default=False)
     last_bumped_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_stuck_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 

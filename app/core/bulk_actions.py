@@ -65,6 +65,7 @@ def stick_items(client: LolzMarketClient, item_ids: Iterable[int]) -> dict[int, 
                 if acc:
                     acc.sticks_available = max(0, acc.sticks_available - 1)
                     acc.last_stuck_at = now
+                    acc.is_stuck = True
                 results[item_id] = "ok"
                 _log(s, "stick", item_id, "Закрепление выполнено")
             except ApiError as exc:

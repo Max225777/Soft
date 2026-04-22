@@ -60,3 +60,31 @@ def all_kv() -> dict[str, str]:
     with get_session() as s:
         rows = s.execute(select(AppSetting)).scalars().all()
         return {r.key: r.value for r in rows}
+
+
+# ---- Глобальные лимиты ----
+
+GLOBAL_BUMPS_PER_ACCOUNT = "global_bumps_per_account_per_day"  # по умолчанию 3 (лимит Lolzteam)
+GLOBAL_STICK_SLOTS = "global_stick_slots_total"  # сколько всего слотов закреплений доступно аккаунту продавца
+
+
+def get_global_bumps_per_account() -> int:
+    try:
+        return int(get_kv(GLOBAL_BUMPS_PER_ACCOUNT, "3"))
+    except ValueError:
+        return 3
+
+
+def get_global_stick_slots() -> int:
+    try:
+        return int(get_kv(GLOBAL_STICK_SLOTS, "5"))
+    except ValueError:
+        return 5
+
+
+def set_global_bumps_per_account(value: int) -> None:
+    set_kv(GLOBAL_BUMPS_PER_ACCOUNT, str(max(1, int(value))))
+
+
+def set_global_stick_slots(value: int) -> None:
+    set_kv(GLOBAL_STICK_SLOTS, str(max(0, int(value))))

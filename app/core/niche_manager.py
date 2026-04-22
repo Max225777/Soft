@@ -105,28 +105,39 @@ def reclassify_accounts() -> dict[int, int]:
         return counts
 
 
-def niche_summary(niche: Niche) -> dict:
-    """Сводка по нише: кол-во активных, средняя цена/себестоимость, ожидаемая прибыль."""
+def niche_summary(niche: Niche, sales_period_days: int = 30) -> dict:
+    """Сводка по нише: активные, средние цены, продажи за период, остатки bump/stick."""
+    from datetime import datetime, timedelta, timezone
+
+    from app.db.models import Sale
+
+    since = datetime.now(timezone.utc) - timedelta(days=sales_period_days)
     with get_session() as s:
         accounts = list(
             s.execute(
                 select(Account).where(Account.niche_id == niche.id, Account.status == "active")
             ).scalars()
         )
-        if not accounts:
-            return {
-                "count": 0,
-                "avg_price": 0.0,
-                "avg_cost": 0.0,
-                "expected_profit": 0.0,
-            }
+        sales = list(
+            s.execute(
+                select(Sale).where(Sale.niche_id == niche.id, Sale.sold_at >= since)
+            ).scalars()
+        )
+
         total_price = sum(a.price for a in accounts)
         total_cost = sum(a.cost for a in accounts)
+        bumps_left = sum(a.bumps_available for a in accounts)
+        sticks_left = sum(a.sticks_available for a in accounts)
         return {
             "count": len(accounts),
-            "avg_price": total_price / len(accounts),
-            "avg_cost": total_cost / len(accounts),
+            "avg_price": (total_price / len(accounts)) if accounts else 0.0,
+            "avg_cost": (total_cost / len(accounts)) if accounts else 0.0,
             "expected_profit": total_price - total_cost,
+            "sold_count": len(sales),
+            "sold_revenue": sum(sale.price for sale in sales),
+            "sold_profit": sum(sale.profit for sale in sales),
+            "bumps_left": bumps_left,
+            "sticks_left": sticks_left,
         }
 
 

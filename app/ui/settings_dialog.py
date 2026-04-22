@@ -81,6 +81,28 @@ class SettingsDialog(QDialog):
         cycle_form.addRow(self.sound_sale_chk)
         layout.addWidget(cycle_box)
 
+        # --- Глобальные лимиты Lolzteam ---
+        limits_box = QGroupBox("Лимиты поднятий и закреплений")
+        limits_form = QFormLayout(limits_box)
+        self.bumps_per_acc_spin = QSpinBox()
+        self.bumps_per_acc_spin.setRange(1, 24)
+        limits_form.addRow("Поднятий на аккаунт в сутки:", self.bumps_per_acc_spin)
+        hint_b = QLabel("Лимит Lolzteam Market. Обычно 3 — менять нужно только если у вас VIP/Premium.")
+        hint_b.setStyleSheet("color:#9e9e9e; font-size:10pt;")
+        limits_form.addRow(hint_b)
+
+        self.stick_slots_total_spin = QSpinBox()
+        self.stick_slots_total_spin.setRange(0, 100)
+        limits_form.addRow("Всего слотов закреплений:", self.stick_slots_total_spin)
+        hint_s = QLabel(
+            "Сколько всего аккаунтов можно держать закреплёнными одновременно\n"
+            "на вашем аккаунте продавца. Сумма stick_slots всех ниш не должна превышать это значение."
+        )
+        hint_s.setStyleSheet("color:#9e9e9e; font-size:10pt;")
+        limits_form.addRow(hint_s)
+        layout.addWidget(limits_box)
+
+        # --- Интерфейс ---
         ui_box = QGroupBox("Интерфейс")
         ui_form = QFormLayout(ui_box)
         self.theme_combo = QComboBox()
@@ -112,6 +134,8 @@ class SettingsDialog(QDialog):
         self.sound_sale_chk.setChecked(self.settings.sound_on_sale)
         self.theme_combo.setCurrentText(self.settings.theme)
         self.rows_spin.setValue(self.settings.rows_per_page)
+        self.bumps_per_acc_spin.setValue(settings_store.get_global_bumps_per_account())
+        self.stick_slots_total_spin.setValue(settings_store.get_global_stick_slots())
 
     def accept(self) -> None:
         token = self.token_edit.text().strip()
@@ -134,5 +158,7 @@ class SettingsDialog(QDialog):
         settings_store.set_kv("api_lang", self.settings.api_lang)
         settings_store.set_kv("cycle_interval_minutes", str(self.settings.cycle_interval_minutes))
         settings_store.set_kv("ui_theme", self.settings.theme)
+        settings_store.set_global_bumps_per_account(self.bumps_per_acc_spin.value())
+        settings_store.set_global_stick_slots(self.stick_slots_total_spin.value())
 
         super().accept()

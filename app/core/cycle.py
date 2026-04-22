@@ -9,14 +9,15 @@ from typing import Callable
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.api.client import ApiError, LolzMarketClient
 from app.core.bulk_actions import bump_items, stick_items
 from app.core.niche_manager import reclassify_accounts
 from app.core.sale_tracker import sync_accounts_snapshot
-from app.db.models import Account, Niche
+from app.db.models import Account, ActionLog, Niche
 from app.db.session import get_session
+from app.services import settings_store
 
 
 class UpdateCycle:
@@ -153,50 +154,101 @@ class UpdateCycle:
         now = datetime.now(timezone.utc)
         if now.time() > dtime(0, 20):
             return  # сбрасываем только в пределах первого тика после полуночи
+        global_bump = settings_store.get_global_bumps_per_account()
         with get_session() as s:
             accounts = list(s.execute(select(Account)).scalars())
             for acc in accounts:
-                acc.bumps_available = 3
+                acc.bumps_available = global_bump
                 acc.sticks_available = 1
             s.commit()
-        logger.info("Дневные лимиты bump/stick сброшены")
+        logger.info("Дневные лимиты bump/stick сброшены (bump={}/акк)", global_bump)
 
     def _run_auto_actions(self) -> dict:
-        auto_result = {"bumps": 0, "sticks": 0}
+        auto_result = {"bumps": 0, "sticks": 0, "stuck_bumps": 0, "unsticks": 0}
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
         with get_session() as s:
             niches = list(s.execute(select(Niche)).scalars())
             for n in niches:
-                if not (n.auto_bump or n.auto_stick):
-                    continue
                 accounts = list(
                     s.execute(
                         select(Account).where(Account.niche_id == n.id, Account.status == "active")
                     ).scalars()
                 )
+                if not accounts:
+                    continue
                 accounts.sort(key=lambda a: (not a.is_priority, -(a.price or 0)))
-                ids = [a.item_id for a in accounts]
-                if n.priority_item_id and n.priority_item_id in ids:
-                    ids.remove(n.priority_item_id)
-                    ids.insert(0, n.priority_item_id)
+                if n.priority_item_id:
+                    accounts.sort(key=lambda a: 0 if a.item_id == n.priority_item_id else 1)
 
-                if n.auto_bump:
-                    ids_to_bump = [i for i in ids if self._can_bump(s, i)]
-                    if ids_to_bump:
-                        res = bump_items(self.client, ids_to_bump[:5])
-                        auto_result["bumps"] += sum(1 for v in res.values() if v == "ok")
-                if n.auto_stick:
-                    ids_to_stick = [i for i in ids if self._can_stick(s, i)]
-                    if ids_to_stick:
-                        res = stick_items(self.client, ids_to_stick[:1])
-                        auto_result["sticks"] += sum(1 for v in res.values() if v == "ok")
+                normal_accounts = [a for a in accounts if not a.is_stuck]
+                stuck_accounts = [a for a in accounts if a.is_stuck]
+
+                # --- 1. Автозакрепление — доводим кол-во закреплённых до stick_slots ---
+                if n.auto_stick and n.stick_slots > 0:
+                    need_more = n.stick_slots - len(stuck_accounts)
+                    if need_more > 0:
+                        candidates = [a for a in normal_accounts if a.sticks_available > 0][:need_more]
+                        if candidates:
+                            ids = [a.item_id for a in candidates]
+                            res = stick_items(self.client, ids)
+                            for item_id, result in res.items():
+                                if result == "ok":
+                                    acc = s.execute(select(Account).where(Account.item_id == item_id)).scalar_one_or_none()
+                                    if acc:
+                                        acc.is_stuck = True
+                                    auto_result["sticks"] += 1
+
+                # --- 2. Автоподнятие обычных — учитываем bumps_per_day ---
+                if n.auto_bump and n.bumps_per_day > 0:
+                    done_today = self._count_bumps_today(s, n.id, today_start, stuck=False)
+                    remaining = n.bumps_per_day - done_today
+                    if remaining > 0:
+                        # в 1 цикле делаем ~ remaining / (ticks_per_day_remaining) bumps
+                        per_tick = self._bumps_for_this_tick(remaining, today_start)
+                        candidates = [a for a in normal_accounts if a.bumps_available > 0][:per_tick]
+                        if candidates:
+                            ids = [a.item_id for a in candidates]
+                            res = bump_items(self.client, ids)
+                            auto_result["bumps"] += sum(1 for v in res.values() if v == "ok")
+
+                # --- 3. Отдельное поднятие закреплённых ---
+                if n.auto_bump_stuck and n.stuck_bumps_per_day > 0 and stuck_accounts:
+                    done_today = self._count_bumps_today(s, n.id, today_start, stuck=True)
+                    remaining = n.stuck_bumps_per_day - done_today
+                    if remaining > 0:
+                        per_tick = self._bumps_for_this_tick(remaining, today_start)
+                        candidates = [a for a in stuck_accounts if a.bumps_available > 0][:per_tick]
+                        if candidates:
+                            ids = [a.item_id for a in candidates]
+                            res = bump_items(self.client, ids)
+                            auto_result["stuck_bumps"] += sum(1 for v in res.values() if v == "ok")
+            s.commit()
         return auto_result
 
     @staticmethod
-    def _can_bump(session, item_id: int) -> bool:
-        acc = session.execute(select(Account).where(Account.item_id == item_id)).scalar_one_or_none()
-        return bool(acc and acc.bumps_available > 0)
+    def _count_bumps_today(session, niche_id: int, today_start: datetime, stuck: bool) -> int:
+        """Считает успешные bump-ы сегодня для ниши.
 
-    @staticmethod
-    def _can_stick(session, item_id: int) -> bool:
-        acc = session.execute(select(Account).where(Account.item_id == item_id)).scalar_one_or_none()
-        return bool(acc and acc.sticks_available > 0)
+        Различаем обычные от поднятий закреплённых по details.stuck.
+        """
+        stmt = (
+            select(func.count(ActionLog.id))
+            .join(Account, Account.item_id == ActionLog.item_id, isouter=True)
+            .where(
+                ActionLog.action == "bump",
+                ActionLog.level == "INFO",
+                ActionLog.created_at >= today_start,
+                Account.niche_id == niche_id,
+                Account.is_stuck.is_(stuck),
+            )
+        )
+        return session.execute(stmt).scalar_one() or 0
+
+    def _bumps_for_this_tick(self, remaining_today: int, today_start: datetime) -> int:
+        """Распределяет оставшиеся bumps равномерно до конца суток."""
+        now = datetime.now(timezone.utc)
+        seconds_left = max((today_start.replace(hour=23, minute=59) - now).total_seconds(), 60)
+        ticks_left = max(int(seconds_left / (self.interval_minutes * 60)), 1)
+        per_tick = max(1, remaining_today // ticks_left)
+        return min(per_tick, remaining_today)
