@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.config import Settings
+from app.core import niche_manager
 from app.services import settings_store
 from app.services.crypto import mask_token
 
@@ -100,6 +101,14 @@ class SettingsDialog(QDialog):
         )
         hint_s.setStyleSheet("color:#9e9e9e; font-size:10pt;")
         limits_form.addRow(hint_s)
+
+        self.progress_label = QLabel("Прогресс: —")
+        self.progress_label.setStyleSheet(
+            "color:#4caf50; font-weight:600; padding:8px; "
+            "background:#111; border:1px solid #2a2a2a; border-radius:4px;"
+        )
+        limits_form.addRow(self.progress_label)
+
         layout.addWidget(limits_box)
 
         # --- Интерфейс ---
@@ -117,6 +126,31 @@ class SettingsDialog(QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
+
+    def _refresh_progress(self) -> None:
+        from app.db.session import get_session
+        from app.db.models import Niche
+        from sqlalchemy import select
+
+        with get_session() as s:
+            niches = list(s.execute(select(Niche)).scalars())
+
+        total_planned_bumps = sum(n.bumps_per_day for n in niches)
+        total_planned_stuck_bumps = sum(n.stuck_bumps_per_day for n in niches)
+        total_stick_slots_used = sum(n.stick_slots for n in niches if n.auto_stick)
+
+        bumps_done = niche_manager.global_bumps_today(stuck=False)
+        stuck_bumps_done = niche_manager.global_bumps_today(stuck=True)
+        currently_stuck = niche_manager.total_stuck_count()
+        global_stick = settings_store.get_global_stick_slots()
+
+        text = (
+            f"🔺 Обычных bump-ов сегодня:  <b>{bumps_done}</b> / {total_planned_bumps or '∞'}<br>"
+            f"🔺📌 Bump закреплённых:     <b>{stuck_bumps_done}</b> / {total_planned_stuck_bumps or '∞'}<br>"
+            f"📌 Закреплено сейчас:       <b>{currently_stuck}</b> / {global_stick}  "
+            f"(плановых слотов: {total_stick_slots_used})"
+        )
+        self.progress_label.setText(text)
 
     def _toggle_token(self, checked: bool) -> None:
         self.token_edit.setEchoMode(QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password)
@@ -136,6 +170,7 @@ class SettingsDialog(QDialog):
         self.rows_spin.setValue(self.settings.rows_per_page)
         self.bumps_per_acc_spin.setValue(settings_store.get_global_bumps_per_account())
         self.stick_slots_total_spin.setValue(settings_store.get_global_stick_slots())
+        self._refresh_progress()
 
     def accept(self) -> None:
         token = self.token_edit.text().strip()

@@ -18,6 +18,7 @@ class NicheFilters:
     price_min: float | None = None
     price_max: float | None = None
     keywords: str = ""
+    exact_title: str = ""  # точная подстрока в названии (при наличии — главный критерий)
 
     def matches(self, account: Account) -> bool:
         if self.category and account.category and account.category.lower() != self.category.lower():
@@ -28,9 +29,14 @@ class NicheFilters:
             return False
         if self.price_max is not None and account.price > self.price_max:
             return False
+
+        title = (account.title or "").lower()
+        if self.exact_title:
+            # точная подстрока должна присутствовать
+            if self.exact_title.lower() not in title:
+                return False
         if self.keywords:
             words = [w.strip().lower() for w in self.keywords.split(",") if w.strip()]
-            title = (account.title or "").lower()
             if not any(w in title for w in words):
                 return False
         return True
@@ -92,6 +98,7 @@ def reclassify_accounts() -> dict[int, int]:
                     price_min=n.price_min,
                     price_max=n.price_max,
                     keywords=n.keywords,
+                    exact_title=n.exact_title,
                 )
                 if filters.matches(acc):
                     best = n
@@ -149,5 +156,60 @@ def dump_filters(n: Niche) -> dict:
             price_min=n.price_min,
             price_max=n.price_max,
             keywords=n.keywords,
+            exact_title=n.exact_title,
         )
     )
+
+
+# ---- Агрегаты для прогресс-индикаторов ----
+
+def global_bumps_today(stuck: bool | None = None) -> int:
+    """Сколько bump-действий (успешных) уже сделано сегодня по всем нишам."""
+    from datetime import datetime, timezone
+    from sqlalchemy import func
+
+    from app.db.models import ActionLog
+
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    with get_session() as s:
+        stmt = (
+            select(func.count(ActionLog.id))
+            .where(
+                ActionLog.action == "bump",
+                ActionLog.level == "INFO",
+                ActionLog.created_at >= today_start,
+            )
+        )
+        if stuck is not None:
+            stmt = stmt.join(Account, Account.item_id == ActionLog.item_id).where(Account.is_stuck.is_(stuck))
+        return s.execute(stmt).scalar_one() or 0
+
+
+def niche_bumps_today(niche_id: int, stuck: bool = False) -> int:
+    from datetime import datetime, timezone
+    from sqlalchemy import func
+
+    from app.db.models import ActionLog
+
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    with get_session() as s:
+        stmt = (
+            select(func.count(ActionLog.id))
+            .join(Account, Account.item_id == ActionLog.item_id)
+            .where(
+                ActionLog.action == "bump",
+                ActionLog.level == "INFO",
+                ActionLog.created_at >= today_start,
+                Account.niche_id == niche_id,
+                Account.is_stuck.is_(stuck),
+            )
+        )
+        return s.execute(stmt).scalar_one() or 0
+
+
+def total_stuck_count() -> int:
+    from sqlalchemy import func
+    with get_session() as s:
+        return s.execute(
+            select(func.count(Account.id)).where(Account.is_stuck.is_(True), Account.status == "active")
+        ).scalar_one() or 0

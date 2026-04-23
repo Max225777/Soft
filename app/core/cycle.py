@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import threading
-from datetime import datetime, time as dtime, timezone
+from datetime import datetime, time as dtime, timedelta, timezone
 from typing import Callable
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -199,28 +199,33 @@ class UpdateCycle:
                                         acc.is_stuck = True
                                     auto_result["sticks"] += 1
 
-                # --- 2. Автоподнятие обычных — учитываем bumps_per_day ---
+                # --- 2. Автоподнятие обычных — учитываем bumps_per_day + hourly_schedule ---
                 if n.auto_bump and n.bumps_per_day > 0:
                     done_today = self._count_bumps_today(s, n.id, today_start, stuck=False)
                     remaining = n.bumps_per_day - done_today
                     if remaining > 0:
-                        # в 1 цикле делаем ~ remaining / (ticks_per_day_remaining) bumps
-                        per_tick = self._bumps_for_this_tick(remaining, today_start)
+                        per_tick = self._target_for_this_hour(n, done_today)
                         candidates = [a for a in normal_accounts if a.bumps_available > 0][:per_tick]
                         if candidates:
                             ids = [a.item_id for a in candidates]
                             res = bump_items(self.client, ids)
                             auto_result["bumps"] += sum(1 for v in res.values() if v == "ok")
 
-                # --- 3. Отдельное поднятие закреплённых ---
+                # --- 3. Отдельное поднятие закреплённых (с учётом 1h cooldown) ---
                 if n.auto_bump_stuck and n.stuck_bumps_per_day > 0 and stuck_accounts:
                     done_today = self._count_bumps_today(s, n.id, today_start, stuck=True)
                     remaining = n.stuck_bumps_per_day - done_today
                     if remaining > 0:
+                        cooldown = timedelta(minutes=max(1, n.stuck_bump_cooldown_min))
+                        now = datetime.now(timezone.utc)
+                        eligible = [
+                            a for a in stuck_accounts
+                            if a.bumps_available > 0
+                            and (a.last_bumped_at is None or (now - a.last_bumped_at) >= cooldown)
+                        ]
                         per_tick = self._bumps_for_this_tick(remaining, today_start)
-                        candidates = [a for a in stuck_accounts if a.bumps_available > 0][:per_tick]
-                        if candidates:
-                            ids = [a.item_id for a in candidates]
+                        ids = [a.item_id for a in eligible[:per_tick]]
+                        if ids:
                             res = bump_items(self.client, ids)
                             auto_result["stuck_bumps"] += sum(1 for v in res.values() if v == "ok")
             s.commit()
@@ -252,3 +257,17 @@ class UpdateCycle:
         ticks_left = max(int(seconds_left / (self.interval_minutes * 60)), 1)
         per_tick = max(1, remaining_today // ticks_left)
         return min(per_tick, remaining_today)
+
+    def _target_for_this_hour(self, niche: Niche, done_today: int) -> int:
+        """Если у ниши задан hourly_schedule — сверяем сколько уже сделано и
+        сколько должно быть сделано к этому часу."""
+        schedule = list(niche.hourly_schedule or [])
+        if len(schedule) != 24 or sum(schedule) == 0:
+            # нет расписания — распределяем равномерно
+            remaining = max(0, niche.bumps_per_day - done_today)
+            today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            return self._bumps_for_this_tick(remaining, today_start)
+
+        current_hour = datetime.now(timezone.utc).hour
+        target_so_far = sum(schedule[: current_hour + 1])
+        return max(0, target_so_far - done_today)

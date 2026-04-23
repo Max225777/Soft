@@ -46,6 +46,7 @@ class Niche(Base):
     price_min: Mapped[float | None] = mapped_column(Float, nullable=True)
     price_max: Mapped[float | None] = mapped_column(Float, nullable=True)
     keywords: Mapped[str] = mapped_column(String(255), default="")
+    exact_title: Mapped[str] = mapped_column(String(512), default="")  # точная фраза в названии (опц.)
     extra_filters: Mapped[dict] = mapped_column(JSON, default=dict)
 
     default_cost: Mapped[float] = mapped_column(Float, default=0.0)
@@ -62,6 +63,11 @@ class Niche(Base):
     # --- Поднятие закреплённых (отдельный пул) ---
     auto_bump_stuck: Mapped[bool] = mapped_column(Boolean, default=False)
     stuck_bumps_per_day: Mapped[int] = mapped_column(Integer, default=0)  # поднятий среди закреплённых в сутки
+    stuck_bump_cooldown_min: Mapped[int] = mapped_column(Integer, default=60)  # пауза между bump одного и того же stuck-акк (Lolzteam: 1 раз/час)
+
+    # JSON-массив из 24 чисел — сколько bump-ов делать в каждом часу суток (для обычных).
+    # [] = равномерно в течение дня. Настраивается интерактивной кривой в UI.
+    hourly_schedule: Mapped[list] = mapped_column(JSON, default=list)
 
     priority_item_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 

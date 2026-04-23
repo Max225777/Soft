@@ -15,15 +15,17 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from app.core import niche_manager
 from app.db.models import Niche
 from app.services import settings_store
+from app.ui.widgets.hourly_schedule import HourlyScheduleWidget
 
 
 class NicheEditor(QDialog):
     def __init__(self, niche: Niche | None = None, parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Редактирование ниши" if niche else "Новая ниша")
-        self.resize(560, 680)
+        self.resize(620, 820)
         self.niche = niche
         self._build_ui()
         if niche:
@@ -40,14 +42,13 @@ class NicheEditor(QDialog):
         main_form.addRow("Название ниши *:", self.name_edit)
         self.category_edit = QLineEdit()
         self.category_edit.setText("telegram")
-        self.category_edit.setPlaceholderText("telegram (основная категория)")
         main_form.addRow("Категория:", self.category_edit)
         self.country_edit = QLineEdit()
-        self.country_edit.setPlaceholderText("UA / RU / US / … (оставьте пустым = любая)")
+        self.country_edit.setPlaceholderText("UA / RU / US / … (пусто = любая)")
         main_form.addRow("Страна происхождения:", self.country_edit)
         layout.addWidget(main_box)
 
-        # --- Фильтры ---
+        # --- Фильтры аккаунтов ---
         filter_box = QGroupBox("Фильтры аккаунтов")
         filter_form = QFormLayout(filter_box)
         self.price_min = QDoubleSpinBox()
@@ -63,6 +64,16 @@ class NicheEditor(QDialog):
         self.keywords_edit = QLineEdit()
         self.keywords_edit.setPlaceholderText("через запятую: premium, verified, aged")
         filter_form.addRow("Ключевые слова:", self.keywords_edit)
+
+        self.exact_title_edit = QLineEdit()
+        self.exact_title_edit.setPlaceholderText("напр.: «UA Telegram 2020» — точная фраза в названии (опц.)")
+        filter_form.addRow("Точное название:", self.exact_title_edit)
+        hint_et = QLabel(
+            "Если задано — в нишу попадут только аккаунты, у которых эта фраза\n"
+            "встречается в названии. Работает отдельно от «Ключевых слов»."
+        )
+        hint_et.setStyleSheet("color:#9e9e9e; font-size:10pt;")
+        filter_form.addRow(hint_et)
         layout.addWidget(filter_box)
 
         # --- Ценообразование ---
@@ -80,34 +91,36 @@ class NicheEditor(QDialog):
         price_form.addRow("Наценка (сумма):", self.markup)
         layout.addWidget(price_box)
 
-        # --- Автоподнятие обычных (НЕ закреплённых) ---
+        # --- Автоподнятие обычных ---
         bump_box = QGroupBox("🔺 Автоподнятие (обычные аккаунты)")
         bump_form = QFormLayout(bump_box)
         self.auto_bump_chk = QCheckBox("Включить автоподнятие")
         bump_form.addRow(self.auto_bump_chk)
-
         self.bumps_per_day = QSpinBox()
         self.bumps_per_day.setRange(0, 500)
         self.bumps_per_day.setSpecialValueText("не ограничено")
         bump_form.addRow("Поднятий в сутки от этой ниши:", self.bumps_per_day)
 
-        hint_bumps = QLabel(
-            "Например: 10 — значит за сутки бот сделает до 10 bump-запросов\n"
-            "среди аккаунтов этой ниши (1 bump = 1 аккаунт). Лимит Lolzteam: 3 bump/акк/сутки."
-        )
-        hint_bumps.setStyleSheet("color:#9e9e9e; font-size:10pt;")
-        bump_form.addRow(hint_bumps)
+        self.niche_progress_label = QLabel("Сегодня использовано: —")
+        self.niche_progress_label.setStyleSheet("color:#2196f3;")
+        bump_form.addRow(self.niche_progress_label)
         layout.addWidget(bump_box)
+
+        # --- Расписание по часам ---
+        schedule_box = QGroupBox("📈 Расписание поднятий по часам")
+        schedule_layout = QVBoxLayout(schedule_box)
+        self.schedule_widget = HourlyScheduleWidget()
+        schedule_layout.addWidget(self.schedule_widget)
+        layout.addWidget(schedule_box)
 
         # --- Автозакрепление ---
         stick_box = QGroupBox("📌 Автозакрепление")
         stick_form = QFormLayout(stick_box)
         self.auto_stick_chk = QCheckBox("Включить автозакрепление")
         stick_form.addRow(self.auto_stick_chk)
-
         self.stick_slots = QSpinBox()
         self.stick_slots.setRange(0, 50)
-        stick_form.addRow("Сколько слотов занимает эта ниша:", self.stick_slots)
+        stick_form.addRow("Слотов занимает эта ниша:", self.stick_slots)
 
         global_slots = settings_store.get_global_stick_slots()
         hint_stick = QLabel(
@@ -123,15 +136,18 @@ class NicheEditor(QDialog):
         stuck_form = QFormLayout(stuck_box)
         self.auto_bump_stuck_chk = QCheckBox("Поднимать закреплённые аккаунты")
         stuck_form.addRow(self.auto_bump_stuck_chk)
-
         self.stuck_bumps_per_day = QSpinBox()
         self.stuck_bumps_per_day.setRange(0, 500)
         self.stuck_bumps_per_day.setSpecialValueText("не ограничено")
         stuck_form.addRow("Поднятий закреплённых в сутки:", self.stuck_bumps_per_day)
-
+        self.stuck_cooldown = QSpinBox()
+        self.stuck_cooldown.setRange(0, 1440)
+        self.stuck_cooldown.setSuffix(" мин")
+        self.stuck_cooldown.setValue(60)
+        stuck_form.addRow("Пауза между bump одного акк:", self.stuck_cooldown)
         hint_stuck = QLabel(
-            "Отдельный счётчик поднятий — только для аккаунтов которые сейчас закреплены\n"
-            "этой нишей. Считается независимо от обычных поднятий выше."
+            "Lolzteam разрешает поднимать аккаунт не чаще ~1 раза в час.\n"
+            "Бот не будет bump-ать один и тот же закреплённый чаще указанной паузы."
         )
         hint_stuck.setStyleSheet("color:#9e9e9e; font-size:10pt;")
         stuck_form.addRow(hint_stuck)
@@ -144,9 +160,6 @@ class NicheEditor(QDialog):
         self.priority_item.setRange(0, 999_999_999)
         self.priority_item.setSpecialValueText("не задан")
         priority_form.addRow("item_id приоритетного аккаунта:", self.priority_item)
-        hint_prio = QLabel("Этот аккаунт обрабатывается первым при поднятиях и закреплениях.")
-        hint_prio.setStyleSheet("color:#9e9e9e; font-size:10pt;")
-        priority_form.addRow(hint_prio)
         layout.addWidget(priority_box)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
@@ -161,6 +174,7 @@ class NicheEditor(QDialog):
         self.price_min.setValue(n.price_min or 0)
         self.price_max.setValue(n.price_max or 0)
         self.keywords_edit.setText(n.keywords or "")
+        self.exact_title_edit.setText(n.exact_title or "")
         self.default_cost.setValue(n.default_cost)
         self.markup.setValue(n.markup)
         self.auto_bump_chk.setChecked(n.auto_bump)
@@ -169,7 +183,15 @@ class NicheEditor(QDialog):
         self.stick_slots.setValue(n.stick_slots)
         self.auto_bump_stuck_chk.setChecked(n.auto_bump_stuck)
         self.stuck_bumps_per_day.setValue(n.stuck_bumps_per_day)
+        self.stuck_cooldown.setValue(n.stuck_bump_cooldown_min)
         self.priority_item.setValue(n.priority_item_id or 0)
+        self.schedule_widget.set_values(list(n.hourly_schedule or []))
+
+        used = niche_manager.niche_bumps_today(n.id, stuck=False)
+        self.niche_progress_label.setText(
+            f"Сегодня использовано: <b>{used}</b> / {n.bumps_per_day or '∞'} "
+            "(обычные bump-ы этой ниши)"
+        )
 
     def values(self) -> dict:
         return {
@@ -179,6 +201,7 @@ class NicheEditor(QDialog):
             "price_min": self.price_min.value() or None,
             "price_max": self.price_max.value() or None,
             "keywords": self.keywords_edit.text().strip(),
+            "exact_title": self.exact_title_edit.text().strip(),
             "default_cost": float(self.default_cost.value()),
             "markup": float(self.markup.value()),
             "auto_bump": self.auto_bump_chk.isChecked(),
@@ -187,5 +210,7 @@ class NicheEditor(QDialog):
             "stick_slots": int(self.stick_slots.value()),
             "auto_bump_stuck": self.auto_bump_stuck_chk.isChecked(),
             "stuck_bumps_per_day": int(self.stuck_bumps_per_day.value()),
+            "stuck_bump_cooldown_min": int(self.stuck_cooldown.value()),
+            "hourly_schedule": self.schedule_widget.values(),
             "priority_item_id": int(self.priority_item.value()) or None,
         }

@@ -72,6 +72,15 @@ class StatsTab(QWidget):
         charts.addWidget(self.profit_plot)
         root.addLayout(charts, 1)
 
+        # --- Горизонтальное сравнение прибыли по нишам ---
+        niche_box = QGroupBox("Сравнение прибыли по нишам")
+        niche_layout = QVBoxLayout(niche_box)
+        self.niche_compare_plot = pg.PlotWidget()
+        self.niche_compare_plot.setMinimumHeight(240)
+        self.niche_compare_plot.getPlotItem().invertY(True)  # сверху вниз
+        niche_layout.addWidget(self.niche_compare_plot)
+        root.addWidget(niche_box, 1)
+
         export_bar = QHBoxLayout()
         export_bar.addWidget(QLabel("Экспорт:"))
         btn_csv = QPushButton("CSV")
@@ -112,6 +121,35 @@ class StatsTab(QWidget):
         self._draw(self.sales_plot, daily["dates"], daily["qty"], "#2196f3")
         self._draw(self.revenue_plot, daily["dates"], daily["revenue"], "#4caf50")
         self._draw(self.profit_plot, daily["dates"], daily["profit"], "#ffeb3b")
+
+        self._draw_niche_compare(sales)
+
+    def _draw_niche_compare(self, sales) -> None:
+        with get_session() as s:
+            niches = {n.id: n.name for n in s.execute(select(Niche)).scalars()}
+
+        profit_by_niche: dict[int, float] = {}
+        for sale in sales:
+            if sale.niche_id is None:
+                continue
+            profit_by_niche[sale.niche_id] = profit_by_niche.get(sale.niche_id, 0.0) + (sale.profit or 0)
+
+        if not profit_by_niche:
+            self.niche_compare_plot.clear()
+            return
+
+        sorted_items = sorted(profit_by_niche.items(), key=lambda kv: kv[1], reverse=True)
+        names = [niches.get(nid, f"Niche #{nid}") for nid, _ in sorted_items]
+        values = [v for _, v in sorted_items]
+
+        self.niche_compare_plot.clear()
+        y_pos = list(range(len(values)))
+        bar = pg.BarGraphItem(
+            x0=[0] * len(values), y=y_pos, width=values, height=0.7, brush="#4caf50"
+        )
+        self.niche_compare_plot.addItem(bar)
+        self.niche_compare_plot.getAxis("left").setTicks([[(i, names[i]) for i in y_pos]])
+        self.niche_compare_plot.setLabel("bottom", "Прибыль ($)")
 
     def _render_kpi(self, kpis: dict[str, str]) -> None:
         # очищаем сетку
