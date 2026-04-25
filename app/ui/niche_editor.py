@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -14,11 +15,14 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QVBoxLayout,
+    QWidget,
 )
 
 from app.api.client import LolzMarketClient
@@ -38,7 +42,9 @@ class NicheEditor(QDialog):
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Редактирование ниши" if niche else "Новая ниша")
-        self.resize(640, 760)
+        # компактный размер, остальное — внутри прокрутки
+        self.resize(1100, 700)
+        self.setMinimumSize(880, 520)
         self.niche = niche
         self.client = client
         self._tags_cache: list[dict] = []
@@ -48,8 +54,25 @@ class NicheEditor(QDialog):
             self._load(niche)
 
     def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
 
+        # --- прокручиваемая область с двумя колонками ---
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        outer.addWidget(scroll, 1)
+
+        content = QWidget()
+        scroll.setWidget(content)
+        columns = QHBoxLayout(content)
+        columns.setSpacing(12)
+
+        left_col = QVBoxLayout()
+        right_col = QVBoxLayout()
+        columns.addLayout(left_col, 1)
+        columns.addLayout(right_col, 1)
+
+        # ===== ЛЕВАЯ КОЛОНКА =====
         # --- Основное: имя + тег ---
         main_box = QGroupBox("Основное")
         main_form = QFormLayout(main_box)
@@ -67,6 +90,7 @@ class NicheEditor(QDialog):
         tag_row.addWidget(btn_refresh_tags)
 
         self.tags_status = QLabel("")
+        self.tags_status.setWordWrap(True)
         self.tags_status.setStyleSheet("color:#9e9e9e; font-size:10pt;")
         tag_row.addWidget(self.tags_status)
 
@@ -80,7 +104,7 @@ class NicheEditor(QDialog):
         tag_row.addWidget(hint_tag)
 
         main_form.addRow("Приватный тег Lolzteam:", tag_row)
-        layout.addWidget(main_box)
+        left_col.addWidget(main_box)
 
         # --- Ценообразование ---
         price_box = QGroupBox("Ценообразование")
@@ -95,8 +119,27 @@ class NicheEditor(QDialog):
         self.markup.setDecimals(2)
         self.markup.setSuffix(" $")
         price_form.addRow("Наценка (сумма):", self.markup)
-        layout.addWidget(price_box)
+        left_col.addWidget(price_box)
 
+        # --- Приоритет ---
+        priority_box = QGroupBox("Приоритетный аккаунт")
+        priority_form = QFormLayout(priority_box)
+        self.priority_item = QSpinBox()
+        self.priority_item.setRange(0, 999_999_999)
+        self.priority_item.setSpecialValueText("не задан")
+        priority_form.addRow("item_id приоритетного аккаунта:", self.priority_item)
+        left_col.addWidget(priority_box)
+
+        # --- Расписание по часам (на левой колонке снизу) ---
+        schedule_box = QGroupBox("📈 Расписание поднятий по часам")
+        schedule_layout = QVBoxLayout(schedule_box)
+        self.schedule_widget = HourlyScheduleWidget()
+        schedule_layout.addWidget(self.schedule_widget)
+        left_col.addWidget(schedule_box)
+
+        left_col.addStretch()
+
+        # ===== ПРАВАЯ КОЛОНКА =====
         # --- Автоподнятие обычных ---
         bump_box = QGroupBox("🔺 Автоподнятие (обычные аккаунты)")
         bump_form = QFormLayout(bump_box)
@@ -108,15 +151,9 @@ class NicheEditor(QDialog):
         bump_form.addRow("Поднятий в сутки от этой ниши:", self.bumps_per_day)
         self.niche_progress_label = QLabel("Сегодня использовано: —")
         self.niche_progress_label.setStyleSheet("color:#2196f3;")
+        self.niche_progress_label.setWordWrap(True)
         bump_form.addRow(self.niche_progress_label)
-        layout.addWidget(bump_box)
-
-        # --- Расписание по часам ---
-        schedule_box = QGroupBox("📈 Расписание поднятий по часам")
-        schedule_layout = QVBoxLayout(schedule_box)
-        self.schedule_widget = HourlyScheduleWidget()
-        schedule_layout.addWidget(self.schedule_widget)
-        layout.addWidget(schedule_box)
+        right_col.addWidget(bump_box)
 
         # --- Автозакрепление ---
         stick_box = QGroupBox("📌 Автозакрепление")
@@ -130,9 +167,10 @@ class NicheEditor(QDialog):
         hint_stick = QLabel(
             f"Всего у вас доступно {global_slots} слотов закреплений (см. Настройки → Лимиты)."
         )
+        hint_stick.setWordWrap(True)
         hint_stick.setStyleSheet("color:#9e9e9e; font-size:10pt;")
         stick_form.addRow(hint_stick)
-        layout.addWidget(stick_box)
+        right_col.addWidget(stick_box)
 
         # --- Поднятие закреплённых ---
         stuck_box = QGroupBox("🔺📌 Поднятие закреплённых (отдельный пул)")
@@ -149,23 +187,20 @@ class NicheEditor(QDialog):
         self.stuck_cooldown.setValue(60)
         stuck_form.addRow("Пауза между bump одного акк:", self.stuck_cooldown)
         hint_stuck2 = QLabel("Lolzteam: bump одного аккаунта не чаще ~1 раза в час.")
+        hint_stuck2.setWordWrap(True)
         hint_stuck2.setStyleSheet("color:#9e9e9e; font-size:10pt;")
         stuck_form.addRow(hint_stuck2)
-        layout.addWidget(stuck_box)
+        right_col.addWidget(stuck_box)
 
-        # --- Приоритет ---
-        priority_box = QGroupBox("Приоритетный аккаунт")
-        priority_form = QFormLayout(priority_box)
-        self.priority_item = QSpinBox()
-        self.priority_item.setRange(0, 999_999_999)
-        self.priority_item.setSpecialValueText("не задан")
-        priority_form.addRow("item_id приоритетного аккаунта:", self.priority_item)
-        layout.addWidget(priority_box)
+        right_col.addStretch()
 
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        # --- Кнопки сохранения внизу диалога (вне прокрутки) ---
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
+        outer.addWidget(buttons)
 
     def _load_tags(self) -> None:
         try:
