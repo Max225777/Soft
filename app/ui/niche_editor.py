@@ -174,12 +174,17 @@ class NicheEditor(QDialog):
             tags = []
             self.tags_status.setText(f"⚠ Не удалось получить теги: {exc}")
         else:
-            api_ok = self.client is not None and self.client.token
-            src = "API + локальная БД" if api_ok else "локальная БД"
-            self.tags_status.setText(
-                f"Найдено тегов: <b>{len(tags)}</b> (источник: {src}). "
-                "Если 0 — нажмите «🔄 Обновить с API» на главной, чтобы локально кешировать теги аккаунтов."
-            )
+            if tags:
+                self.tags_status.setText(
+                    f"<span style='color:#4caf50'>Найдено тегов: <b>{len(tags)}</b></span>"
+                )
+            else:
+                self.tags_status.setText(
+                    "<span style='color:#f44336'>Тегов не найдено.</span> "
+                    "В Lolzteam теги приходят только в составе аккаунтов — "
+                    "нажмите «🔄 Обновить список тегов с Lolzteam» (запросит ваши items с API), "
+                    "либо «🔄 Обновить с API» на главной странице."
+                )
 
         self._tags_cache = tags
 

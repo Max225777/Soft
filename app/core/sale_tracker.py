@@ -8,6 +8,7 @@ from typing import Iterable
 from loguru import logger
 from sqlalchemy import select
 
+from app.api.client import _extract_tags_from_item
 from app.db.models import Account, PriceHistory, Sale
 from app.db.session import get_session
 
@@ -27,6 +28,7 @@ def sync_accounts_snapshot(items: Iterable[dict]) -> dict:
     if items_by_id:
         sample = next(iter(items_by_id.values()))
         tag_keys = [k for k in sample.keys() if "tag" in k.lower()]
+        all_keys = sorted(sample.keys())
         logger.info(
             "Получено items: {}; ключи с тегами в первом item: {}; пример item_id={}",
             len(items_by_id),
@@ -35,11 +37,16 @@ def sync_accounts_snapshot(items: Iterable[dict]) -> dict:
         )
         if tag_keys:
             for k in tag_keys:
-                logger.info("  {} = {}", k, sample[k])
+                val = sample[k]
+                logger.info("  {} = {}", k, str(val)[:300])
         else:
             logger.warning(
-                "В ответе API нет полей с 'tag' — приватные теги не приходят. "
-                "Проверьте, что у токена scope включает чтение приватных меток."
+                "В ответе API нет полей с 'tag'. Все ключи первого item: {}",
+                all_keys,
+            )
+            logger.warning(
+                "Если в личном кабинете у акк есть приватные метки — пришлите этот список ключей в чат, "
+                "обновим парсер. Возможно, поле называется иначе (например 'labels' или 'group_id')."
             )
 
     with get_session() as s:
@@ -96,38 +103,8 @@ def sync_accounts_snapshot(items: Iterable[dict]) -> dict:
 
 
 def _extract_tags(payload: dict) -> list[dict]:
-    """Из ответа API достаём список приватных тегов аккаунта.
-
-    Lolzteam возвращает теги в нескольких возможных полях:
-    item['tags'] = [{tag_id, title}, …]   — основная форма
-    item['user_tags'] = [...]              — альтернатива
-    item['tag_ids'] = [int, int]           — только id
-    """
-    raw_tags = payload.get("tags") or payload.get("user_tags") or payload.get("private_tags")
-    if isinstance(raw_tags, dict):
-        # иногда {tag_id: title}
-        return [
-            {"id": int(k), "title": str(v) if not isinstance(v, dict) else str(v.get("title", ""))}
-            for k, v in raw_tags.items()
-            if str(k).lstrip("-").isdigit()
-        ]
-    if isinstance(raw_tags, list):
-        result = []
-        for t in raw_tags:
-            if isinstance(t, dict):
-                tag_id = t.get("tag_id") or t.get("id")
-                title = t.get("title") or t.get("tag") or t.get("name") or ""
-                if tag_id:
-                    result.append({"id": int(tag_id), "title": str(title)})
-            elif isinstance(t, int):
-                result.append({"id": t, "title": ""})
-            elif isinstance(t, str) and t.isdigit():
-                result.append({"id": int(t), "title": ""})
-        return result
-    raw_ids = payload.get("tag_ids") or payload.get("tagIds")
-    if isinstance(raw_ids, list):
-        return [{"id": int(x), "title": ""} for x in raw_ids if str(x).lstrip("-").isdigit()]
-    return []
+    """Тонкая обёртка над общим парсером (см. app/api/client._extract_tags_from_item)."""
+    return _extract_tags_from_item(payload)
 
 
 def _register_sale(session, acc: Account, ts: datetime) -> None:

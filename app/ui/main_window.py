@@ -59,11 +59,24 @@ class MainWindow(QMainWindow):
         if not token:
             QTimer.singleShot(200, self._prompt_for_token)
         elif settings.cycle_autostart:
-            self.cycle.start(run_now=False)
+            # При первом запуске (БД пустая) — сразу подтягиваем items с API,
+            # чтобы тег-кеш и список аккаунтов сразу был готов.
+            run_now = self._is_db_empty()
+            self.cycle.start(run_now=run_now)
+            if run_now:
+                logger.info("БД пустая — запускаем первый цикл сейчас, чтобы подтянуть items+теги")
 
         self._status_timer = QTimer(self)
         self._status_timer.timeout.connect(self._refresh_status)
         self._status_timer.start(1000)
+
+    @staticmethod
+    def _is_db_empty() -> bool:
+        from sqlalchemy import func, select
+        from app.db.models import Account
+        from app.db.session import get_session
+        with get_session() as s:
+            return (s.execute(select(func.count(Account.id))).scalar_one() or 0) == 0
 
     # ---------- UI ----------
     def _build_ui(self) -> None:

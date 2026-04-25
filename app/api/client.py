@@ -128,33 +128,42 @@ class LolzMarketClient:
         return self._submit("GET", f"user/{user_id}/items", priority=PRIORITY_HIGH, params=params).result()
 
     def list_my_tags(self) -> list[dict[str, Any]]:
-        """Возвращает приватные теги текущего пользователя (с lzt.market).
+        """В Lolzteam Market нет отдельного endpoint для списка тегов —
+        они приходят только в составе items.
 
-        Перебирает несколько кандидатных эндпоинтов — в разных версиях API
-        ответ может приходить с разных URL. Возвращает [{id, title}, …] или [].
+        Делает один запрос /user/:id/items, агрегирует уникальные теги из ответа.
         """
-        candidates = ("me/tags", "managing/tags", "tag/list", "user/tags", "tags")
-        for path in candidates:
-            try:
-                logger.info("GET тегов: пробую {}", path)
-                resp = self._submit("GET", path, priority=PRIORITY_LOW).result()
-                if isinstance(resp, dict):
-                    keys = list(resp.keys())[:10]
-                    logger.info("  ответ от {}: keys={}", path, keys)
-                else:
-                    logger.info("  ответ от {}: type={}, len={}", path, type(resp).__name__, len(resp) if hasattr(resp, "__len__") else "?")
-                tags = _parse_tags(resp)
-                if tags:
-                    logger.info("✓ Получено тегов через {}: {}", path, len(tags))
-                    return tags
-                logger.info("  {} вернул 0 тегов после парсинга", path)
-            except ApiError as exc:
-                logger.info("  {} → {}", path, exc)
-                continue
-        logger.warning(
-            "Ни один из эндпоинтов тегов не сработал. Теги будем брать из item.tags локально."
-        )
-        return []
+        try:
+            resp = self.list_my_items(page=1)
+        except ApiError as exc:
+            logger.warning("list_my_tags: не удалось получить items: {}", exc)
+            return []
+
+        items = resp.get("items") or resp.get("data") or []
+        if not items:
+            logger.info("list_my_tags: items пустой → тегов нет")
+            return []
+
+        # Логируем структуру первого элемента — чтобы убедиться какие поля доступны
+        sample = items[0]
+        if isinstance(sample, dict):
+            tag_keys = [k for k in sample.keys() if "tag" in k.lower()]
+            logger.info(
+                "list_my_tags: получено {} items; ключи с тегами в первом: {}",
+                len(items), tag_keys,
+            )
+
+        seen: dict[int, str] = {}
+        for it in items:
+            for tag in _extract_tags_from_item(it):
+                tid = tag["id"]
+                if tag["title"]:
+                    seen[tid] = tag["title"]
+                elif tid not in seen:
+                    seen[tid] = ""
+        result = [{"id": k, "title": v} for k, v in sorted(seen.items())]
+        logger.info("list_my_tags: уникальных тегов извлечено: {}", len(result))
+        return result
 
     def get_item(self, item_id: int) -> dict[str, Any]:
         return self._submit("GET", f"{item_id}", priority=PRIORITY_MEDIUM).result()
@@ -197,22 +206,42 @@ def _retry_after(resp: httpx.Response) -> float | None:
         return None
 
 
-def _parse_tags(payload: Any) -> list[dict[str, Any]]:
-    if isinstance(payload, dict):
-        for key in ("tags", "data", "items"):
-            v = payload.get(key)
-            if isinstance(v, list):
-                payload = v
-                break
-        else:
-            return []
-    if not isinstance(payload, list):
-        return []
-    out: list[dict[str, Any]] = []
-    for t in payload:
-        if isinstance(t, dict):
-            tid = t.get("tag_id") or t.get("id")
-            title = t.get("title") or t.get("name") or t.get("tag") or ""
-            if tid:
-                out.append({"id": int(tid), "title": str(title)})
-    return out
+def _extract_tags_from_item(item: dict[str, Any]) -> list[dict[str, Any]]:
+    """Достаёт список приватных меток из объекта item (`/user/:id/items` ответ).
+
+    Lolzteam в разных местах возвращает теги по-разному:
+      item['tags'] = [{tag_id, title, ...}, ...]
+      item['user_tags'] = [...]
+      item['private_tags'] = [...]
+      item['tag_ids'] = [int, int]
+      item['tags'] = {"7": "UA", "9": "RU"}    (dict-form)
+    """
+    raw = item.get("tags") or item.get("user_tags") or item.get("private_tags")
+    if isinstance(raw, dict):
+        out: list[dict[str, Any]] = []
+        for k, v in raw.items():
+            if str(k).lstrip("-").isdigit():
+                title = v if not isinstance(v, dict) else (v.get("title") or v.get("name") or "")
+                out.append({"id": int(k), "title": str(title)})
+        return out
+    if isinstance(raw, list):
+        out = []
+        for t in raw:
+            if isinstance(t, dict):
+                tid = t.get("tag_id") or t.get("id")
+                title = t.get("title") or t.get("name") or t.get("tag") or ""
+                if tid:
+                    out.append({"id": int(tid), "title": str(title)})
+            elif isinstance(t, int):
+                out.append({"id": t, "title": ""})
+            elif isinstance(t, str) and t.lstrip("-").isdigit():
+                out.append({"id": int(t), "title": ""})
+        return out
+    raw_ids = item.get("tag_ids") or item.get("tagIds")
+    if isinstance(raw_ids, list):
+        return [
+            {"id": int(x), "title": ""}
+            for x in raw_ids
+            if str(x).lstrip("-").isdigit()
+        ]
+    return []
