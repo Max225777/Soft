@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from loguru import logger
 from sqlalchemy import select
 
 from app.api.client import LolzMarketClient
@@ -36,16 +37,22 @@ def fetch_tags(client: LolzMarketClient | None) -> list[dict]:
     if client and client.token:
         try:
             api_tags = client.list_my_tags()
-        except Exception:  # noqa: BLE001
+            logger.info("fetch_tags: с API получено {} тегов", len(api_tags))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("fetch_tags: ошибка вызова API: {}", exc)
             api_tags = []
+    else:
+        logger.info("fetch_tags: нет токена, пропускаем API")
 
     local_tags = aggregate_tags_from_accounts()
+    logger.info("fetch_tags: из локальной БД (Account.tags) собрано {} уникальных тегов", len(local_tags))
 
-    # Сливаем по id
     merged: dict[int, str] = {t["id"]: t["title"] for t in local_tags}
     for t in api_tags:
         if t["title"]:
             merged[t["id"]] = t["title"]
         elif t["id"] not in merged:
             merged[t["id"]] = ""
-    return [{"id": k, "title": v} for k, v in sorted(merged.items())]
+    result = [{"id": k, "title": v} for k, v in sorted(merged.items())]
+    logger.info("fetch_tags: итого после слияния — {} тегов", len(result))
+    return result

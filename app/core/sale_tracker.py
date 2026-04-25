@@ -23,6 +23,25 @@ def sync_accounts_snapshot(items: Iterable[dict]) -> dict:
 
     items_by_id: dict[int, dict] = {int(it["item_id"]): it for it in items if it.get("item_id")}
 
+    # --- диагностика тегов ---
+    if items_by_id:
+        sample = next(iter(items_by_id.values()))
+        tag_keys = [k for k in sample.keys() if "tag" in k.lower()]
+        logger.info(
+            "Получено items: {}; ключи с тегами в первом item: {}; пример item_id={}",
+            len(items_by_id),
+            tag_keys,
+            sample.get("item_id"),
+        )
+        if tag_keys:
+            for k in tag_keys:
+                logger.info("  {} = {}", k, sample[k])
+        else:
+            logger.warning(
+                "В ответе API нет полей с 'tag' — приватные теги не приходят. "
+                "Проверьте, что у токена scope включает чтение приватных меток."
+            )
+
     with get_session() as s:
         existing = {a.item_id: a for a in s.execute(select(Account)).scalars()}
 
@@ -84,21 +103,30 @@ def _extract_tags(payload: dict) -> list[dict]:
     item['user_tags'] = [...]              — альтернатива
     item['tag_ids'] = [int, int]           — только id
     """
-    raw_tags = payload.get("tags") or payload.get("user_tags")
+    raw_tags = payload.get("tags") or payload.get("user_tags") or payload.get("private_tags")
+    if isinstance(raw_tags, dict):
+        # иногда {tag_id: title}
+        return [
+            {"id": int(k), "title": str(v) if not isinstance(v, dict) else str(v.get("title", ""))}
+            for k, v in raw_tags.items()
+            if str(k).lstrip("-").isdigit()
+        ]
     if isinstance(raw_tags, list):
         result = []
         for t in raw_tags:
             if isinstance(t, dict):
                 tag_id = t.get("tag_id") or t.get("id")
-                title = t.get("title") or t.get("tag") or ""
+                title = t.get("title") or t.get("tag") or t.get("name") or ""
                 if tag_id:
                     result.append({"id": int(tag_id), "title": str(title)})
             elif isinstance(t, int):
                 result.append({"id": t, "title": ""})
+            elif isinstance(t, str) and t.isdigit():
+                result.append({"id": int(t), "title": ""})
         return result
-    raw_ids = payload.get("tag_ids")
+    raw_ids = payload.get("tag_ids") or payload.get("tagIds")
     if isinstance(raw_ids, list):
-        return [{"id": int(x), "title": ""} for x in raw_ids if isinstance(x, int)]
+        return [{"id": int(x), "title": ""} for x in raw_ids if str(x).lstrip("-").isdigit()]
     return []
 
 

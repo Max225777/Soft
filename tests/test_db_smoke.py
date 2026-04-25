@@ -12,19 +12,34 @@ def test_db_smoke(tmp_path: Path):
 
     niche = niche_manager.create_niche(
         name="UA Telegram",
-        category="telegram",
-        country="UA",
-        price_min=1.0,
-        price_max=100.0,
-        keywords="premium",
+        tag_id=42,
+        tag_name="UA",
         default_cost=2.0,
         markup=1.0,
     )
     assert niche.id is not None
 
     snapshot = [
-        {"item_id": 1001, "title": "UA Premium", "category_name": "telegram", "item_origin": "UA", "price": 15.5, "amount": 1, "item_state": "active"},
-        {"item_id": 1002, "title": "RU plain", "category_name": "telegram", "item_origin": "RU", "price": 5.0, "amount": 1, "item_state": "active"},
+        {
+            "item_id": 1001,
+            "title": "UA Premium",
+            "category_name": "telegram",
+            "item_origin": "UA",
+            "price": 15.5,
+            "amount": 1,
+            "item_state": "active",
+            "tags": [{"tag_id": 42, "title": "UA"}],
+        },
+        {
+            "item_id": 1002,
+            "title": "RU plain",
+            "category_name": "telegram",
+            "item_origin": "RU",
+            "price": 5.0,
+            "amount": 1,
+            "item_state": "active",
+            "tags": [{"tag_id": 99, "title": "RU"}],
+        },
     ]
     summary = sync_accounts_snapshot(snapshot)
     assert summary["added"] == 2

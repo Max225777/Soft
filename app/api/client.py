@@ -11,6 +11,7 @@ from concurrent.futures import Future
 from typing import Any
 
 import httpx
+import json
 from loguru import logger
 
 from app.api.queue import PRIORITY_HIGH, PRIORITY_LOW, PRIORITY_MEDIUM, RequestQueue
@@ -132,14 +133,27 @@ class LolzMarketClient:
         Перебирает несколько кандидатных эндпоинтов — в разных версиях API
         ответ может приходить с разных URL. Возвращает [{id, title}, …] или [].
         """
-        for path in ("me/tags", "tag/list", "user/tags"):
+        candidates = ("me/tags", "managing/tags", "tag/list", "user/tags", "tags")
+        for path in candidates:
             try:
+                logger.info("GET тегов: пробую {}", path)
                 resp = self._submit("GET", path, priority=PRIORITY_LOW).result()
+                if isinstance(resp, dict):
+                    keys = list(resp.keys())[:10]
+                    logger.info("  ответ от {}: keys={}", path, keys)
+                else:
+                    logger.info("  ответ от {}: type={}, len={}", path, type(resp).__name__, len(resp) if hasattr(resp, "__len__") else "?")
                 tags = _parse_tags(resp)
                 if tags:
+                    logger.info("✓ Получено тегов через {}: {}", path, len(tags))
                     return tags
-            except ApiError:
+                logger.info("  {} вернул 0 тегов после парсинга", path)
+            except ApiError as exc:
+                logger.info("  {} → {}", path, exc)
                 continue
+        logger.warning(
+            "Ни один из эндпоинтов тегов не сработал. Теги будем брать из item.tags локально."
+        )
         return []
 
     def get_item(self, item_id: int) -> dict[str, Any]:

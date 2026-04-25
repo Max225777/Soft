@@ -1,4 +1,8 @@
-"""Диалог создания/редактирования ниши."""
+"""Диалог создания/редактирования ниши.
+
+Главный (и единственный) фильтр — приватный тег Lolzteam Market.
+Остальные настройки касаются автоматизации (поднятий и закреплений).
+"""
 
 from __future__ import annotations
 
@@ -34,7 +38,7 @@ class NicheEditor(QDialog):
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Редактирование ниши" if niche else "Новая ниша")
-        self.resize(640, 860)
+        self.resize(640, 760)
         self.niche = niche
         self.client = client
         self._tags_cache: list[dict] = []
@@ -46,71 +50,37 @@ class NicheEditor(QDialog):
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
 
-        # --- Основное ---
+        # --- Основное: имя + тег ---
         main_box = QGroupBox("Основное")
         main_form = QFormLayout(main_box)
         self.name_edit = QLineEdit()
         self.name_edit.setPlaceholderText("Например: UA Telegram Premium")
         main_form.addRow("Название ниши *:", self.name_edit)
 
-        # Главный критерий — приватный тег с Lolzteam
         tag_row = QVBoxLayout()
         self.tag_combo = QComboBox()
-        self.tag_combo.setEditable(False)
         self.tag_combo.addItem("— без тега —", None)
         tag_row.addWidget(self.tag_combo)
 
-        tag_buttons = QFormLayout()
         btn_refresh_tags = QPushButton("🔄 Обновить список тегов с Lolzteam")
         btn_refresh_tags.clicked.connect(self._load_tags)
-        tag_buttons.addRow(btn_refresh_tags)
-        tag_row.addLayout(tag_buttons)
+        tag_row.addWidget(btn_refresh_tags)
+
+        self.tags_status = QLabel("")
+        self.tags_status.setStyleSheet("color:#9e9e9e; font-size:10pt;")
+        tag_row.addWidget(self.tags_status)
 
         hint_tag = QLabel(
-            "Главный критерий ниши — приватная метка (тег) с Lolzteam Market.\n"
-            "Все аккаунты с выбранным тегом автоматически попадут в эту нишу.\n"
-            "Дополнительные фильтры ниже применяются только если тег не задан\n"
-            "(или для дополнительного сужения по цене/слову)."
+            "<b>Главный и единственный критерий ниши</b> — приватный тег "
+            "(метка) с lzt.market. Все аккаунты с выбранным тегом "
+            "автоматически попадут в эту нишу."
         )
+        hint_tag.setWordWrap(True)
         hint_tag.setStyleSheet("color:#9e9e9e; font-size:10pt;")
         tag_row.addWidget(hint_tag)
+
         main_form.addRow("Приватный тег Lolzteam:", tag_row)
-
-        self.category_edit = QLineEdit()
-        self.category_edit.setText("telegram")
-        main_form.addRow("Категория:", self.category_edit)
-        self.country_edit = QLineEdit()
-        self.country_edit.setPlaceholderText("UA / RU / US / … (пусто = любая)")
-        main_form.addRow("Страна происхождения:", self.country_edit)
         layout.addWidget(main_box)
-
-        # --- Фильтры аккаунтов ---
-        filter_box = QGroupBox("Фильтры аккаунтов")
-        filter_form = QFormLayout(filter_box)
-        self.price_min = QDoubleSpinBox()
-        self.price_min.setRange(0, 1_000_000)
-        self.price_min.setSpecialValueText("—")
-        self.price_min.setSuffix(" $")
-        filter_form.addRow("Цена от:", self.price_min)
-        self.price_max = QDoubleSpinBox()
-        self.price_max.setRange(0, 1_000_000)
-        self.price_max.setSpecialValueText("—")
-        self.price_max.setSuffix(" $")
-        filter_form.addRow("Цена до:", self.price_max)
-        self.keywords_edit = QLineEdit()
-        self.keywords_edit.setPlaceholderText("через запятую: premium, verified, aged")
-        filter_form.addRow("Ключевые слова:", self.keywords_edit)
-
-        self.exact_title_edit = QLineEdit()
-        self.exact_title_edit.setPlaceholderText("напр.: «UA Telegram 2020» — точная фраза в названии (опц.)")
-        filter_form.addRow("Точное название:", self.exact_title_edit)
-        hint_et = QLabel(
-            "Если задано — в нишу попадут только аккаунты, у которых эта фраза\n"
-            "встречается в названии. Работает отдельно от «Ключевых слов»."
-        )
-        hint_et.setStyleSheet("color:#9e9e9e; font-size:10pt;")
-        filter_form.addRow(hint_et)
-        layout.addWidget(filter_box)
 
         # --- Ценообразование ---
         price_box = QGroupBox("Ценообразование")
@@ -136,7 +106,6 @@ class NicheEditor(QDialog):
         self.bumps_per_day.setRange(0, 500)
         self.bumps_per_day.setSpecialValueText("не ограничено")
         bump_form.addRow("Поднятий в сутки от этой ниши:", self.bumps_per_day)
-
         self.niche_progress_label = QLabel("Сегодня использовано: —")
         self.niche_progress_label.setStyleSheet("color:#2196f3;")
         bump_form.addRow(self.niche_progress_label)
@@ -157,17 +126,15 @@ class NicheEditor(QDialog):
         self.stick_slots = QSpinBox()
         self.stick_slots.setRange(0, 50)
         stick_form.addRow("Слотов занимает эта ниша:", self.stick_slots)
-
         global_slots = settings_store.get_global_stick_slots()
         hint_stick = QLabel(
-            f"Всего у вас доступно {global_slots} слотов закреплений (см. Настройки → Лимиты).\n"
-            "Пример: если здесь 2 — бот будет держать закреплёнными 2 лучших аккаунта из этой ниши."
+            f"Всего у вас доступно {global_slots} слотов закреплений (см. Настройки → Лимиты)."
         )
         hint_stick.setStyleSheet("color:#9e9e9e; font-size:10pt;")
         stick_form.addRow(hint_stick)
         layout.addWidget(stick_box)
 
-        # --- Поднятие закреплённых (отдельный пул) ---
+        # --- Поднятие закреплённых ---
         stuck_box = QGroupBox("🔺📌 Поднятие закреплённых (отдельный пул)")
         stuck_form = QFormLayout(stuck_box)
         self.auto_bump_stuck_chk = QCheckBox("Поднимать закреплённые аккаунты")
@@ -181,12 +148,9 @@ class NicheEditor(QDialog):
         self.stuck_cooldown.setSuffix(" мин")
         self.stuck_cooldown.setValue(60)
         stuck_form.addRow("Пауза между bump одного акк:", self.stuck_cooldown)
-        hint_stuck = QLabel(
-            "Lolzteam разрешает поднимать аккаунт не чаще ~1 раза в час.\n"
-            "Бот не будет bump-ать один и тот же закреплённый чаще указанной паузы."
-        )
-        hint_stuck.setStyleSheet("color:#9e9e9e; font-size:10pt;")
-        stuck_form.addRow(hint_stuck)
+        hint_stuck2 = QLabel("Lolzteam: bump одного аккаунта не чаще ~1 раза в час.")
+        hint_stuck2.setStyleSheet("color:#9e9e9e; font-size:10pt;")
+        stuck_form.addRow(hint_stuck2)
         layout.addWidget(stuck_box)
 
         # --- Приоритет ---
@@ -206,8 +170,17 @@ class NicheEditor(QDialog):
     def _load_tags(self) -> None:
         try:
             tags = fetch_tags(self.client)
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
             tags = []
+            self.tags_status.setText(f"⚠ Не удалось получить теги: {exc}")
+        else:
+            api_ok = self.client is not None and self.client.token
+            src = "API + локальная БД" if api_ok else "локальная БД"
+            self.tags_status.setText(
+                f"Найдено тегов: <b>{len(tags)}</b> (источник: {src}). "
+                "Если 0 — нажмите «🔄 Обновить с API» на главной, чтобы локально кешировать теги аккаунтов."
+            )
+
         self._tags_cache = tags
 
         current = self.tag_combo.currentData()
@@ -226,17 +199,10 @@ class NicheEditor(QDialog):
         if n.tag_id:
             idx = self.tag_combo.findData(int(n.tag_id))
             if idx < 0:
-                # тега нет в текущем списке — добавляем синтетически
                 label = f"#{n.tag_id}  {n.tag_name or ''}"
                 self.tag_combo.addItem(label, int(n.tag_id))
                 idx = self.tag_combo.count() - 1
             self.tag_combo.setCurrentIndex(idx)
-        self.category_edit.setText(n.category or "telegram")
-        self.country_edit.setText(n.country or "")
-        self.price_min.setValue(n.price_min or 0)
-        self.price_max.setValue(n.price_max or 0)
-        self.keywords_edit.setText(n.keywords or "")
-        self.exact_title_edit.setText(n.exact_title or "")
         self.default_cost.setValue(n.default_cost)
         self.markup.setValue(n.markup)
         self.auto_bump_chk.setChecked(n.auto_bump)
@@ -267,12 +233,13 @@ class NicheEditor(QDialog):
             "name": self.name_edit.text().strip(),
             "tag_id": int(tag_id) if tag_id is not None else None,
             "tag_name": tag_name,
-            "category": self.category_edit.text().strip() or "telegram",
-            "country": self.country_edit.text().strip(),
-            "price_min": self.price_min.value() or None,
-            "price_max": self.price_max.value() or None,
-            "keywords": self.keywords_edit.text().strip(),
-            "exact_title": self.exact_title_edit.text().strip(),
+            # фильтры по категории / стране / цене / словам — больше не используем
+            "category": "",
+            "country": "",
+            "price_min": None,
+            "price_max": None,
+            "keywords": "",
+            "exact_title": "",
             "default_cost": float(self.default_cost.value()),
             "markup": float(self.markup.value()),
             "auto_bump": self.auto_bump_chk.isChecked(),
