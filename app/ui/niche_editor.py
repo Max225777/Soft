@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
@@ -11,23 +12,34 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QLabel,
     QLineEdit,
+    QPushButton,
     QSpinBox,
     QVBoxLayout,
 )
 
+from app.api.client import LolzMarketClient
 from app.core import niche_manager
+from app.core.tags import fetch_tags
 from app.db.models import Niche
 from app.services import settings_store
 from app.ui.widgets.hourly_schedule import HourlyScheduleWidget
 
 
 class NicheEditor(QDialog):
-    def __init__(self, niche: Niche | None = None, parent=None) -> None:
+    def __init__(
+        self,
+        niche: Niche | None = None,
+        client: LolzMarketClient | None = None,
+        parent=None,
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Редактирование ниши" if niche else "Новая ниша")
-        self.resize(620, 820)
+        self.resize(640, 860)
         self.niche = niche
+        self.client = client
+        self._tags_cache: list[dict] = []
         self._build_ui()
+        self._load_tags()
         if niche:
             self._load(niche)
 
@@ -40,6 +52,30 @@ class NicheEditor(QDialog):
         self.name_edit = QLineEdit()
         self.name_edit.setPlaceholderText("Например: UA Telegram Premium")
         main_form.addRow("Название ниши *:", self.name_edit)
+
+        # Главный критерий — приватный тег с Lolzteam
+        tag_row = QVBoxLayout()
+        self.tag_combo = QComboBox()
+        self.tag_combo.setEditable(False)
+        self.tag_combo.addItem("— без тега —", None)
+        tag_row.addWidget(self.tag_combo)
+
+        tag_buttons = QFormLayout()
+        btn_refresh_tags = QPushButton("🔄 Обновить список тегов с Lolzteam")
+        btn_refresh_tags.clicked.connect(self._load_tags)
+        tag_buttons.addRow(btn_refresh_tags)
+        tag_row.addLayout(tag_buttons)
+
+        hint_tag = QLabel(
+            "Главный критерий ниши — приватная метка (тег) с Lolzteam Market.\n"
+            "Все аккаунты с выбранным тегом автоматически попадут в эту нишу.\n"
+            "Дополнительные фильтры ниже применяются только если тег не задан\n"
+            "(или для дополнительного сужения по цене/слову)."
+        )
+        hint_tag.setStyleSheet("color:#9e9e9e; font-size:10pt;")
+        tag_row.addWidget(hint_tag)
+        main_form.addRow("Приватный тег Lolzteam:", tag_row)
+
         self.category_edit = QLineEdit()
         self.category_edit.setText("telegram")
         main_form.addRow("Категория:", self.category_edit)
@@ -167,8 +203,34 @@ class NicheEditor(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
+    def _load_tags(self) -> None:
+        try:
+            tags = fetch_tags(self.client)
+        except Exception:  # noqa: BLE001
+            tags = []
+        self._tags_cache = tags
+
+        current = self.tag_combo.currentData()
+        self.tag_combo.clear()
+        self.tag_combo.addItem("— без тега —", None)
+        for t in tags:
+            label = f"#{t['id']}  {t['title']}" if t["title"] else f"#{t['id']}"
+            self.tag_combo.addItem(label, int(t["id"]))
+        if current is not None:
+            idx = self.tag_combo.findData(current)
+            if idx >= 0:
+                self.tag_combo.setCurrentIndex(idx)
+
     def _load(self, n: Niche) -> None:
         self.name_edit.setText(n.name)
+        if n.tag_id:
+            idx = self.tag_combo.findData(int(n.tag_id))
+            if idx < 0:
+                # тега нет в текущем списке — добавляем синтетически
+                label = f"#{n.tag_id}  {n.tag_name or ''}"
+                self.tag_combo.addItem(label, int(n.tag_id))
+                idx = self.tag_combo.count() - 1
+            self.tag_combo.setCurrentIndex(idx)
         self.category_edit.setText(n.category or "telegram")
         self.country_edit.setText(n.country or "")
         self.price_min.setValue(n.price_min or 0)
@@ -194,8 +256,17 @@ class NicheEditor(QDialog):
         )
 
     def values(self) -> dict:
+        tag_id = self.tag_combo.currentData()
+        tag_name = ""
+        if tag_id is not None:
+            for t in self._tags_cache:
+                if int(t["id"]) == int(tag_id):
+                    tag_name = t["title"]
+                    break
         return {
             "name": self.name_edit.text().strip(),
+            "tag_id": int(tag_id) if tag_id is not None else None,
+            "tag_name": tag_name,
             "category": self.category_edit.text().strip() or "telegram",
             "country": self.country_edit.text().strip(),
             "price_min": self.price_min.value() or None,

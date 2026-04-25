@@ -30,3 +30,21 @@ def test_keywords_match_any():
     assert f.matches(_acc(title="Telegram Premium aged"))
     assert f.matches(_acc(title="Verified seller"))
     assert not f.matches(_acc(title="plain account"))
+
+
+def test_tag_id_priority():
+    f = NicheFilters(tag_id=42)
+    assert f.matches(_acc(tags=[{"id": 42, "title": "UA"}]))
+    assert not f.matches(_acc(tags=[{"id": 1, "title": "RU"}]))
+    assert not f.matches(_acc(tags=[]))
+
+
+def test_tag_id_with_extra_filters():
+    """Если задан тег — категория/страна не обязательны, но цена/слова применяются."""
+    f = NicheFilters(tag_id=7, country="RU", price_min=50.0, keywords="premium")
+    # тег совпадает + цена 60 > 50 + содержит premium
+    assert f.matches(_acc(tags=[{"id": 7}], country="UA", price=60.0, title="Telegram premium"))
+    # тег совпадает но цена ниже
+    assert not f.matches(_acc(tags=[{"id": 7}], price=30.0, title="Telegram premium"))
+    # тег не совпадает
+    assert not f.matches(_acc(tags=[{"id": 99}], price=60.0, title="Telegram premium"))

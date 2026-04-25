@@ -55,11 +55,24 @@ class HomeTab(QWidget):
         self.summary_label.setStyleSheet("font-size: 13pt; color: #4caf50;")
         top_bar.addWidget(self.summary_label)
         top_bar.addStretch()
+        btn_limits = QPushButton("⚙ Лимиты")
+        btn_limits.clicked.connect(self._open_limits_dialog)
+        top_bar.addWidget(btn_limits)
         btn_fetch = QPushButton("🔄 Обновить с API")
         btn_fetch.setObjectName("primary")
         btn_fetch.clicked.connect(self._fetch_now)
         top_bar.addWidget(btn_fetch)
         root.addLayout(top_bar)
+
+        # --- прогресс автоматизации (всегда виден) ---
+        self.progress_label = QLabel("Прогресс автоматизации: —")
+        self.progress_label.setStyleSheet(
+            "color:#e6e6e6; padding:10px; "
+            "background:#1f1f1f; border:1px solid #2a2a2a; border-radius:6px; "
+            "font-size: 11pt;"
+        )
+        self.progress_label.setTextFormat(Qt.TextFormat.RichText)
+        root.addWidget(self.progress_label)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
@@ -175,6 +188,26 @@ class HomeTab(QWidget):
             f"Без классификации: <b>{unclassified_count}</b>"
         )
 
+        # --- прогресс автоматизации ---
+        from app.services import settings_store
+        planned_bumps = sum(n.bumps_per_day for n in niches if n.auto_bump)
+        planned_stuck_bumps = sum(n.stuck_bumps_per_day for n in niches if n.auto_bump_stuck)
+        planned_stick_slots = sum(n.stick_slots for n in niches if n.auto_stick)
+        bumps_done = niche_manager.global_bumps_today(stuck=False)
+        stuck_bumps_done = niche_manager.global_bumps_today(stuck=True)
+        stuck_now = niche_manager.total_stuck_count()
+        global_slots = settings_store.get_global_stick_slots()
+
+        self.progress_label.setText(
+            "🔺 Bump обычных сегодня: "
+            f"<b style='color:#4caf50'>{bumps_done}</b> / {planned_bumps or '∞'}  &nbsp;|&nbsp;  "
+            "🔺📌 Bump закреплённых: "
+            f"<b style='color:#4caf50'>{stuck_bumps_done}</b> / {planned_stuck_bumps or '∞'}  &nbsp;|&nbsp;  "
+            "📌 Закреплено сейчас: "
+            f"<b style='color:#2196f3'>{stuck_now}</b> / {global_slots}  "
+            f"<span style='color:#9e9e9e'>(плановых слотов: {planned_stick_slots})</span>"
+        )
+
         self.niche_list.clear()
         for n in niches:
             item = QListWidgetItem()
@@ -234,7 +267,7 @@ class HomeTab(QWidget):
         self._reload_accounts()
 
     def _create_niche(self) -> None:
-        dlg = NicheEditor(parent=self)
+        dlg = NicheEditor(client=self.client, parent=self)
         if dlg.exec() != NicheEditor.DialogCode.Accepted:
             return
         values = dlg.values()
@@ -243,17 +276,15 @@ class HomeTab(QWidget):
             return
         niche_manager.create_niche(**values)
 
-        # если БД ещё пустая — подтягиваем аккаунты с API
-        if self._accounts_count() == 0:
-            QMessageBox.information(
-                self,
-                "Ниша создана",
-                "Ниша сохранена. Сейчас подтянем ваши аккаунты с Lolzteam Market — это может занять до минуты.",
-            )
-            self._fetch_now()
-        else:
-            niche_manager.reclassify_accounts()
-            self.reload()
+        # При создании ниши с тегом — всегда подтягиваем аккаунты с API,
+        # чтобы сразу увидеть результат классификации по тегу.
+        QMessageBox.information(
+            self,
+            "Ниша создана",
+            "Ниша сохранена. Запускаю обновление аккаунтов с Lolzteam Market — "
+            "это может занять до минуты, классификация по тегу применится автоматически.",
+        )
+        self._fetch_now()
 
     def _edit_niche(self) -> None:
         if self._current_niche_id is None or self._current_niche_id == UNCLASSIFIED_ID:
@@ -263,11 +294,22 @@ class HomeTab(QWidget):
             niche = s.get(Niche, self._current_niche_id)
             if niche is None:
                 return
-            dlg = NicheEditor(niche=niche, parent=self)
+            dlg = NicheEditor(niche=niche, client=self.client, parent=self)
         if dlg.exec() == NicheEditor.DialogCode.Accepted:
             niche_manager.update_niche(self._current_niche_id, **dlg.values())
             niche_manager.reclassify_accounts()
             self.reload()
+
+    def _open_limits_dialog(self) -> None:
+        # переиспользуем секции из общего диалога настроек
+        from app.config import Settings as _Settings
+        from app.ui.settings_dialog import SettingsDialog
+
+        # пытаемся достать настройки из главного окна
+        win = self.window()
+        settings = getattr(win, "settings", None) or _Settings.load()
+        SettingsDialog(settings, parent=self).exec()
+        self.reload()
 
     def _delete_niche(self) -> None:
         if self._current_niche_id is None or self._current_niche_id == UNCLASSIFIED_ID:

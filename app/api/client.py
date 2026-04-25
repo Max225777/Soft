@@ -115,13 +115,32 @@ class LolzMarketClient:
             self._me_cache = self._submit("GET", "me", priority=PRIORITY_HIGH).result()
         return self._me_cache
 
-    def list_my_items(self, page: int = 1, **params: Any) -> dict[str, Any]:
+    def list_my_items(self, page: int = 1, tag_id: int | None = None, **params: Any) -> dict[str, Any]:
         user = self.get_me().get("user") or self.get_me()
         user_id = user.get("user_id") or user.get("id")
         if not user_id:
             raise ApiError(0, "Не удалось определить user_id из /me")
         params.setdefault("page", page)
+        if tag_id is not None:
+            # Lolzteam ожидает tag_id[] — массив. httpx сам сериализует list в query.
+            params["tag_id[]"] = [int(tag_id)]
         return self._submit("GET", f"user/{user_id}/items", priority=PRIORITY_HIGH, params=params).result()
+
+    def list_my_tags(self) -> list[dict[str, Any]]:
+        """Возвращает приватные теги текущего пользователя (с lzt.market).
+
+        Перебирает несколько кандидатных эндпоинтов — в разных версиях API
+        ответ может приходить с разных URL. Возвращает [{id, title}, …] или [].
+        """
+        for path in ("me/tags", "tag/list", "user/tags"):
+            try:
+                resp = self._submit("GET", path, priority=PRIORITY_LOW).result()
+                tags = _parse_tags(resp)
+                if tags:
+                    return tags
+            except ApiError:
+                continue
+        return []
 
     def get_item(self, item_id: int) -> dict[str, Any]:
         return self._submit("GET", f"{item_id}", priority=PRIORITY_MEDIUM).result()
@@ -162,3 +181,24 @@ def _retry_after(resp: httpx.Response) -> float | None:
         return float(header)
     except ValueError:
         return None
+
+
+def _parse_tags(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, dict):
+        for key in ("tags", "data", "items"):
+            v = payload.get(key)
+            if isinstance(v, list):
+                payload = v
+                break
+        else:
+            return []
+    if not isinstance(payload, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for t in payload:
+        if isinstance(t, dict):
+            tid = t.get("tag_id") or t.get("id")
+            title = t.get("title") or t.get("name") or t.get("tag") or ""
+            if tid:
+                out.append({"id": int(tid), "title": str(title)})
+    return out

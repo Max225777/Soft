@@ -13,28 +13,41 @@ from app.db.session import get_session
 
 @dataclass
 class NicheFilters:
+    tag_id: int | None = None         # приватная метка Lolzteam — главный критерий
     category: str = ""
     country: str = ""
     price_min: float | None = None
     price_max: float | None = None
     keywords: str = ""
-    exact_title: str = ""  # точная подстрока в названии (при наличии — главный критерий)
+    exact_title: str = ""
 
     def matches(self, account: Account) -> bool:
+        # 1. Приватная метка — самый сильный критерий
+        if self.tag_id is not None:
+            tag_ids = {int(t.get("id")) for t in (account.tags or []) if isinstance(t, dict) and t.get("id")}
+            if self.tag_id not in tag_ids:
+                return False
+            # если тег задан — остальные доп. фильтры применяем как дополнительное сужение,
+            # но категорию/страну не проверяем (тег обычно перекрывает)
+
+        # 2. Категория/страна (если указано и тег не задан)
         if self.category and account.category and account.category.lower() != self.category.lower():
-            return False
+            if self.tag_id is None:
+                return False
         if self.country and account.country and account.country.lower() != self.country.lower():
-            return False
+            if self.tag_id is None:
+                return False
+
+        # 3. Цена
         if self.price_min is not None and account.price < self.price_min:
             return False
         if self.price_max is not None and account.price > self.price_max:
             return False
 
+        # 4. Текстовые фильтры
         title = (account.title or "").lower()
-        if self.exact_title:
-            # точная подстрока должна присутствовать
-            if self.exact_title.lower() not in title:
-                return False
+        if self.exact_title and self.exact_title.lower() not in title:
+            return False
         if self.keywords:
             words = [w.strip().lower() for w in self.keywords.split(",") if w.strip()]
             if not any(w in title for w in words):
@@ -89,10 +102,16 @@ def reclassify_accounts() -> dict[int, int]:
         accounts = list(s.execute(select(Account)).scalars())
         counts: dict[int, int] = {n.id: 0 for n in niches}
 
+        # сначала ищем нишу с tag_id-совпадением (оно сильнее текстовых фильтров)
+        niches_with_tag = [n for n in niches if n.tag_id]
+        niches_without_tag = [n for n in niches if not n.tag_id]
+        ordered_niches = niches_with_tag + niches_without_tag
+
         for acc in accounts:
             best: Niche | None = None
-            for n in niches:
+            for n in ordered_niches:
                 filters = NicheFilters(
+                    tag_id=n.tag_id,
                     category=n.category,
                     country=n.country,
                     price_min=n.price_min,

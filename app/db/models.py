@@ -41,6 +41,12 @@ class Niche(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+
+    # --- Главный критерий: приватный тег с Lolzteam Market ---
+    tag_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    tag_name: Mapped[str] = mapped_column(String(128), default="")
+
+    # --- Доп. фильтры (применяются если tag_id не задан или вместе с ним) ---
     category: Mapped[str] = mapped_column(String(64), default="telegram")
     country: Mapped[str] = mapped_column(String(64), default="")
     price_min: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -105,6 +111,8 @@ class Account(Base):
     niche_id: Mapped[int | None] = mapped_column(ForeignKey("niches.id", ondelete="SET NULL"), nullable=True)
     niche: Mapped[Niche | None] = relationship(back_populates="accounts")
 
+    # Список приватных меток с Lolzteam: [{id: int, title: str}, …]
+    tags: Mapped[list] = mapped_column(JSON, default=list)
     raw: Mapped[dict] = mapped_column(JSON, default=dict)  # исходный объект от API
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

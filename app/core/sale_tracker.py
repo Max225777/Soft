@@ -30,6 +30,7 @@ def sync_accounts_snapshot(items: Iterable[dict]) -> dict:
         for item_id, payload in items_by_id.items():
             acc = existing.get(item_id)
             new_price = float(payload.get("price") or 0)
+            tags = _extract_tags(payload)
             if acc is None:
                 acc = Account(
                     item_id=item_id,
@@ -39,6 +40,7 @@ def sync_accounts_snapshot(items: Iterable[dict]) -> dict:
                     price=new_price,
                     amount=int(payload.get("amount") or 1),
                     status=str(payload.get("item_state") or "active"),
+                    tags=tags,
                     raw=payload,
                 )
                 s.add(acc)
@@ -55,6 +57,7 @@ def sync_accounts_snapshot(items: Iterable[dict]) -> dict:
                 acc.price = new_price
                 acc.amount = int(payload.get("amount") or acc.amount)
                 acc.status = str(payload.get("item_state") or acc.status)
+                acc.tags = tags
                 acc.raw = payload
                 updated += 1
 
@@ -71,6 +74,32 @@ def sync_accounts_snapshot(items: Iterable[dict]) -> dict:
     summary = {"added": added, "updated": updated, "sold": sold, "price_changes": price_changes}
     logger.info("Синхронизация аккаунтов: {}", summary)
     return summary
+
+
+def _extract_tags(payload: dict) -> list[dict]:
+    """Из ответа API достаём список приватных тегов аккаунта.
+
+    Lolzteam возвращает теги в нескольких возможных полях:
+    item['tags'] = [{tag_id, title}, …]   — основная форма
+    item['user_tags'] = [...]              — альтернатива
+    item['tag_ids'] = [int, int]           — только id
+    """
+    raw_tags = payload.get("tags") or payload.get("user_tags")
+    if isinstance(raw_tags, list):
+        result = []
+        for t in raw_tags:
+            if isinstance(t, dict):
+                tag_id = t.get("tag_id") or t.get("id")
+                title = t.get("title") or t.get("tag") or ""
+                if tag_id:
+                    result.append({"id": int(tag_id), "title": str(title)})
+            elif isinstance(t, int):
+                result.append({"id": t, "title": ""})
+        return result
+    raw_ids = payload.get("tag_ids")
+    if isinstance(raw_ids, list):
+        return [{"id": int(x), "title": ""} for x in raw_ids if isinstance(x, int)]
+    return []
 
 
 def _register_sale(session, acc: Account, ts: datetime) -> None:
