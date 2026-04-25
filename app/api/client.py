@@ -114,7 +114,60 @@ class LolzMarketClient:
     def get_me(self) -> dict[str, Any]:
         if self._me_cache is None:
             self._me_cache = self._submit("GET", "me", priority=PRIORITY_HIGH).result()
+            try:
+                top_keys = sorted(self._me_cache.keys()) if isinstance(self._me_cache, dict) else []
+                logger.info("/me top-level keys = {}", top_keys)
+                user_obj = self._me_cache.get("user") if isinstance(self._me_cache, dict) else None
+                if isinstance(user_obj, dict):
+                    relevant = [k for k in user_obj.keys() if any(x in k.lower() for x in ("stick", "bump", "limit", "subscribe", "premium"))]
+                    logger.info("/me .user — relevant keys = {}", relevant)
+                    for k in relevant:
+                        logger.info("    {} = {}", k, str(user_obj[k])[:200])
+            except Exception:  # noqa: BLE001
+                pass
         return self._me_cache
+
+    def detect_limits(self) -> dict[str, int | None]:
+        """Пытается достать лимиты bump/stick из /me и items.
+
+        Возвращает {"bumps_per_account": N | None, "stick_slots_total": N | None}.
+        Если поля не найдены — соответствующее значение None.
+        """
+        result: dict[str, int | None] = {"bumps_per_account": None, "stick_slots_total": None}
+
+        try:
+            me = self.get_me()
+        except ApiError:
+            me = {}
+        user = (me.get("user") if isinstance(me, dict) else None) or me
+        if isinstance(user, dict):
+            for key in (
+                "stick_slots", "stickSlots", "max_sticked_items", "maxStickedItems",
+                "stickedItemsLimit", "sticky_items_limit",
+            ):
+                v = user.get(key)
+                if isinstance(v, (int, float)):
+                    result["stick_slots_total"] = int(v)
+                    break
+            for key in ("bumps_per_account_per_day", "bumpsPerAccountPerDay", "bump_limit_per_day"):
+                v = user.get(key)
+                if isinstance(v, (int, float)):
+                    result["bumps_per_account"] = int(v)
+                    break
+
+        # из items: считаем сколько уже закреплено сейчас (как нижнюю границу)
+        if result["stick_slots_total"] is None:
+            try:
+                resp = self.list_my_items(page=1)
+                items = resp.get("items") or resp.get("data") or []
+                sticked = sum(1 for it in items if isinstance(it, dict) and (it.get("is_sticky") or it.get("isSticky") or it.get("sticked")))
+                if sticked:
+                    logger.info("detect_limits: закреплено сейчас (по items) = {}", sticked)
+            except ApiError:
+                pass
+
+        logger.info("detect_limits: {}", result)
+        return result
 
     def list_my_items(self, page: int = 1, tag_id: int | None = None, **params: Any) -> dict[str, Any]:
         user = self.get_me().get("user") or self.get_me()

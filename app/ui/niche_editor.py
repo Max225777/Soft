@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -49,9 +49,12 @@ class NicheEditor(QDialog):
         self.client = client
         self._tags_cache: list[dict] = []
         self._build_ui()
-        self._load_tags()
         if niche:
             self._load(niche)
+        # Загружаем теги асинхронно — после показа диалога,
+        # чтобы UI не "замерзал" на 3-5 сек пока идёт API запрос
+        self.tags_status.setText("Загрузка тегов с API…")
+        QTimer.singleShot(50, self._load_tags)
 
     def _build_ui(self) -> None:
         outer = QVBoxLayout(self)

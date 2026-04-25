@@ -155,11 +155,18 @@ class MainWindow(QMainWindow):
         self.stats_tab.reload()
 
     def _on_cycle_tick(self, summary: dict) -> None:
+        # Колбэк прилетает из фонового потока APScheduler — нельзя
+        # напрямую трогать Qt-виджеты, иначе на Windows окно "не отвечает".
+        # Маршалим всё в main thread через QTimer.singleShot.
         logger.info("Цикл завершён: {}", summary)
-        QTimer.singleShot(0, self._refresh_ui)
+        QTimer.singleShot(0, lambda: self._on_cycle_tick_main(summary))
+
+    def _on_cycle_tick_main(self, summary: dict) -> None:
+        self._refresh_ui()
         if summary.get("sold") and self.settings.notify_sales:
             self.statusBar().showMessage(
-                f"Обнаружено продаж: {summary['sold']}, поднятий: {summary.get('auto', {}).get('bumps', 0)}",
+                f"Обнаружено продаж: {summary['sold']}, "
+                f"поднятий: {summary.get('auto', {}).get('bumps', 0)}",
                 8000,
             )
 

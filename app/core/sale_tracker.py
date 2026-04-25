@@ -24,29 +24,28 @@ def sync_accounts_snapshot(items: Iterable[dict]) -> dict:
 
     items_by_id: dict[int, dict] = {int(it["item_id"]): it for it in items if it.get("item_id")}
 
-    # --- диагностика тегов ---
+    # --- диагностика тегов и лимитов bump/stick ---
     if items_by_id:
         sample = next(iter(items_by_id.values()))
         tag_keys = [k for k in sample.keys() if "tag" in k.lower()]
+        bump_keys = [k for k in sample.keys() if "bump" in k.lower()]
+        stick_keys = [k for k in sample.keys() if "stick" in k.lower() or "stuck" in k.lower()]
         all_keys = sorted(sample.keys())
         logger.info(
-            "Получено items: {}; ключи с тегами в первом item: {}; пример item_id={}",
+            "Получено items: {}; tag-keys={}; bump-keys={}; stick-keys={}; пример item_id={}",
             len(items_by_id),
             tag_keys,
+            bump_keys,
+            stick_keys,
             sample.get("item_id"),
         )
-        if tag_keys:
-            for k in tag_keys:
-                val = sample[k]
-                logger.info("  {} = {}", k, str(val)[:300])
-        else:
+        for k in tag_keys + bump_keys + stick_keys:
+            val = sample[k]
+            logger.info("  {} = {}", k, str(val)[:200])
+        if not (tag_keys or bump_keys or stick_keys):
             logger.warning(
-                "В ответе API нет полей с 'tag'. Все ключи первого item: {}",
+                "В ответе API нет полей с tag/bump/stick. Все ключи первого item: {}",
                 all_keys,
-            )
-            logger.warning(
-                "Если в личном кабинете у акк есть приватные метки — пришлите этот список ключей в чат, "
-                "обновим парсер. Возможно, поле называется иначе (например 'labels' или 'group_id')."
             )
 
     with get_session() as s:
@@ -57,6 +56,8 @@ def sync_accounts_snapshot(items: Iterable[dict]) -> dict:
             acc = existing.get(item_id)
             new_price = float(payload.get("price") or 0)
             tags = _extract_tags(payload)
+            bumps_left = _parse_bumps_available(payload)
+            is_stuck = _parse_is_stuck(payload)
             if acc is None:
                 acc = Account(
                     item_id=item_id,
@@ -67,6 +68,8 @@ def sync_accounts_snapshot(items: Iterable[dict]) -> dict:
                     amount=int(payload.get("amount") or 1),
                     status=str(payload.get("item_state") or "active"),
                     tags=tags,
+                    bumps_available=bumps_left if bumps_left is not None else 3,
+                    is_stuck=is_stuck,
                     raw=payload,
                 )
                 s.add(acc)
@@ -84,6 +87,9 @@ def sync_accounts_snapshot(items: Iterable[dict]) -> dict:
                 acc.amount = int(payload.get("amount") or acc.amount)
                 acc.status = str(payload.get("item_state") or acc.status)
                 acc.tags = tags
+                if bumps_left is not None:
+                    acc.bumps_available = bumps_left
+                acc.is_stuck = is_stuck
                 acc.raw = payload
                 updated += 1
 
@@ -105,6 +111,33 @@ def sync_accounts_snapshot(items: Iterable[dict]) -> dict:
 def _extract_tags(payload: dict) -> list[dict]:
     """Тонкая обёртка над общим парсером (см. app/api/client._extract_tags_from_item)."""
     return _extract_tags_from_item(payload)
+
+
+def _parse_bumps_available(payload: dict) -> int | None:
+    """Сколько поднятий ещё доступно для аккаунта по данным API.
+
+    Lolzteam в разных полях возвращает информацию: bumpsAvailable / canBump (bool) /
+    bumps_left / bumpRemaining. Возвращаем None если не нашли — оставим текущее значение.
+    """
+    for key in ("bumpsAvailable", "bumps_available", "bumps_left", "bumpRemaining", "bump_remaining"):
+        val = payload.get(key)
+        if isinstance(val, (int, float)):
+            return int(val)
+    can_bump = payload.get("canBump") or payload.get("can_bump")
+    if isinstance(can_bump, bool):
+        return 1 if can_bump else 0
+    return None
+
+
+def _parse_is_stuck(payload: dict) -> bool:
+    """Закреплён ли аккаунт сейчас (по данным API)."""
+    for key in ("is_sticky", "isSticky", "is_stuck", "sticked", "is_pinned"):
+        val = payload.get(key)
+        if isinstance(val, bool):
+            return val
+        if isinstance(val, int):
+            return bool(val)
+    return False
 
 
 def _register_sale(session, acc: Account, ts: datetime) -> None:

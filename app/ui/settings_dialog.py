@@ -11,7 +11,10 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
+    QHBoxLayout,
+    QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QSpinBox,
     QVBoxLayout,
@@ -85,10 +88,19 @@ class SettingsDialog(QDialog):
         # --- Глобальные лимиты Lolzteam ---
         limits_box = QGroupBox("Лимиты поднятий и закреплений")
         limits_form = QFormLayout(limits_box)
+
+        btn_autodetect = QPushButton("🔍 Определить автоматически с API")
+        btn_autodetect.clicked.connect(self._autodetect_limits)
+        limits_form.addRow(btn_autodetect)
+        self.autodetect_status = QLabel("")
+        self.autodetect_status.setWordWrap(True)
+        self.autodetect_status.setStyleSheet("color:#9e9e9e; font-size:10pt;")
+        limits_form.addRow(self.autodetect_status)
+
         self.bumps_per_acc_spin = QSpinBox()
         self.bumps_per_acc_spin.setRange(1, 24)
         limits_form.addRow("Поднятий на аккаунт в сутки:", self.bumps_per_acc_spin)
-        hint_b = QLabel("Лимит Lolzteam Market. Обычно 3 — менять нужно только если у вас VIP/Premium.")
+        hint_b = QLabel("Стандартно 3 (Lolzteam Market). Если у вас VIP/Premium — нажмите кнопку выше.")
         hint_b.setStyleSheet("color:#9e9e9e; font-size:10pt;")
         limits_form.addRow(hint_b)
 
@@ -96,9 +108,10 @@ class SettingsDialog(QDialog):
         self.stick_slots_total_spin.setRange(0, 100)
         limits_form.addRow("Всего слотов закреплений:", self.stick_slots_total_spin)
         hint_s = QLabel(
-            "Сколько всего аккаунтов можно держать закреплёнными одновременно\n"
-            "на вашем аккаунте продавца. Сумма stick_slots всех ниш не должна превышать это значение."
+            "Сколько всего аккаунтов можно держать закреплёнными одновременно. "
+            "Зависит от уровня продавца — нажмите «Определить автоматически» чтобы взять с API."
         )
+        hint_s.setWordWrap(True)
         hint_s.setStyleSheet("color:#9e9e9e; font-size:10pt;")
         limits_form.addRow(hint_s)
 
@@ -126,6 +139,50 @@ class SettingsDialog(QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
+
+    def _autodetect_limits(self) -> None:
+        win = self.window().parent() if self.window() else None
+        # ищем main window для доступа к client
+        client = None
+        w = self
+        while w is not None:
+            if hasattr(w, "client"):
+                client = getattr(w, "client")
+                break
+            w = w.parent()
+        if client is None:
+            QMessageBox.warning(self, "Ошибка", "API-клиент недоступен — откройте окно из главного меню")
+            return
+        self.autodetect_status.setText("Запрос к API… подождите")
+        self.autodetect_status.repaint()
+
+        try:
+            limits = client.detect_limits()
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.warning(self, "Ошибка автоопределения", str(exc))
+            self.autodetect_status.setText(f"⚠ {exc}")
+            return
+
+        bpa = limits.get("bumps_per_account")
+        sst = limits.get("stick_slots_total")
+        msg_parts = []
+        if bpa is not None:
+            self.bumps_per_acc_spin.setValue(int(bpa))
+            msg_parts.append(f"bump/акк/сутки = {bpa}")
+        if sst is not None:
+            self.stick_slots_total_spin.setValue(int(sst))
+            msg_parts.append(f"слотов закреплений = {sst}")
+
+        if msg_parts:
+            self.autodetect_status.setText(
+                "<span style='color:#4caf50'>✓ Применено: "
+                + ", ".join(msg_parts) + "</span>"
+            )
+        else:
+            self.autodetect_status.setText(
+                "<span style='color:#f44336'>API не вернул нужные поля. "
+                "Проверьте логи — там перечислены ключи /me и items.</span>"
+            )
 
     def _refresh_progress(self) -> None:
         from app.db.session import get_session
