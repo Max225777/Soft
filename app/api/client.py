@@ -127,42 +127,37 @@ class LolzMarketClient:
             params["tag_id[]"] = [int(tag_id)]
         return self._submit("GET", f"user/{user_id}/items", priority=PRIORITY_HIGH, params=params).result()
 
-    def list_my_tags(self) -> list[dict[str, Any]]:
+    def list_my_tags(self, max_pages: int = 50) -> list[dict[str, Any]]:
         """В Lolzteam Market нет отдельного endpoint для списка тегов —
         они приходят только в составе items.
 
-        Делает один запрос /user/:id/items, агрегирует уникальные теги из ответа.
+        Делает несколько запросов /user/:id/items (пагинация), агрегирует
+        уникальные теги. Останавливается на первой неполной/пустой странице
+        либо при достижении max_pages.
         """
-        try:
-            resp = self.list_my_items(page=1)
-        except ApiError as exc:
-            logger.warning("list_my_tags: не удалось получить items: {}", exc)
-            return []
-
-        items = resp.get("items") or resp.get("data") or []
-        if not items:
-            logger.info("list_my_tags: items пустой → тегов нет")
-            return []
-
-        # Логируем структуру первого элемента — чтобы убедиться какие поля доступны
-        sample = items[0]
-        if isinstance(sample, dict):
-            tag_keys = [k for k in sample.keys() if "tag" in k.lower()]
-            logger.info(
-                "list_my_tags: получено {} items; ключи с тегами в первом: {}",
-                len(items), tag_keys,
-            )
-
         seen: dict[int, str] = {}
-        for it in items:
-            for tag in _extract_tags_from_item(it):
-                tid = tag["id"]
-                if tag["title"]:
-                    seen[tid] = tag["title"]
-                elif tid not in seen:
-                    seen[tid] = ""
+        per_page_seen = 0
+        for page in range(1, max_pages + 1):
+            try:
+                resp = self.list_my_items(page=page)
+            except ApiError as exc:
+                logger.warning("list_my_tags page={}: {}", page, exc)
+                break
+            items = resp.get("items") or resp.get("data") or []
+            if not items:
+                break
+            per_page_seen = max(per_page_seen, len(items))
+            for it in items:
+                for tag in _extract_tags_from_item(it):
+                    tid = tag["id"]
+                    if tag["title"]:
+                        seen[tid] = tag["title"]
+                    elif tid not in seen:
+                        seen[tid] = ""
+            if len(items) < per_page_seen:
+                break
         result = [{"id": k, "title": v} for k, v in sorted(seen.items())]
-        logger.info("list_my_tags: уникальных тегов извлечено: {}", len(result))
+        logger.info("list_my_tags: всего уникальных тегов: {}", len(result))
         return result
 
     def get_item(self, item_id: int) -> dict[str, Any]:

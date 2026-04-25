@@ -129,6 +129,7 @@ class UpdateCycle:
     def _fetch_all_items(self) -> list[dict]:
         all_items: list[dict] = []
         page = 1
+        per_page_seen = 0
         while True:
             try:
                 resp = self.client.list_my_items(page=page)
@@ -137,17 +138,38 @@ class UpdateCycle:
                 break
 
             items = resp.get("items") or resp.get("data") or []
+            if page == 1 and isinstance(resp, dict):
+                top_keys = sorted(resp.keys())
+                logger.info("list_my_items page 1: top-level keys = {}", top_keys)
+                page_nav = resp.get("pageNav") or resp.get("page_nav") or resp.get("pagination") or {}
+                if page_nav:
+                    logger.info("  pagination = {}", page_nav)
+
             if not items:
+                logger.info("Страница {} пустая — конец пагинации", page)
                 break
             all_items.extend(items)
+            per_page_seen = max(per_page_seen, len(items))
+            logger.info("  page {}: получено {} items (всего: {})", page, len(items), len(all_items))
 
-            total_pages = (resp.get("pageNav") or {}).get("totalPages") or resp.get("total_pages") or 1
-            if page >= int(total_pages):
+            # Останавливаемся, если страница неполная (значит это последняя)
+            if len(items) < per_page_seen:
+                break
+
+            total_pages = (
+                (resp.get("pageNav") or {}).get("totalPages")
+                or (resp.get("page_nav") or {}).get("totalPages")
+                or (resp.get("pagination") or {}).get("totalPages")
+                or resp.get("total_pages")
+                or resp.get("totalPages")
+            )
+            if total_pages and page >= int(total_pages):
                 break
             page += 1
-            if page > 50:  # safety
+            if page > 200:  # safety
+                logger.warning("Достигнут лимит 200 страниц — прерываем")
                 break
-        logger.info("Получено {} аккаунтов из API", len(all_items))
+        logger.info("Всего получено {} аккаунтов из API", len(all_items))
         return all_items
 
     def _reset_daily_limits(self) -> None:
