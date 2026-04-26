@@ -54,8 +54,15 @@ class UpdateCycle:
             self._scheduler.shutdown(wait=False)
             logger.info("Цикл обновления остановлен")
 
-    def trigger_now(self) -> None:
+    def trigger_now(self) -> bool:
+        """Спробувати запустити tick прямо зараз. Повертає True якщо потік
+        стартував, False якщо інший tick уже виконується.
+        """
+        if self._lock.locked():
+            logger.warning("trigger_now: цикл вже виконується, пропускаю")
+            return False
         threading.Thread(target=self._safe_tick, daemon=True, name="CycleManual").start()
+        return True
 
     # ---------- public getters ----------
     @property

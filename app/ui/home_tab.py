@@ -205,7 +205,7 @@ class HomeTab(QWidget):
             f"Без класифікації: <b>{unclassified_count}</b>"
         )
 
-        # --- прогресс автоматизации ---
+        # --- прогрес автоматизації ---
         from app.services import settings_store
         planned_bumps = sum(n.bumps_per_day for n in niches if n.auto_bump)
         planned_stuck_bumps = sum(n.stuck_bumps_per_day for n in niches if n.auto_bump_stuck)
@@ -214,15 +214,31 @@ class HomeTab(QWidget):
         stuck_bumps_done = niche_manager.global_bumps_today(stuck=True)
         stuck_now = niche_manager.total_stuck_count()
         global_slots = settings_store.get_global_stick_slots()
+        global_max = settings_store.get_global_bumps_per_day()
+
+        # Реальний стан з API: скільки акк зараз не можна bump-ати
+        with get_session() as s:
+            on_cooldown = s.execute(
+                select(func.count(Account.id)).where(
+                    Account.bumps_available == 0, Account.status == "active"
+                )
+            ).scalar_one() or 0
+            ready_to_bump = max(0, total_on_sale - on_cooldown)
+
+        plan_str = str(planned_bumps) if planned_bumps else "∞"
+        if global_max:
+            plan_str += f" (ліміт {global_max})"
 
         self.progress_label.setText(
-            "🔺 Bump звичайних сьогодні: "
-            f"<b style='color:#4caf50'>{bumps_done}</b> / {planned_bumps or '∞'}  &nbsp;|&nbsp;  "
+            "🔺 Bump додатком сьогодні: "
+            f"<b style='color:#4caf50'>{bumps_done}</b> / {plan_str}  &nbsp;|&nbsp;  "
             "🔺📌 Bump закріплених: "
             f"<b style='color:#4caf50'>{stuck_bumps_done}</b> / {planned_stuck_bumps or '∞'}  &nbsp;|&nbsp;  "
             "📌 Закріплено зараз: "
-            f"<b style='color:#2196f3'>{stuck_now}</b> / {global_slots}  "
-            f"<span style='color:#9e9e9e'>(планових слотів: {planned_stick_slots})</span>"
+            f"<b style='color:#2196f3'>{stuck_now}</b> / {global_slots}<br>"
+            f"<span style='color:#9e9e9e'>На cooldown зараз (вже bump-нуто): "
+            f"<b>{on_cooldown}</b>  |  Готові до bump: <b>{ready_to_bump}</b>  |  "
+            f"планових stick-слотів: {planned_stick_slots}</span>"
         )
 
         self.niche_list.clear()
@@ -331,14 +347,18 @@ class HomeTab(QWidget):
             self.reload()
 
     def _open_limits_dialog(self) -> None:
-        # переиспользуем секции из общего диалога настроек
+        # відкриваємо діалог налаштувань і ОДРАЗУ після закриття оновлюємо UI
         from app.config import Settings as _Settings
         from app.ui.settings_dialog import SettingsDialog
 
-        # пытаемся достать настройки из главного окна
         win = self.window()
         settings = getattr(win, "settings", None) or _Settings.load()
-        SettingsDialog(settings, parent=self).exec()
+        dlg = SettingsDialog(settings, parent=self)
+        # Знаходимо в дереві предків об'єкт що має client (MainWindow)
+        # — щоб autodetect-кнопка змогла знайти client
+        dlg.client = self.client
+        if dlg.exec() == SettingsDialog.DialogCode.Accepted:
+            self.window().statusBar().showMessage("Ліміти збережено", 4000)
         self.reload()
 
     def _delete_niche(self) -> None:
@@ -353,11 +373,19 @@ class HomeTab(QWidget):
         self.reload()
 
     def _fetch_now(self) -> None:
-        self.window().statusBar().showMessage("Запрос списка аккаунтов с API…", 10000)
         try:
-            self.trigger_refresh()
+            started = self.trigger_refresh()
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.warning(self, "Ошибка обновления", str(exc))
+            QMessageBox.warning(self, "Помилка оновлення", str(exc))
+            return
+        if started is False:
+            self.window().statusBar().showMessage(
+                "Цикл вже виконується — зачекайте до завершення", 6000,
+            )
+        else:
+            self.window().statusBar().showMessage(
+                "Запит до API… акаунти з'являться у нішах коли цикл завершиться", 12000,
+            )
 
     @staticmethod
     def _accounts_count() -> int:

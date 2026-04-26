@@ -154,16 +154,18 @@ class SettingsDialog(QDialog):
         layout.addWidget(buttons)
 
     def _autodetect_limits(self) -> None:
-        # ищем главное окно для доступа к client
-        client = None
-        w = self
-        while w is not None:
-            if hasattr(w, "client"):
-                client = getattr(w, "client")
-                break
-            w = w.parent()
+        # client може бути встановлений напряму як атрибут диалога,
+        # або знайдений у дереві предків
+        client = getattr(self, "client", None)
         if client is None:
-            QMessageBox.warning(self, "Ошибка", "API-клиент недоступен — откройте окно из главного меню")
+            w = self.parent()
+            while w is not None:
+                if hasattr(w, "client"):
+                    client = getattr(w, "client")
+                    break
+                w = w.parent()
+        if client is None:
+            QMessageBox.warning(self, "Помилка", "API-клієнт недоступний — відкрийте діалог з головного меню")
             return
         self.autodetect_status.setText("Запрос к API… подождите")
         self._autodetect_call = AsyncCall(

@@ -207,8 +207,14 @@ class LolzMarketClient:
         if not user_id:
             raise ApiError(0, "Не удалось определить user_id из /me")
         params.setdefault("page", page)
+        # Перекриваємо дефолтні фільтри періоду — щоб отримати ВСІ items без
+        # фільтрації за датою публікації (інакше API віддає лише останні N).
+        params.setdefault("published_startDate", 0)
+        params.setdefault("published_endDate", 0)
+        params.setdefault("filter_by_published_date", 0)
+        params.setdefault("filter_by_buyer_operation_date", 0)
+        params.setdefault("show_unpublished", 1)
         if tag_id is not None:
-            # Lolzteam ожидает tag_id[] — массив. httpx сам сериализует list в query.
             params["tag_id[]"] = [int(tag_id)]
         return self._submit("GET", f"user/{user_id}/items", priority=PRIORITY_HIGH, params=params).result()
 
