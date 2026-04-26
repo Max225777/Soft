@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 from app.config import Settings
 from app.core import niche_manager
 from app.services import settings_store
+from app.ui.widgets.async_worker import AsyncCall
 from app.services.crypto import mask_token
 
 
@@ -141,8 +142,7 @@ class SettingsDialog(QDialog):
         layout.addWidget(buttons)
 
     def _autodetect_limits(self) -> None:
-        win = self.window().parent() if self.window() else None
-        # ищем main window для доступа к client
+        # ищем главное окно для доступа к client
         client = None
         w = self
         while w is not None:
@@ -154,17 +154,17 @@ class SettingsDialog(QDialog):
             QMessageBox.warning(self, "Ошибка", "API-клиент недоступен — откройте окно из главного меню")
             return
         self.autodetect_status.setText("Запрос к API… подождите")
-        self.autodetect_status.repaint()
+        self._autodetect_call = AsyncCall(
+            client.detect_limits,
+            on_done=self._on_autodetect_done,
+            on_error=self._on_autodetect_error,
+            parent=self,
+        )
+        self._autodetect_call.start()
 
-        try:
-            limits = client.detect_limits()
-        except Exception as exc:  # noqa: BLE001
-            QMessageBox.warning(self, "Ошибка автоопределения", str(exc))
-            self.autodetect_status.setText(f"⚠ {exc}")
-            return
-
-        bpa = limits.get("bumps_per_account")
-        sst = limits.get("stick_slots_total")
+    def _on_autodetect_done(self, limits: dict) -> None:
+        bpa = limits.get("bumps_per_account") if isinstance(limits, dict) else None
+        sst = limits.get("stick_slots_total") if isinstance(limits, dict) else None
         msg_parts = []
         if bpa is not None:
             self.bumps_per_acc_spin.setValue(int(bpa))
@@ -172,17 +172,18 @@ class SettingsDialog(QDialog):
         if sst is not None:
             self.stick_slots_total_spin.setValue(int(sst))
             msg_parts.append(f"слотов закреплений = {sst}")
-
         if msg_parts:
             self.autodetect_status.setText(
-                "<span style='color:#4caf50'>✓ Применено: "
-                + ", ".join(msg_parts) + "</span>"
+                "<span style='color:#4caf50'>✓ Применено: " + ", ".join(msg_parts) + "</span>"
             )
         else:
             self.autodetect_status.setText(
                 "<span style='color:#f44336'>API не вернул нужные поля. "
                 "Проверьте логи — там перечислены ключи /me и items.</span>"
             )
+
+    def _on_autodetect_error(self, exc: Exception) -> None:
+        self.autodetect_status.setText(f"<span style='color:#f44336'>⚠ {exc}</span>")
 
     def _refresh_progress(self) -> None:
         from app.db.session import get_session

@@ -30,6 +30,7 @@ from app.core import niche_manager
 from app.core.tags import fetch_tags
 from app.db.models import Niche
 from app.services import settings_store
+from app.ui.widgets.async_worker import AsyncCall
 from app.ui.widgets.hourly_schedule import HourlyScheduleWidget
 
 
@@ -51,10 +52,9 @@ class NicheEditor(QDialog):
         self._build_ui()
         if niche:
             self._load(niche)
-        # Загружаем теги асинхронно — после показа диалога,
-        # чтобы UI не "замерзал" на 3-5 сек пока идёт API запрос
+        # Теги тянутся в фоновом QThread — UI не блокируется
         self.tags_status.setText("Загрузка тегов с API…")
-        QTimer.singleShot(50, self._load_tags)
+        QTimer.singleShot(50, self._start_loading_tags)
 
     def _build_ui(self) -> None:
         outer = QVBoxLayout(self)
@@ -206,23 +206,53 @@ class NicheEditor(QDialog):
         outer.addWidget(buttons)
 
     def _load_tags(self) -> None:
-        try:
-            tags = fetch_tags(self.client)
-        except Exception as exc:  # noqa: BLE001
-            tags = []
-            self.tags_status.setText(f"⚠ Не удалось получить теги: {exc}")
+        # Кнопка "🔄 Обновить список тегов" — запускаем тот же фоновый воркер
+        self.tags_status.setText("Загрузка тегов с API…")
+        self._start_loading_tags()
+
+    def _start_loading_tags(self) -> None:
+        self._tags_call = AsyncCall(
+            fetch_tags, self.client,
+            on_done=self._tags_loaded,
+            on_error=self._tags_failed,
+            parent=self,
+        )
+        self._tags_call.start()
+
+    def _tags_failed(self, exc: Exception) -> None:
+        self.tags_status.setText(f"<span style='color:#f44336'>⚠ Ошибка: {exc}</span>")
+
+    def _tags_loaded(self, tags) -> None:
+        tags = list(tags or [])
+        self._tags_cache = tags
+        current = self.tag_combo.currentData()
+        self.tag_combo.clear()
+        self.tag_combo.addItem("— без тега —", None)
+        for t in tags:
+            label = f"#{t['id']}  {t['title']}" if t.get("title") else f"#{t['id']}"
+            self.tag_combo.addItem(label, int(t["id"]))
+        if current is not None:
+            idx = self.tag_combo.findData(current)
+            if idx >= 0:
+                self.tag_combo.setCurrentIndex(idx)
+        elif self.niche and self.niche.tag_id:
+            idx = self.tag_combo.findData(int(self.niche.tag_id))
+            if idx < 0:
+                label = f"#{self.niche.tag_id}  {self.niche.tag_name or ''}"
+                self.tag_combo.addItem(label, int(self.niche.tag_id))
+                idx = self.tag_combo.count() - 1
+            self.tag_combo.setCurrentIndex(idx)
+
+        if tags:
+            self.tags_status.setText(
+                f"<span style='color:#4caf50'>Найдено тегов: <b>{len(tags)}</b></span>"
+            )
         else:
-            if tags:
-                self.tags_status.setText(
-                    f"<span style='color:#4caf50'>Найдено тегов: <b>{len(tags)}</b></span>"
-                )
-            else:
-                self.tags_status.setText(
-                    "<span style='color:#f44336'>Тегов не найдено.</span> "
-                    "В Lolzteam теги приходят только в составе аккаунтов — "
-                    "нажмите «🔄 Обновить список тегов с Lolzteam» (запросит ваши items с API), "
-                    "либо «🔄 Обновить с API» на главной странице."
-                )
+            self.tags_status.setText(
+                "<span style='color:#f44336'>Тегов не найдено.</span> "
+                "Сначала нажмите «🔄 Обновить с API» на главной — программа подтянет items "
+                "и выудит из них приватные метки."
+            )
 
         self._tags_cache = tags
 
@@ -239,13 +269,7 @@ class NicheEditor(QDialog):
 
     def _load(self, n: Niche) -> None:
         self.name_edit.setText(n.name)
-        if n.tag_id:
-            idx = self.tag_combo.findData(int(n.tag_id))
-            if idx < 0:
-                label = f"#{n.tag_id}  {n.tag_name or ''}"
-                self.tag_combo.addItem(label, int(n.tag_id))
-                idx = self.tag_combo.count() - 1
-            self.tag_combo.setCurrentIndex(idx)
+        # tag_combo заполнится после фоновой загрузки тегов в _tags_loaded
         self.default_cost.setValue(n.default_cost)
         self.markup.setValue(n.markup)
         self.auto_bump_chk.setChecked(n.auto_bump)
