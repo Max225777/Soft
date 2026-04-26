@@ -61,6 +61,26 @@ def list_niches() -> list[Niche]:
         return list(s.execute(select(Niche).order_by(Niche.name)).scalars())
 
 
+def apply_niche_default_cost_to_sales(niche_id: int, default_cost: float) -> int:
+    """Прописати ціну купівлі ніші у вже зафіксовані продажі цієї ніші
+    (для тих де cost ще 0). Повертає скільки записів оновлено.
+    """
+    if default_cost <= 0:
+        return 0
+    from app.db.models import Sale
+    updated = 0
+    with get_session() as s:
+        sales = list(
+            s.execute(select(Sale).where(Sale.niche_id == niche_id, Sale.cost <= 0)).scalars()
+        )
+        for sale in sales:
+            sale.cost = default_cost
+            sale.profit = (sale.price or 0) - default_cost
+            updated += 1
+        s.commit()
+    return updated
+
+
 def reclassify_accounts() -> dict[int, int]:
     """Пересчитывает привязку аккаунтов к нишам по текущим правилам.
 

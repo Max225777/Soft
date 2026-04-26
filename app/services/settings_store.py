@@ -66,6 +66,7 @@ def all_kv() -> dict[str, str]:
 
 GLOBAL_BUMPS_PER_ACCOUNT = "global_bumps_per_account_per_day"  # по умолчанию 3 (лимит Lolzteam)
 GLOBAL_STICK_SLOTS = "global_stick_slots_total"  # сколько всего слотов закреплений доступно аккаунту продавца
+GLOBAL_BUMPS_PER_DAY = "global_bumps_per_day"  # макс. поднятий на ВСЕ ниши за сутки (0 = без лимита)
 
 
 def get_global_bumps_per_account() -> int:
@@ -82,9 +83,20 @@ def get_global_stick_slots() -> int:
         return 5
 
 
+def get_global_bumps_per_day() -> int:
+    try:
+        return int(get_kv(GLOBAL_BUMPS_PER_DAY, "0"))
+    except ValueError:
+        return 0
+
+
 def set_global_bumps_per_account(value: int) -> None:
     set_kv(GLOBAL_BUMPS_PER_ACCOUNT, str(max(1, int(value))))
 
 
 def set_global_stick_slots(value: int) -> None:
     set_kv(GLOBAL_STICK_SLOTS, str(max(0, int(value))))
+
+
+def set_global_bumps_per_day(value: int) -> None:
+    set_kv(GLOBAL_BUMPS_PER_DAY, str(max(0, int(value))))

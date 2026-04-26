@@ -184,6 +184,10 @@ class MainWindow(QMainWindow):
         normal, search = self.queue.recent_requests()
         self.lbl_api.setText(f"API: {normal}/мин (поиск {search}/мин)")
 
+        # передаём время след. цикла в панель задач
+        if hasattr(self, "home_tab") and hasattr(self.home_tab, "tasks_panel"):
+            self.home_tab.tasks_panel.set_next_cycle(next_tick)
+
     # ---------- lifecycle ----------
     def closeEvent(self, event) -> None:  # noqa: N802
         logger.info("Завершение работы")

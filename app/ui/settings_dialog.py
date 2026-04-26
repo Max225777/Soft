@@ -100,10 +100,22 @@ class SettingsDialog(QDialog):
 
         self.bumps_per_acc_spin = QSpinBox()
         self.bumps_per_acc_spin.setRange(1, 24)
-        limits_form.addRow("Поднятий на аккаунт в сутки:", self.bumps_per_acc_spin)
-        hint_b = QLabel("Стандартно 3 (Lolzteam Market). Если у вас VIP/Premium — нажмите кнопку выше.")
+        limits_form.addRow("Підйомів на 1 акк в добу:", self.bumps_per_acc_spin)
+        hint_b = QLabel("Стандартно 3 (Lolzteam Market). Якщо у вас VIP/Premium — натисніть кнопку вище.")
         hint_b.setStyleSheet("color:#9e9e9e; font-size:10pt;")
         limits_form.addRow(hint_b)
+
+        self.global_bumps_per_day_spin = QSpinBox()
+        self.global_bumps_per_day_spin.setRange(0, 10000)
+        self.global_bumps_per_day_spin.setSpecialValueText("без обмеження")
+        limits_form.addRow("Всього підйомів на день (всі ніші):", self.global_bumps_per_day_spin)
+        hint_g = QLabel(
+            "Загальний ліміт на ВСІ ніші. Наприклад: «не більше 200 bump-ів на день, "
+            "розподіляй між нішами як вмієш». 0 — без обмеження."
+        )
+        hint_g.setWordWrap(True)
+        hint_g.setStyleSheet("color:#9e9e9e; font-size:10pt;")
+        limits_form.addRow(hint_g)
 
         self.stick_slots_total_spin = QSpinBox()
         self.stick_slots_total_spin.setRange(0, 100)
@@ -228,6 +240,7 @@ class SettingsDialog(QDialog):
         self.rows_spin.setValue(self.settings.rows_per_page)
         self.bumps_per_acc_spin.setValue(settings_store.get_global_bumps_per_account())
         self.stick_slots_total_spin.setValue(settings_store.get_global_stick_slots())
+        self.global_bumps_per_day_spin.setValue(settings_store.get_global_bumps_per_day())
         self._refresh_progress()
 
     def accept(self) -> None:
@@ -253,5 +266,6 @@ class SettingsDialog(QDialog):
         settings_store.set_kv("ui_theme", self.settings.theme)
         settings_store.set_global_bumps_per_account(self.bumps_per_acc_spin.value())
         settings_store.set_global_stick_slots(self.stick_slots_total_spin.value())
+        settings_store.set_global_bumps_per_day(self.global_bumps_per_day_spin.value())
 
         super().accept()

@@ -95,6 +95,7 @@ class StatsTab(QWidget):
     def reload(self) -> None:
         period = PERIODS[self.period_combo.currentText()]
         since = datetime.now(timezone.utc) - period
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
         with get_session() as s:
             sales = list(s.execute(select(Sale).where(Sale.sold_at >= since).order_by(Sale.sold_at)).scalars())
@@ -102,6 +103,35 @@ class StatsTab(QWidget):
                 select(func.count(Account.id)).where(Account.status == "active")
             ).scalar_one() or 0
             niches_count = s.execute(select(func.count(Niche.id))).scalar_one() or 0
+            stuck_now = s.execute(
+                select(func.count(Account.id)).where(Account.is_stuck.is_(True), Account.status == "active")
+            ).scalar_one() or 0
+
+            from app.db.models import ActionLog
+            bumps_today = s.execute(
+                select(func.count(ActionLog.id)).where(
+                    ActionLog.action == "bump",
+                    ActionLog.level == "INFO",
+                    ActionLog.created_at >= today_start,
+                )
+            ).scalar_one() or 0
+            sticks_today = s.execute(
+                select(func.count(ActionLog.id)).where(
+                    ActionLog.action == "stick",
+                    ActionLog.level == "INFO",
+                    ActionLog.created_at >= today_start,
+                )
+            ).scalar_one() or 0
+
+            sold_today = s.execute(
+                select(func.count(Sale.id)).where(Sale.sold_at >= today_start)
+            ).scalar_one() or 0
+            revenue_today = s.execute(
+                select(func.coalesce(func.sum(Sale.price), 0)).where(Sale.sold_at >= today_start)
+            ).scalar_one() or 0
+            profit_today = s.execute(
+                select(func.coalesce(func.sum(Sale.profit), 0)).where(Sale.sold_at >= today_start)
+            ).scalar_one() or 0
 
         total_qty = len(sales)
         total_revenue = sum(sale.price for sale in sales)
@@ -109,12 +139,20 @@ class StatsTab(QWidget):
         avg_check = (total_revenue / total_qty) if total_qty else 0.0
 
         self._render_kpi({
-            "Продано за период": f"{total_qty} шт",
+            # Сьогодні
+            "Продано сьогодні": f"{sold_today} шт",
+            "Оборот сьогодні": f"{revenue_today:,.2f} $",
+            "Прибуток сьогодні": f"{profit_today:,.2f} $",
+            "Bump сьогодні": f"{bumps_today}",
+            "Закріплень сьогодні": f"{sticks_today}",
+            "Закріплено зараз": f"{stuck_now}",
+            # За період
+            "Продано за період": f"{total_qty} шт",
             "Оборот": f"{total_revenue:,.2f} $",
-            "Чистая прибыль": f"{total_profit:,.2f} $",
-            "Средний чек": f"{avg_check:,.2f} $",
-            "Активных аккаунтов": str(active_count),
-            "Всего ниш": str(niches_count),
+            "Прибуток": f"{total_profit:,.2f} $",
+            "Середній чек": f"{avg_check:,.2f} $",
+            "Активних акаунтів": str(active_count),
+            "Всього ніш": str(niches_count),
         })
 
         daily = _group_daily(sales, period)

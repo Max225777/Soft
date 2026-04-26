@@ -188,6 +188,8 @@ class UpdateCycle:
     def _run_auto_actions(self) -> dict:
         auto_result = {"bumps": 0, "sticks": 0, "stuck_bumps": 0, "unsticks": 0}
         today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        global_max = settings_store.get_global_bumps_per_day()
+        already_today_global = self._count_global_bumps_today(today_start) if global_max else 0
 
         with get_session() as s:
             niches = list(s.execute(select(Niche)).scalars())
@@ -225,8 +227,14 @@ class UpdateCycle:
                 if n.auto_bump and n.bumps_per_day > 0:
                     done_today = self._count_bumps_today(s, n.id, today_start, stuck=False)
                     remaining = n.bumps_per_day - done_today
+                    # глобальный лимит — общая шапка по всем нишам
+                    if global_max:
+                        global_left = max(0, global_max - already_today_global - auto_result["bumps"])
+                        remaining = min(remaining, global_left)
                     if remaining > 0:
                         per_tick = self._target_for_this_hour(n, done_today)
+                        if global_max:
+                            per_tick = min(per_tick, remaining)
                         candidates = [a for a in normal_accounts if a.bumps_available > 0]
                         bumped_ok = self._try_action_with_fallback(
                             bump_items, candidates, per_tick,
@@ -252,6 +260,17 @@ class UpdateCycle:
                         auto_result["stuck_bumps"] += len(bumped_ok)
             s.commit()
         return auto_result
+
+    @staticmethod
+    def _count_global_bumps_today(today_start: datetime) -> int:
+        """Сколько успешных bump-ов сделано сегодня по ВСЕМ нишам (для глобального лимита)."""
+        with get_session() as s:
+            stmt = select(func.count(ActionLog.id)).where(
+                ActionLog.action == "bump",
+                ActionLog.level == "INFO",
+                ActionLog.created_at >= today_start,
+            )
+            return s.execute(stmt).scalar_one() or 0
 
     @staticmethod
     def _count_bumps_today(session, niche_id: int, today_start: datetime, stuck: bool) -> int:

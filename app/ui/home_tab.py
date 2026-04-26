@@ -49,23 +49,23 @@ class HomeTab(QWidget):
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
 
-        # --- верхний бар со статистикой и кнопкой обновить ---
+        # --- верхній бар: статистика + кнопки ---
         top_bar = QHBoxLayout()
-        self.summary_label = QLabel("Всего на продаже: —")
+        self.summary_label = QLabel("Всього на продажі: —")
         self.summary_label.setStyleSheet("font-size: 13pt; color: #4caf50;")
         top_bar.addWidget(self.summary_label)
         top_bar.addStretch()
-        btn_limits = QPushButton("⚙ Лимиты")
+        btn_limits = QPushButton("⚙ Ліміти")
         btn_limits.clicked.connect(self._open_limits_dialog)
         top_bar.addWidget(btn_limits)
-        btn_fetch = QPushButton("🔄 Обновить с API")
+        btn_fetch = QPushButton("🔄 Оновити з API")
         btn_fetch.setObjectName("primary")
         btn_fetch.clicked.connect(self._fetch_now)
         top_bar.addWidget(btn_fetch)
         root.addLayout(top_bar)
 
-        # --- прогресс автоматизации (всегда виден) ---
-        self.progress_label = QLabel("Прогресс автоматизации: —")
+        # --- прогрес автоматизації (завжди видно) ---
+        self.progress_label = QLabel("Прогрес автоматизації: —")
         self.progress_label.setStyleSheet(
             "color:#e6e6e6; padding:10px; "
             "background:#1f1f1f; border:1px solid #2a2a2a; border-radius:6px; "
@@ -76,13 +76,14 @@ class HomeTab(QWidget):
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        # --- левая панель: ниши ---
+        # --- ліва панель: ніші (тепер ширше) ---
         left = QWidget()
+        left.setMinimumWidth(380)
         left_layout = QVBoxLayout(left)
         header = QHBoxLayout()
-        header.addWidget(QLabel("<h3>Ниши</h3>"))
+        header.addWidget(QLabel("<h3>Ніші</h3>"))
         header.addStretch()
-        btn_new = QPushButton("+ Новая")
+        btn_new = QPushButton("+ Нова")
         btn_new.setObjectName("primary")
         btn_new.clicked.connect(self._create_niche)
         header.addWidget(btn_new)
@@ -93,9 +94,9 @@ class HomeTab(QWidget):
         left_layout.addWidget(self.niche_list, 1)
 
         niche_actions = QHBoxLayout()
-        self.btn_edit = QPushButton("Редактировать")
+        self.btn_edit = QPushButton("Редагувати")
         self.btn_edit.clicked.connect(self._edit_niche)
-        self.btn_delete = QPushButton("Удалить")
+        self.btn_delete = QPushButton("Видалити")
         self.btn_delete.setObjectName("danger")
         self.btn_delete.clicked.connect(self._delete_niche)
         niche_actions.addWidget(self.btn_edit)
@@ -104,21 +105,37 @@ class HomeTab(QWidget):
 
         splitter.addWidget(left)
 
-        # --- правая панель: аккаунты ---
+        # --- права панель: аккаунти + панель задач знизу ---
         right = QWidget()
         right_layout = QVBoxLayout(right)
-        self.right_header = QLabel("<h3>Аккаунты ниши</h3>")
+        self.right_header = QLabel("<h3>Акаунти ніші</h3>")
         right_layout.addWidget(self.right_header)
 
+        # вертикальний splitter: верх — таблиця, низ — список задач
+        right_split = QSplitter(Qt.Orientation.Vertical)
+
+        # верх — таблиця акаунтів + bulk actions
+        accounts_box = QWidget()
+        accounts_layout = QVBoxLayout(accounts_box)
+        accounts_layout.setContentsMargins(0, 0, 0, 0)
         self.table = AccountsTable()
         self.table.price_changed.connect(self._on_price_changed)
         self.table.cost_changed.connect(self._on_cost_changed)
-        right_layout.addWidget(self.table, 1)
+        accounts_layout.addWidget(self.table, 1)
+        accounts_layout.addLayout(self._bulk_actions_bar())
+        right_split.addWidget(accounts_box)
 
-        right_layout.addLayout(self._bulk_actions_bar())
+        # низ — панель задач
+        from app.ui.widgets.tasks_panel import TasksPanel
+        self.tasks_panel = TasksPanel()
+        right_split.addWidget(self.tasks_panel)
+        right_split.setStretchFactor(0, 2)
+        right_split.setStretchFactor(1, 1)
 
+        right_layout.addWidget(right_split, 1)
         splitter.addWidget(right)
-        splitter.setStretchFactor(0, 1)
+        # ніші займають більше місця, ~40% ширини головного вікна
+        splitter.setStretchFactor(0, 2)
         splitter.setStretchFactor(1, 3)
         root.addWidget(splitter, 1)
 
@@ -183,9 +200,9 @@ class HomeTab(QWidget):
             ).scalar_one() or 0
 
         self.summary_label.setText(
-            f"Всего на продаже: <b>{total_on_sale}</b>  |  "
-            f"Ниш: <b>{len(niches)}</b>  |  "
-            f"Без классификации: <b>{unclassified_count}</b>"
+            f"Всього на продажі: <b>{total_on_sale}</b>  |  "
+            f"Ніш: <b>{len(niches)}</b>  |  "
+            f"Без класифікації: <b>{unclassified_count}</b>"
         )
 
         # --- прогресс автоматизации ---
@@ -199,13 +216,13 @@ class HomeTab(QWidget):
         global_slots = settings_store.get_global_stick_slots()
 
         self.progress_label.setText(
-            "🔺 Bump обычных сегодня: "
+            "🔺 Bump звичайних сьогодні: "
             f"<b style='color:#4caf50'>{bumps_done}</b> / {planned_bumps or '∞'}  &nbsp;|&nbsp;  "
-            "🔺📌 Bump закреплённых: "
+            "🔺📌 Bump закріплених: "
             f"<b style='color:#4caf50'>{stuck_bumps_done}</b> / {planned_stuck_bumps or '∞'}  &nbsp;|&nbsp;  "
-            "📌 Закреплено сейчас: "
+            "📌 Закріплено зараз: "
             f"<b style='color:#2196f3'>{stuck_now}</b> / {global_slots}  "
-            f"<span style='color:#9e9e9e'>(плановых слотов: {planned_stick_slots})</span>"
+            f"<span style='color:#9e9e9e'>(планових слотів: {planned_stick_slots})</span>"
         )
 
         self.niche_list.clear()
@@ -274,7 +291,15 @@ class HomeTab(QWidget):
         if not values["name"]:
             QMessageBox.warning(self, "Ошибка", "Введите название ниши")
             return
-        niche_manager.create_niche(**values)
+        new_niche = niche_manager.create_niche(**values)
+        # Якщо вказана закупівельна ціна — застосувати до вже зафіксованих
+        # продажів цієї ніші (перерахувати прибуток ретроактивно)
+        if new_niche.default_cost > 0:
+            updated = niche_manager.apply_niche_default_cost_to_sales(
+                new_niche.id, new_niche.default_cost
+            )
+            if updated:
+                logger.info("Перераховано прибуток у {} продажах ніші", updated)
 
         # При создании ниши с тегом — всегда подтягиваем аккаунты с API,
         # чтобы сразу увидеть результат классификации по тегу.
@@ -296,7 +321,12 @@ class HomeTab(QWidget):
                 return
             dlg = NicheEditor(niche=niche, client=self.client, parent=self)
         if dlg.exec() == NicheEditor.DialogCode.Accepted:
-            niche_manager.update_niche(self._current_niche_id, **dlg.values())
+            values = dlg.values()
+            niche_manager.update_niche(self._current_niche_id, **values)
+            if values.get("default_cost", 0) > 0:
+                niche_manager.apply_niche_default_cost_to_sales(
+                    self._current_niche_id, float(values["default_cost"])
+                )
             niche_manager.reclassify_accounts()
             self.reload()
 

@@ -149,12 +149,19 @@ def _parse_is_stuck(payload: dict) -> bool:
 
 
 def _register_sale(session, acc: Account, ts: datetime) -> None:
+    cost = acc.cost or 0.0
+    if cost <= 0 and acc.niche_id:
+        # тягнемо default_cost з ніші, якщо для акк ще не була проставлена ціна купівлі
+        from app.db.models import Niche
+        niche = session.get(Niche, acc.niche_id)
+        if niche and niche.default_cost > 0:
+            cost = float(niche.default_cost)
     sale = Sale(
         item_id=acc.item_id,
         title=acc.title,
         price=acc.price,
-        cost=acc.cost,
-        profit=(acc.price or 0) - (acc.cost or 0),
+        cost=cost,
+        profit=(acc.price or 0) - cost,
         niche_id=acc.niche_id,
         sold_at=ts,
     )
