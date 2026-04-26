@@ -119,8 +119,15 @@ class LolzMarketClient:
                 logger.info("/me top-level keys = {}", top_keys)
                 user_obj = self._me_cache.get("user") if isinstance(self._me_cache, dict) else None
                 if isinstance(user_obj, dict):
-                    relevant = [k for k in user_obj.keys() if any(x in k.lower() for x in ("stick", "bump", "limit", "subscribe", "premium"))]
-                    logger.info("/me .user — relevant keys = {}", relevant)
+                    # Все ключи user — для диагностики поиска stick limit
+                    all_keys = sorted(user_obj.keys())
+                    logger.info("/me .user — все ключи: {}", all_keys)
+                    relevant = [
+                        k for k in user_obj.keys()
+                        if any(x in k.lower() for x in (
+                            "stick", "bump", "limit", "subscribe", "premium", "vip", "rank",
+                        ))
+                    ]
                     for k in relevant:
                         logger.info("    {} = {}", k, str(user_obj[k])[:200])
             except Exception:  # noqa: BLE001
@@ -128,43 +135,68 @@ class LolzMarketClient:
         return self._me_cache
 
     def detect_limits(self) -> dict[str, int | None]:
-        """Пытается достать лимиты bump/stick из /me и items.
+        """Возвращает информацию о лимитах bump/stick.
 
-        Возвращает {"bumps_per_account": N | None, "stick_slots_total": N | None}.
-        Если поля не найдены — соответствующее значение None.
+        {
+          "bumps_per_account": N | None,   # лимит bump-ов на 1 аккаунт в сутки
+          "stick_slots_total": N | None,   # макс одновременно закреплённых
+          "currently_stuck":   N           # сколько закреплено сейчас (фактически)
+        }
         """
-        result: dict[str, int | None] = {"bumps_per_account": None, "stick_slots_total": None}
+        result: dict[str, int | None] = {
+            "bumps_per_account": None,
+            "stick_slots_total": None,
+            "currently_stuck": 0,
+        }
 
+        # /me — лимиты пользователя
         try:
             me = self.get_me()
         except ApiError:
             me = {}
         user = (me.get("user") if isinstance(me, dict) else None) or me
         if isinstance(user, dict):
+            # bump_item_period (часы) — пауза между bump одного item.
+            # 24 → 1 bump/сутки. 8 → 3 bump/сутки.
+            bip = user.get("bump_item_period")
+            if isinstance(bip, (int, float)) and bip > 0:
+                result["bumps_per_account"] = max(1, int(round(24.0 / float(bip))))
+                logger.info("/me .user.bump_item_period = {}h → bump/сутки = {}", bip, result["bumps_per_account"])
+
             for key in (
                 "stick_slots", "stickSlots", "max_sticked_items", "maxStickedItems",
-                "stickedItemsLimit", "sticky_items_limit",
+                "stickedItemsLimit", "sticky_items_limit", "max_sticky_items",
             ):
                 v = user.get(key)
                 if isinstance(v, (int, float)):
                     result["stick_slots_total"] = int(v)
                     break
-            for key in ("bumps_per_account_per_day", "bumpsPerAccountPerDay", "bump_limit_per_day"):
-                v = user.get(key)
-                if isinstance(v, (int, float)):
-                    result["bumps_per_account"] = int(v)
-                    break
 
-        # из items: считаем сколько уже закреплено сейчас (как нижнюю границу)
-        if result["stick_slots_total"] is None:
-            try:
-                resp = self.list_my_items(page=1)
-                items = resp.get("items") or resp.get("data") or []
-                sticked = sum(1 for it in items if isinstance(it, dict) and (it.get("is_sticky") or it.get("isSticky") or it.get("sticked")))
-                if sticked:
-                    logger.info("detect_limits: закреплено сейчас (по items) = {}", sticked)
-            except ApiError:
-                pass
+        # /user/:id/items — top-level stickyItems = текущее количество закреплённых
+        try:
+            resp = self.list_my_items(page=1)
+        except ApiError:
+            resp = {}
+
+        if isinstance(resp, dict):
+            current_stuck = resp.get("stickyItems") or resp.get("sticky_items_count")
+            if isinstance(current_stuck, (int, float)):
+                result["currently_stuck"] = int(current_stuck)
+                logger.info("items.stickyItems = {} (закреплено сейчас)", current_stuck)
+            elif isinstance(resp.get("items"), list):
+                items = resp.get("items") or []
+                result["currently_stuck"] = sum(
+                    1 for it in items
+                    if isinstance(it, dict) and (it.get("is_sticky") or it.get("isSticky"))
+                )
+
+            # Если stick_slots_total не нашли — берём текущее как минимально возможное
+            if result["stick_slots_total"] is None and result["currently_stuck"]:
+                result["stick_slots_total"] = result["currently_stuck"]
+                logger.info(
+                    "stick_slots_total не найден в /me — используем фактическое количество закреплённых = {}",
+                    result["currently_stuck"],
+                )
 
         logger.info("detect_limits: {}", result)
         return result

@@ -210,28 +210,28 @@ class UpdateCycle:
                 if n.auto_stick and n.stick_slots > 0:
                     need_more = n.stick_slots - len(stuck_accounts)
                     if need_more > 0:
-                        candidates = [a for a in normal_accounts if a.sticks_available > 0][:need_more]
-                        if candidates:
-                            ids = [a.item_id for a in candidates]
-                            res = stick_items(self.client, ids)
-                            for item_id, result in res.items():
-                                if result == "ok":
-                                    acc = s.execute(select(Account).where(Account.item_id == item_id)).scalar_one_or_none()
-                                    if acc:
-                                        acc.is_stuck = True
-                                    auto_result["sticks"] += 1
+                        candidates = [a for a in normal_accounts if a.sticks_available > 0]
+                        # с fallback: если stick падает на акк (ошибка/продан) — пробуем следующий
+                        sticked_ok = self._try_action_with_fallback(
+                            stick_items, candidates, need_more,
+                        )
+                        for item_id in sticked_ok:
+                            acc = s.execute(select(Account).where(Account.item_id == item_id)).scalar_one_or_none()
+                            if acc:
+                                acc.is_stuck = True
+                        auto_result["sticks"] += len(sticked_ok)
 
-                # --- 2. Автоподнятие обычных — учитываем bumps_per_day + hourly_schedule ---
+                # --- 2. Автоподнятие обычных ---
                 if n.auto_bump and n.bumps_per_day > 0:
                     done_today = self._count_bumps_today(s, n.id, today_start, stuck=False)
                     remaining = n.bumps_per_day - done_today
                     if remaining > 0:
                         per_tick = self._target_for_this_hour(n, done_today)
-                        candidates = [a for a in normal_accounts if a.bumps_available > 0][:per_tick]
-                        if candidates:
-                            ids = [a.item_id for a in candidates]
-                            res = bump_items(self.client, ids)
-                            auto_result["bumps"] += sum(1 for v in res.values() if v == "ok")
+                        candidates = [a for a in normal_accounts if a.bumps_available > 0]
+                        bumped_ok = self._try_action_with_fallback(
+                            bump_items, candidates, per_tick,
+                        )
+                        auto_result["bumps"] += len(bumped_ok)
 
                 # --- 3. Отдельное поднятие закреплённых (с учётом 1h cooldown) ---
                 if n.auto_bump_stuck and n.stuck_bumps_per_day > 0 and stuck_accounts:
@@ -246,10 +246,10 @@ class UpdateCycle:
                             and (a.last_bumped_at is None or (now - a.last_bumped_at) >= cooldown)
                         ]
                         per_tick = self._bumps_for_this_tick(remaining, today_start)
-                        ids = [a.item_id for a in eligible[:per_tick]]
-                        if ids:
-                            res = bump_items(self.client, ids)
-                            auto_result["stuck_bumps"] += sum(1 for v in res.values() if v == "ok")
+                        bumped_ok = self._try_action_with_fallback(
+                            bump_items, eligible, per_tick,
+                        )
+                        auto_result["stuck_bumps"] += len(bumped_ok)
             s.commit()
         return auto_result
 
@@ -271,6 +271,39 @@ class UpdateCycle:
             )
         )
         return session.execute(stmt).scalar_one() or 0
+
+    def _try_action_with_fallback(
+        self,
+        action_fn,
+        candidates: list[Account],
+        target_count: int,
+    ) -> list[int]:
+        """Применяет action_fn(client, [item_ids]) пачками, пока не наберём
+        target_count успехов либо не закончатся кандидаты.
+
+        Если на акк прилетела ошибка (продан, нет прав, лимит) — берём
+        следующий из этой же ниши.
+        """
+        if target_count <= 0 or not candidates:
+            return []
+        success_ids: list[int] = []
+        idx = 0
+        while len(success_ids) < target_count and idx < len(candidates):
+            need = target_count - len(success_ids)
+            batch = candidates[idx:idx + need]
+            idx += len(batch)
+            if not batch:
+                break
+            res = action_fn(self.client, [a.item_id for a in batch])
+            for item_id, result in res.items():
+                if isinstance(result, str) and (result == "ok" or result.startswith("ok")):
+                    success_ids.append(item_id)
+                else:
+                    logger.info(
+                        "Действие на item {} не удалось ({}), пробуем следующий из ниши",
+                        item_id, result,
+                    )
+        return success_ids
 
     def _bumps_for_this_tick(self, remaining_today: int, today_start: datetime) -> int:
         """Распределяет оставшиеся bumps равномерно до конца суток."""

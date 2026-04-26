@@ -114,23 +114,31 @@ def _extract_tags(payload: dict) -> list[dict]:
 
 
 def _parse_bumps_available(payload: dict) -> int | None:
-    """Сколько поднятий ещё доступно для аккаунта по данным API.
+    """Сколько bump-ов ещё доступно для аккаунта по данным API.
 
-    Lolzteam в разных полях возвращает информацию: bumpsAvailable / canBump (bool) /
-    bumps_left / bumpRemaining. Возвращаем None если не нашли — оставим текущее значение.
+    Lolzteam Market возвращает:
+      canBumpItem: bool       — можно ли сейчас bump-ать
+      canNotBumpItemReason   — текст ('Нужно подождать N м.')
+      auto_bump_period: int  — секунд до следующего разрешённого bump
+      canAutoBump: bool      — разрешён ли auto-bump для этого item
     """
-    for key in ("bumpsAvailable", "bumps_available", "bumps_left", "bumpRemaining", "bump_remaining"):
+    can = payload.get("canBumpItem")
+    if isinstance(can, bool):
+        # Если можно — считаем что есть 1 поднятие (Lolzteam: после bump
+        # надо ждать ~24 часа до следующего, поэтому за раз доступно 1)
+        return 1 if can else 0
+    for key in ("bumpsAvailable", "bumps_available", "bumps_left", "bumpRemaining"):
         val = payload.get(key)
         if isinstance(val, (int, float)):
             return int(val)
-    can_bump = payload.get("canBump") or payload.get("can_bump")
-    if isinstance(can_bump, bool):
-        return 1 if can_bump else 0
     return None
 
 
 def _parse_is_stuck(payload: dict) -> bool:
-    """Закреплён ли аккаунт сейчас (по данным API)."""
+    """Закреплён ли аккаунт сейчас (по данным API).
+
+    Lolzteam: is_sticky приходит как 0/1.
+    """
     for key in ("is_sticky", "isSticky", "is_stuck", "sticked", "is_pinned"):
         val = payload.get(key)
         if isinstance(val, bool):

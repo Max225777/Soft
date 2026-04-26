@@ -36,11 +36,15 @@ class _Task:
 class RequestQueue:
     def __init__(
         self,
-        min_delay: float = 3.0,
+        min_delay: float = 0.6,
         normal_per_minute: int = 120,
         search_per_minute: int = 20,
+        search_min_delay: float = 3.0,
     ) -> None:
-        self.min_delay = max(min_delay, 3.0)
+        # Для обычных endpoint-ов 0.6с безопасно (60/0.6=100/мин < лимита 120/мин).
+        # Для search-endpoint-ов держим минимум 3с (лимит 20/мин).
+        self.min_delay = max(min_delay, 0.3)
+        self.search_min_delay = max(search_min_delay, 3.0)
         self.normal_per_minute = normal_per_minute
         self.search_per_minute = search_per_minute
 
@@ -121,11 +125,12 @@ class RequestQueue:
             return heapq.heappop(self._heap)
 
     def _respect_rate_limits(self, is_search: bool) -> None:
-        # минимальная пауза между любыми запросами
+        # минимальная пауза: для search строже (3 сек), для обычных — быстрее
+        required = self.search_min_delay if is_search else self.min_delay
         now = time.monotonic()
         delta = now - self._last_call_at
-        if delta < self.min_delay:
-            time.sleep(self.min_delay - delta)
+        if delta < required:
+            time.sleep(required - delta)
 
         # скользящее окно за 60 секунд
         while True:

@@ -84,7 +84,9 @@ class Settings:
             api_token=os.getenv("LOLZ_API_TOKEN", ""),
             api_base_url=os.getenv("LOLZ_API_BASE_URL", "https://prod-api.lzt.market/"),
             api_lang=os.getenv("LOLZ_API_LANG", "ru"),
-            api_min_delay=max(_get_float("LOLZ_API_MIN_DELAY", 3.0), 3.0),
+            # 0.6 сек безопасно: 60/0.6 = 100 запросов/мин (лимит Lolzteam: 120/мин для items).
+            # Для search-эндпоинтов queue.RequestQueue отдельно держит окно 20/мин.
+            api_min_delay=max(_get_float("LOLZ_API_MIN_DELAY", 0.6), 0.3),
             api_max_retries=_get_int("LOLZ_API_MAX_RETRIES", 3),
             cycle_interval_minutes=_get_int("CYCLE_INTERVAL_MINUTES", 20),
             cycle_autostart=_get_bool("CYCLE_AUTOSTART", True) and not args.no_auto_cycle,
