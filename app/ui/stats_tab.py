@@ -1,4 +1,7 @@
-"""Вкладка «Статистика»: дашборд, графики, отчёты."""
+"""Вкладка «Статистика»: дашборд, графіки, звіти.
+
+Весь контент у QScrollArea — навіть при малому вікні все доступне через скрол.
+"""
 
 from __future__ import annotations
 
@@ -16,6 +19,8 @@ from PySide6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -28,9 +33,9 @@ from app.services.export import export_csv, export_xlsx
 
 PERIODS = {
     "День": timedelta(days=1),
-    "Неделя": timedelta(days=7),
-    "Месяц": timedelta(days=30),
-    "Год": timedelta(days=365),
+    "Тиждень": timedelta(days=7),
+    "Місяць": timedelta(days=30),
+    "Рік": timedelta(days=365),
 }
 
 
@@ -43,54 +48,83 @@ class StatsTab(QWidget):
         self.reload()
 
     def _build_ui(self) -> None:
-        root = QVBoxLayout(self)
+        # Зовнішній layout — top-bar (фіксовано) + scroll-area з контентом
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
 
+        # --- верхній бар з періодом і кнопками (поза прокруткою) ---
         top = QHBoxLayout()
+        top.setContentsMargins(8, 8, 8, 8)
         top.addWidget(QLabel("<h2>Статистика</h2>"))
         top.addStretch()
         self.period_combo = QComboBox()
         self.period_combo.addItems(list(PERIODS.keys()))
-        self.period_combo.setCurrentText("Месяц")
+        self.period_combo.setCurrentText("Місяць")
         self.period_combo.currentTextChanged.connect(lambda _: self.reload())
-        top.addWidget(QLabel("Период:"))
+        top.addWidget(QLabel("Період:"))
         top.addWidget(self.period_combo)
-        btn_refresh = QPushButton("Обновить")
+        btn_refresh = QPushButton("Оновити")
         btn_refresh.clicked.connect(self.reload)
         top.addWidget(btn_refresh)
-        root.addLayout(top)
 
-        self.kpi_box = QGroupBox("Ключевые показатели")
-        self.kpi_layout = QGridLayout(self.kpi_box)
-        root.addWidget(self.kpi_box)
-
-        charts = QHBoxLayout()
-        self.sales_plot = pg.PlotWidget(title="Продажи (шт) по дням")
-        self.revenue_plot = pg.PlotWidget(title="Оборот по дням")
-        self.profit_plot = pg.PlotWidget(title="Чистая прибыль по дням")
-        charts.addWidget(self.sales_plot)
-        charts.addWidget(self.revenue_plot)
-        charts.addWidget(self.profit_plot)
-        root.addLayout(charts, 1)
-
-        # --- Горизонтальное сравнение прибыли по нишам ---
-        niche_box = QGroupBox("Сравнение прибыли по нишам")
-        niche_layout = QVBoxLayout(niche_box)
-        self.niche_compare_plot = pg.PlotWidget()
-        self.niche_compare_plot.setMinimumHeight(240)
-        self.niche_compare_plot.getPlotItem().invertY(True)  # сверху вниз
-        niche_layout.addWidget(self.niche_compare_plot)
-        root.addWidget(niche_box, 1)
-
-        export_bar = QHBoxLayout()
-        export_bar.addWidget(QLabel("Экспорт:"))
+        top.addWidget(QLabel("Експорт:"))
         btn_csv = QPushButton("CSV")
         btn_csv.clicked.connect(lambda: self._export("csv"))
-        export_bar.addWidget(btn_csv)
+        top.addWidget(btn_csv)
         btn_xlsx = QPushButton("XLSX")
         btn_xlsx.clicked.connect(lambda: self._export("xlsx"))
-        export_bar.addWidget(btn_xlsx)
-        export_bar.addStretch()
-        root.addLayout(export_bar)
+        top.addWidget(btn_xlsx)
+        outer.addLayout(top)
+
+        # --- прокручувана область з усім вмістом ---
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        outer.addWidget(scroll, 1)
+
+        content = QWidget()
+        scroll.setWidget(content)
+        body = QVBoxLayout(content)
+        body.setContentsMargins(8, 4, 8, 8)
+        body.setSpacing(10)
+
+        # --- KPI ---
+        self.kpi_box = QGroupBox("Ключові показники")
+        self.kpi_layout = QGridLayout(self.kpi_box)
+        self.kpi_layout.setSpacing(8)
+        body.addWidget(self.kpi_box)
+
+        # --- 3 графіки в рядок (з мін. висотою) ---
+        charts_box = QGroupBox("Динаміка по днях")
+        charts_layout = QHBoxLayout(charts_box)
+        self.sales_plot = self._make_plot("Продажі (шт) по днях")
+        self.revenue_plot = self._make_plot("Оборот по днях")
+        self.profit_plot = self._make_plot("Чистий прибуток по днях")
+        charts_layout.addWidget(self.sales_plot)
+        charts_layout.addWidget(self.revenue_plot)
+        charts_layout.addWidget(self.profit_plot)
+        body.addWidget(charts_box)
+
+        # --- Порівняння прибутку по нішах (горизонтальний бар-чарт) ---
+        niche_box = QGroupBox("Порівняння прибутку по нішах")
+        niche_layout = QVBoxLayout(niche_box)
+        self.niche_compare_plot = pg.PlotWidget()
+        self.niche_compare_plot.setMinimumHeight(280)
+        self.niche_compare_plot.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding
+        )
+        self.niche_compare_plot.getPlotItem().invertY(True)
+        niche_layout.addWidget(self.niche_compare_plot)
+        body.addWidget(niche_box)
+
+        body.addStretch()
+
+    @staticmethod
+    def _make_plot(title: str) -> pg.PlotWidget:
+        p = pg.PlotWidget(title=title)
+        p.setMinimumHeight(220)
+        p.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding)
+        return p
 
     def reload(self) -> None:
         period = PERIODS[self.period_combo.currentText()]
@@ -172,38 +206,45 @@ class StatsTab(QWidget):
                 continue
             profit_by_niche[sale.niche_id] = profit_by_niche.get(sale.niche_id, 0.0) + (sale.profit or 0)
 
+        self.niche_compare_plot.clear()
         if not profit_by_niche:
-            self.niche_compare_plot.clear()
             return
 
         sorted_items = sorted(profit_by_niche.items(), key=lambda kv: kv[1], reverse=True)
         names = [niches.get(nid, f"Niche #{nid}") for nid, _ in sorted_items]
         values = [v for _, v in sorted_items]
 
-        self.niche_compare_plot.clear()
         y_pos = list(range(len(values)))
         bar = pg.BarGraphItem(
             x0=[0] * len(values), y=y_pos, width=values, height=0.7, brush="#4caf50"
         )
         self.niche_compare_plot.addItem(bar)
         self.niche_compare_plot.getAxis("left").setTicks([[(i, names[i]) for i in y_pos]])
-        self.niche_compare_plot.setLabel("bottom", "Прибыль ($)")
+        self.niche_compare_plot.setLabel("bottom", "Прибуток ($)")
+        # Висота графіка адаптується під кількість ніш (мінімум 280, +28 на нішу)
+        height = max(280, 60 + len(values) * 28)
+        self.niche_compare_plot.setMinimumHeight(height)
 
     def _render_kpi(self, kpis: dict[str, str]) -> None:
-        # очищаем сетку
+        # очищуємо сітку
         while self.kpi_layout.count():
             item = self.kpi_layout.takeAt(0)
             w = item.widget()
             if w:
                 w.deleteLater()
+        # 4 колонки KPI (12 карток → 3 ряди)
+        cols = 4
         for i, (k, v) in enumerate(kpis.items()):
-            row, col = divmod(i, 3)
+            row, col = divmod(i, cols)
             box = QGroupBox()
+            box.setMinimumHeight(80)
             lay = QVBoxLayout(box)
+            lay.setContentsMargins(6, 6, 6, 6)
             title = QLabel(k)
-            title.setStyleSheet("color:#9e9e9e;")
+            title.setStyleSheet("color:#9e9e9e; font-size:10pt;")
+            title.setWordWrap(True)
             value = QLabel(v)
-            value.setStyleSheet("font-size:18pt; font-weight:600; color:#4caf50;")
+            value.setStyleSheet("font-size:14pt; font-weight:600; color:#4caf50;")
             value.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lay.addWidget(title)
             lay.addWidget(value)
@@ -216,7 +257,10 @@ class StatsTab(QWidget):
         x = list(range(len(y)))
         plot.plot(x, y, pen=pg.mkPen(color=color, width=2), symbol="o", symbolBrush=color, symbolSize=5)
         axis = plot.getAxis("bottom")
-        axis.setTicks([[(i, x_labels[i]) for i in range(len(x_labels))]])
+        # показуємо не всі підписи якщо їх багато (інакше каша)
+        step = max(1, len(x_labels) // 10)
+        ticks = [(i, x_labels[i]) for i in range(0, len(x_labels), step)]
+        axis.setTicks([ticks])
 
     def _export(self, fmt: str) -> None:
         period = PERIODS[self.period_combo.currentText()]
@@ -232,7 +276,7 @@ class StatsTab(QWidget):
         ]
 
         suffix = "csv" if fmt == "csv" else "xlsx"
-        path_str, _ = QFileDialog.getSaveFileName(self, "Сохранить отчёт", f"sales.{suffix}", f"*.{suffix}")
+        path_str, _ = QFileDialog.getSaveFileName(self, "Зберегти звіт", f"sales.{suffix}", f"*.{suffix}")
         if not path_str:
             return
         path = Path(path_str)
@@ -242,9 +286,9 @@ class StatsTab(QWidget):
             else:
                 export_xlsx(rows, headers, path)
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.warning(self, "Ошибка экспорта", str(exc))
+            QMessageBox.warning(self, "Помилка експорту", str(exc))
             return
-        QMessageBox.information(self, "Экспорт", f"Сохранено: {path}")
+        QMessageBox.information(self, "Експорт", f"Збережено: {path}")
 
 
 def _group_daily(sales: list[Sale], period: timedelta) -> dict:
