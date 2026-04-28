@@ -220,7 +220,24 @@ class NicheEditor(QDialog):
         self._tags_call.start()
 
     def _tags_failed(self, exc: Exception) -> None:
-        self.tags_status.setText(f"<span style='color:#f44336'>⚠ Ошибка: {exc}</span>")
+        self.tags_status.setText(f"<span style='color:#f44336'>⚠ Помилка: {exc}</span>")
+
+    def _on_tag_changed(self, _idx: int) -> None:
+        tag_id = self.tag_combo.currentData()
+        if tag_id is None:
+            self.tags_status.setText("")
+            return
+        tag = next((t for t in self._tags_cache if int(t["id"]) == int(tag_id)), None)
+        if tag and tag.get("isDefault"):
+            self.tags_status.setText(
+                "<span style='color:#ffc107'>⚠ <b>Це default-тег</b> — він "
+                "автоматично присвоюється ВСІМ вашим акаунтам. У нішу потраплять "
+                "ВСІ акк, не тільки якась конкретна категорія.</span>"
+            )
+        else:
+            self.tags_status.setText(
+                f"<span style='color:#4caf50'>✓ Обрано тег #{tag_id}</span>"
+            )
 
     def _tags_loaded(self, tags) -> None:
         tags = list(tags or [])
@@ -229,8 +246,15 @@ class NicheEditor(QDialog):
         self.tag_combo.clear()
         self.tag_combo.addItem("— без тега —", None)
         for t in tags:
-            label = f"#{t['id']}  {t['title']}" if t.get("title") else f"#{t['id']}"
-            self.tag_combo.addItem(label, int(t["id"]))
+            base = f"#{t['id']}  {t['title']}" if t.get("title") else f"#{t['id']}"
+            if t.get("isDefault"):
+                base += "  ⚠ (default-тег: матчить ВСІ акк)"
+            self.tag_combo.addItem(base, int(t["id"]))
+        try:
+            self.tag_combo.currentIndexChanged.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+        self.tag_combo.currentIndexChanged.connect(self._on_tag_changed)
         if current is not None:
             idx = self.tag_combo.findData(current)
             if idx >= 0:
@@ -300,13 +324,6 @@ class NicheEditor(QDialog):
             "name": self.name_edit.text().strip(),
             "tag_id": int(tag_id) if tag_id is not None else None,
             "tag_name": tag_name,
-            # фильтры по категории / стране / цене / словам — больше не используем
-            "category": "",
-            "country": "",
-            "price_min": None,
-            "price_max": None,
-            "keywords": "",
-            "exact_title": "",
             "default_cost": float(self.default_cost.value()),
             "markup": float(self.markup.value()),
             "auto_bump": self.auto_bump_chk.isChecked(),

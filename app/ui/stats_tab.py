@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from loguru import logger
 from sqlalchemy import func, select
 
 from app.db.models import Account, Niche, Sale
@@ -171,6 +172,35 @@ class StatsTab(QWidget):
         total_revenue = sum(sale.price for sale in sales)
         total_profit = sum(sale.profit for sale in sales)
         avg_check = (total_revenue / total_qty) if total_qty else 0.0
+
+        # Детальне логування — щоб зрозуміти що рахується
+        logger.info(
+            "📊 StatsTab.reload: період={}, з={} → {} продажів, оборот=${:.2f}, прибуток=${:.2f}",
+            self.period_combo.currentText(),
+            since.isoformat(timespec="seconds"),
+            total_qty,
+            total_revenue,
+            total_profit,
+        )
+        logger.info(
+            "📊 Сьогодні: продано={}, оборот=${:.2f}, прибуток=${:.2f}, bump={}, stick={}",
+            sold_today, revenue_today, profit_today, bumps_today, sticks_today,
+        )
+        # Розподіл продажів за нішами (для виявлення «всі продажі в одну нішу»)
+        with get_session() as s2:
+            niches_map = {n.id: n.name for n in s2.execute(select(Niche)).scalars()}
+        by_niche: dict = {}
+        for sale in sales:
+            key = niches_map.get(sale.niche_id, "БЕЗ НІШІ") if sale.niche_id else "БЕЗ НІШІ"
+            d = by_niche.setdefault(key, {"qty": 0, "revenue": 0.0, "profit": 0.0})
+            d["qty"] += 1
+            d["revenue"] += sale.price or 0
+            d["profit"] += sale.profit or 0
+        for name, d in by_niche.items():
+            logger.info(
+                "   📁 '{}': {} продажів, оборот ${:.2f}, прибуток ${:.2f}",
+                name, d["qty"], d["revenue"], d["profit"],
+            )
 
         self._render_kpi({
             # Сьогодні

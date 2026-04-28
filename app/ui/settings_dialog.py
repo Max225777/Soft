@@ -247,11 +247,17 @@ class SettingsDialog(QDialog):
         currently_stuck = niche_manager.total_stuck_count()
         global_stick = settings_store.get_global_stick_slots()
 
+        global_max = settings_store.get_global_bumps_per_day()
+        plan_str = str(total_planned_bumps) if total_planned_bumps else "∞"
+        if global_max:
+            plan_str += f" (стеля {global_max})"
+
         text = (
-            f"🔺 Обычных bump-ов сегодня:  <b>{bumps_done}</b> / {total_planned_bumps or '∞'}<br>"
-            f"🔺📌 Bump закреплённых:     <b>{stuck_bumps_done}</b> / {total_planned_stuck_bumps or '∞'}<br>"
-            f"📌 Закреплено сейчас:       <b>{currently_stuck}</b> / {global_stick}  "
-            f"(плановых слотов: {total_stick_slots_used})"
+            f"📊 <b>План bump на день для ВСІХ ніш разом: {total_planned_bumps}</b><br>"
+            f"🔺 Bump звичайних сьогодні:  <b>{bumps_done}</b> / {plan_str}<br>"
+            f"🔺📌 Bump закріплених:     <b>{stuck_bumps_done}</b> / {total_planned_stuck_bumps or '∞'}<br>"
+            f"📌 Закріплено зараз:       <b>{currently_stuck}</b> / {global_stick}  "
+            f"(планових слотів: {total_stick_slots_used})"
         )
         self.progress_label.setText(text)
 

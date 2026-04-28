@@ -188,6 +188,11 @@ class HomeTab(QWidget):
     # ---------- state ----------
     def reload(self) -> None:
         niches = niche_manager.list_niches()
+        logger.info(
+            "home_tab.reload: {} ніш у БД: {}",
+            len(niches),
+            [(n.id, n.name, f"tag={n.tag_id}") for n in niches],
+        )
 
         with get_session() as s:
             total_on_sale = s.execute(

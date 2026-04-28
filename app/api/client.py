@@ -295,20 +295,21 @@ def _retry_after(resp: httpx.Response) -> float | None:
 def _extract_tags_from_item(item: dict[str, Any]) -> list[dict[str, Any]]:
     """Достаёт список приватных меток из объекта item (`/user/:id/items` ответ).
 
-    Lolzteam в разных местах возвращает теги по-разному:
-      item['tags'] = [{tag_id, title, ...}, ...]
-      item['user_tags'] = [...]
-      item['private_tags'] = [...]
-      item['tag_ids'] = [int, int]
-      item['tags'] = {"7": "UA", "9": "RU"}    (dict-form)
+    Возвращает список dict-ов: {"id": int, "title": str, "isDefault": bool}.
     """
     raw = item.get("tags") or item.get("user_tags") or item.get("private_tags")
     if isinstance(raw, dict):
         out: list[dict[str, Any]] = []
         for k, v in raw.items():
-            if str(k).lstrip("-").isdigit():
-                title = v if not isinstance(v, dict) else (v.get("title") or v.get("name") or "")
-                out.append({"id": int(k), "title": str(title)})
+            if not str(k).lstrip("-").isdigit():
+                continue
+            if isinstance(v, dict):
+                title = v.get("title") or v.get("name") or ""
+                is_default = bool(v.get("isDefault") or v.get("is_default"))
+            else:
+                title = v
+                is_default = False
+            out.append({"id": int(k), "title": str(title), "isDefault": is_default})
         return out
     if isinstance(raw, list):
         out = []
@@ -316,17 +317,18 @@ def _extract_tags_from_item(item: dict[str, Any]) -> list[dict[str, Any]]:
             if isinstance(t, dict):
                 tid = t.get("tag_id") or t.get("id")
                 title = t.get("title") or t.get("name") or t.get("tag") or ""
+                is_default = bool(t.get("isDefault") or t.get("is_default"))
                 if tid:
-                    out.append({"id": int(tid), "title": str(title)})
+                    out.append({"id": int(tid), "title": str(title), "isDefault": is_default})
             elif isinstance(t, int):
-                out.append({"id": t, "title": ""})
+                out.append({"id": t, "title": "", "isDefault": False})
             elif isinstance(t, str) and t.lstrip("-").isdigit():
-                out.append({"id": int(t), "title": ""})
+                out.append({"id": int(t), "title": "", "isDefault": False})
         return out
     raw_ids = item.get("tag_ids") or item.get("tagIds")
     if isinstance(raw_ids, list):
         return [
-            {"id": int(x), "title": ""}
+            {"id": int(x), "title": "", "isDefault": False}
             for x in raw_ids
             if str(x).lstrip("-").isdigit()
         ]

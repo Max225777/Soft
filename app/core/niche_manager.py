@@ -86,14 +86,31 @@ def reclassify_accounts() -> dict[int, int]:
 
     Возвращает словарь {niche_id: count_of_accounts}.
     """
+    from loguru import logger
+
     with get_session() as s:
         niches = list(s.execute(select(Niche)).scalars())
         accounts = list(s.execute(select(Account)).scalars())
         counts: dict[int, int] = {n.id: 0 for n in niches}
 
         ordered_niches = [n for n in niches if n.tag_id]
+        unclassified = 0
+        no_tag_niches = [n for n in niches if not n.tag_id]
+        active_acc = 0
+
+        logger.info(
+            "reclassify: усього ніш = {}, з тегом = {}, без тега = {}; акаунтів = {}",
+            len(niches), len(ordered_niches), len(no_tag_niches), len(accounts),
+        )
+        if no_tag_niches:
+            logger.warning(
+                "Ці ніші БЕЗ тега не класифікують нічого: {}",
+                [n.name for n in no_tag_niches],
+            )
 
         for acc in accounts:
+            if acc.status == "active":
+                active_acc += 1
             best: Niche | None = None
             for n in ordered_niches:
                 if NicheFilters(tag_id=n.tag_id).matches(acc):
@@ -104,7 +121,19 @@ def reclassify_accounts() -> dict[int, int]:
                 counts[best.id] += 1
                 if (acc.cost or 0) == 0 and best.default_cost:
                     acc.cost = best.default_cost
+            else:
+                unclassified += 1
         s.commit()
+
+        # Підсумки
+        logger.info(
+            "reclassify результат: класифіковано={}, без класифікації={}, активних={}",
+            sum(counts.values()), unclassified, active_acc,
+        )
+        for n in niches:
+            tag_info = f"#{n.tag_id} ({n.tag_name})" if n.tag_id else "БЕЗ ТЕГУ"
+            logger.info("  ніша '{}' → {} акк   tag={}", n.name, counts[n.id], tag_info)
+
         return counts
 
 

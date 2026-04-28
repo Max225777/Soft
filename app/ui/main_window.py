@@ -89,29 +89,39 @@ class MainWindow(QMainWindow):
 
     def _build_menu(self) -> None:
         menu = self.menuBar().addMenu("Файл")
-        act_settings = QAction("Настройки…", self)
+        act_settings = QAction("Налаштування…", self)
         act_settings.triggered.connect(self._open_settings)
         menu.addAction(act_settings)
 
-        act_logs = QAction("Журнал событий…", self)
+        act_logs = QAction("Журнал подій…", self)
         act_logs.triggered.connect(self._open_logs)
         menu.addAction(act_logs)
 
         menu.addSeparator()
-        act_quit = QAction("Выход", self)
+        act_quit = QAction("Вихід", self)
         act_quit.triggered.connect(self.close)
         menu.addAction(act_quit)
 
         cycle_menu = self.menuBar().addMenu("Цикл")
-        act_start = QAction("Запустить", self)
+        act_start = QAction("Запустити", self)
         act_start.triggered.connect(lambda: self.cycle.start(run_now=True))
         cycle_menu.addAction(act_start)
-        act_stop = QAction("Остановить", self)
+        act_stop = QAction("Зупинити", self)
         act_stop.triggered.connect(self.cycle.stop)
         cycle_menu.addAction(act_stop)
-        act_now = QAction("Обновить сейчас", self)
+        act_now = QAction("Оновити зараз", self)
         act_now.triggered.connect(self.cycle.trigger_now)
         cycle_menu.addAction(act_now)
+
+        # --- Меню «Дані» з небезпечними операціями ---
+        data_menu = self.menuBar().addMenu("Дані")
+        act_clear_stats = QAction("🧹 Очистити статистику (продажі + лог)", self)
+        act_clear_stats.triggered.connect(self._clear_statistics)
+        data_menu.addAction(act_clear_stats)
+
+        act_reclassify = QAction("🔄 Перекласифікувати акаунти за нішами", self)
+        act_reclassify.triggered.connect(self._reclassify)
+        data_menu.addAction(act_reclassify)
 
     def _build_statusbar(self) -> None:
         bar = QStatusBar()
@@ -149,6 +159,41 @@ class MainWindow(QMainWindow):
             "API-токен не найден. Откроем настройки — вставьте токен со scope read+post+market.",
         )
         self._open_settings()
+
+    def _clear_statistics(self) -> None:
+        confirm = QMessageBox.question(
+            self,
+            "Очистити статистику",
+            "Видалити ВСІ записи з таблиць Sale, ActionLog, PriceHistory?\n"
+            "Аккаунти й ніші залишаться. Це необоротна операція.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+        from app.db.models import ActionLog, PriceHistory, Sale
+        from app.db.session import get_session
+
+        with get_session() as s:
+            sales = s.query(Sale).delete()
+            logs = s.query(ActionLog).delete()
+            ph = s.query(PriceHistory).delete()
+            s.commit()
+        logger.info("Очищена статистика: sales={}, action_log={}, price_history={}", sales, logs, ph)
+        self.statusBar().showMessage(
+            f"Очищено: {sales} продажів, {logs} записів логу, {ph} історії цін", 6000,
+        )
+        self._refresh_ui()
+
+    def _reclassify(self) -> None:
+        from app.core import niche_manager
+        counts = niche_manager.reclassify_accounts()
+        total = sum(counts.values())
+        QMessageBox.information(
+            self,
+            "Перекласифіковано",
+            f"Класифіковано {total} акк за {len(counts)} ніш.\nДеталі — у журналі подій (Файл → Журнал).",
+        )
+        self._refresh_ui()
 
     def _refresh_ui(self) -> None:
         self.home_tab.reload()
