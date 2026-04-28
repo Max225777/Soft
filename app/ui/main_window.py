@@ -13,7 +13,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QStatusBar,
-    QTabWidget,
     QWidget,
 )
 
@@ -25,7 +24,6 @@ from app.services import settings_store
 from app.ui.home_tab import HomeTab
 from app.ui.logs_dialog import LogsDialog
 from app.ui.settings_dialog import SettingsDialog
-from app.ui.stats_tab import StatsTab
 
 
 class MainWindow(QMainWindow):
@@ -70,6 +68,12 @@ class MainWindow(QMainWindow):
         self._status_timer.timeout.connect(self._refresh_status)
         self._status_timer.start(1000)
 
+        # Періодично оновлюємо UI з БД — щоб точно бачити актуальний стан
+        # навіть коли цикл або ручні дії змінили дані без явного сигналу.
+        self._ui_refresh_timer = QTimer(self)
+        self._ui_refresh_timer.timeout.connect(self._refresh_ui)
+        self._ui_refresh_timer.start(5000)  # 5 секунд
+
     @staticmethod
     def _is_db_empty() -> bool:
         from sqlalchemy import func, select
@@ -80,12 +84,9 @@ class MainWindow(QMainWindow):
 
     # ---------- UI ----------
     def _build_ui(self) -> None:
-        self.tabs = QTabWidget()
+        # Поки що тільки головна вкладка — статистика прибрана за запитом
         self.home_tab = HomeTab(client=self.client, trigger_refresh=self.cycle.trigger_now)
-        self.stats_tab = StatsTab()
-        self.tabs.addTab(self.home_tab, "Главная")
-        self.tabs.addTab(self.stats_tab, "Статистика")
-        self.setCentralWidget(self.tabs)
+        self.setCentralWidget(self.home_tab)
 
     def _build_menu(self) -> None:
         menu = self.menuBar().addMenu("Файл")
@@ -197,7 +198,6 @@ class MainWindow(QMainWindow):
 
     def _refresh_ui(self) -> None:
         self.home_tab.reload()
-        self.stats_tab.reload()
 
     def _on_cycle_tick(self, summary: dict) -> None:
         # Колбэк прилетает из фонового потока APScheduler — нельзя

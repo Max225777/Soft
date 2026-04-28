@@ -143,7 +143,6 @@ class SettingsDialog(QDialog):
 
         self.global_bumps_per_day_spin = QSpinBox()
         self.global_bumps_per_day_spin.setRange(0, 10000)
-        self.global_bumps_per_day_spin.setSpecialValueText("без обмеження")
         limits_form.addRow("Всього підйомів на день (всі ніші):", self.global_bumps_per_day_spin)
         hint_g = QLabel(
             "Загальний ліміт на ВСІ ніші. Наприклад: «не більше 200 bump на день, "
