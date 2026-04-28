@@ -295,11 +295,15 @@ def _retry_after(resp: httpx.Response) -> float | None:
 def _extract_tags_from_item(item: dict[str, Any]) -> list[dict[str, Any]]:
     """Достаёт список приватных меток из объекта item (`/user/:id/items` ответ).
 
-    Возвращает список dict-ов: {"id": int, "title": str, "isDefault": bool}.
+    ВАЖНО: default-теги Lolzteam (isDefault=True, наприклад «Валидный»,
+    «Масс. загрузка») ВІДКИДАЮТЬСЯ — вони присвоюються кожному акаунту
+    автоматично і непридатні як критерій ніш.
+
+    Возвращает список dict-ов: {"id": int, "title": str, "isDefault": False}.
     """
     raw = item.get("tags") or item.get("user_tags") or item.get("private_tags")
+    out: list[dict[str, Any]] = []
     if isinstance(raw, dict):
-        out: list[dict[str, Any]] = []
         for k, v in raw.items():
             if not str(k).lstrip("-").isdigit():
                 continue
@@ -309,17 +313,20 @@ def _extract_tags_from_item(item: dict[str, Any]) -> list[dict[str, Any]]:
             else:
                 title = v
                 is_default = False
-            out.append({"id": int(k), "title": str(title), "isDefault": is_default})
+            if is_default:
+                continue  # ігноруємо системні теги
+            out.append({"id": int(k), "title": str(title), "isDefault": False})
         return out
     if isinstance(raw, list):
-        out = []
         for t in raw:
             if isinstance(t, dict):
                 tid = t.get("tag_id") or t.get("id")
                 title = t.get("title") or t.get("name") or t.get("tag") or ""
                 is_default = bool(t.get("isDefault") or t.get("is_default"))
+                if is_default:
+                    continue
                 if tid:
-                    out.append({"id": int(tid), "title": str(title), "isDefault": is_default})
+                    out.append({"id": int(tid), "title": str(title), "isDefault": False})
             elif isinstance(t, int):
                 out.append({"id": t, "title": "", "isDefault": False})
             elif isinstance(t, str) and t.lstrip("-").isdigit():

@@ -226,14 +226,6 @@ class NicheEditor(QDialog):
         tag_id = self.tag_combo.currentData()
         if tag_id is None:
             self.tags_status.setText("")
-            return
-        tag = next((t for t in self._tags_cache if int(t["id"]) == int(tag_id)), None)
-        if tag and tag.get("isDefault"):
-            self.tags_status.setText(
-                "<span style='color:#ffc107'>⚠ <b>Це default-тег</b> — він "
-                "автоматично присвоюється ВСІМ вашим акаунтам. У нішу потраплять "
-                "ВСІ акк, не тільки якась конкретна категорія.</span>"
-            )
         else:
             self.tags_status.setText(
                 f"<span style='color:#4caf50'>✓ Обрано тег #{tag_id}</span>"
@@ -247,8 +239,6 @@ class NicheEditor(QDialog):
         self.tag_combo.addItem("— без тега —", None)
         for t in tags:
             base = f"#{t['id']}  {t['title']}" if t.get("title") else f"#{t['id']}"
-            if t.get("isDefault"):
-                base += "  ⚠ (default-тег: матчить ВСІ акк)"
             self.tag_combo.addItem(base, int(t["id"]))
         try:
             self.tag_combo.currentIndexChanged.disconnect()
