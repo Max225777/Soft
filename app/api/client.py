@@ -218,6 +218,27 @@ class LolzMarketClient:
             params["tag_id[]"] = [int(tag_id)]
         return self._submit("GET", f"user/{user_id}/items", priority=PRIORITY_HIGH, params=params).result()
 
+    def create_tag(self, title: str) -> dict[str, Any]:
+        """Створити новий приватний тег. POST /managing/tag/{title}"""
+        path = f"managing/tag/{title}"
+        return self._submit("POST", path, priority=PRIORITY_MEDIUM).result()
+
+    def assign_tag(self, item_id: int, tag_id: int) -> dict[str, Any]:
+        """Додати тег до item. POST /:itemId/tag з body tag_id."""
+        return self._submit(
+            "POST", f"{item_id}/tag",
+            priority=PRIORITY_MEDIUM,
+            json={"tag_id": int(tag_id)},
+        ).result()
+
+    def unassign_tag(self, item_id: int, tag_id: int) -> dict[str, Any]:
+        """Зняти тег з item. DELETE /:itemId/tag з body tag_id."""
+        return self._submit(
+            "DELETE", f"{item_id}/tag",
+            priority=PRIORITY_MEDIUM,
+            json={"tag_id": int(tag_id)},
+        ).result()
+
     def list_my_tags(self, max_pages: int = 50) -> list[dict[str, Any]]:
         """В Lolzteam Market нет отдельного endpoint для списка тегов —
         они приходят только в составе items.
@@ -295,11 +316,8 @@ def _retry_after(resp: httpx.Response) -> float | None:
 def _extract_tags_from_item(item: dict[str, Any]) -> list[dict[str, Any]]:
     """Достаёт список приватных меток из объекта item (`/user/:id/items` ответ).
 
-    ВАЖНО: default-теги Lolzteam (isDefault=True, наприклад «Валидный»,
-    «Масс. загрузка») ВІДКИДАЮТЬСЯ — вони присвоюються кожному акаунту
-    автоматично і непридатні як критерій ніш.
-
-    Возвращает список dict-ов: {"id": int, "title": str, "isDefault": False}.
+    Повертає всі теги — і default, і кастомні. isDefault зберігаємо в полі
+    щоб UI міг показати ⚠.
     """
     raw = item.get("tags") or item.get("user_tags") or item.get("private_tags")
     out: list[dict[str, Any]] = []
@@ -313,9 +331,7 @@ def _extract_tags_from_item(item: dict[str, Any]) -> list[dict[str, Any]]:
             else:
                 title = v
                 is_default = False
-            if is_default:
-                continue  # ігноруємо системні теги
-            out.append({"id": int(k), "title": str(title), "isDefault": False})
+            out.append({"id": int(k), "title": str(title), "isDefault": is_default})
         return out
     if isinstance(raw, list):
         for t in raw:
@@ -323,10 +339,8 @@ def _extract_tags_from_item(item: dict[str, Any]) -> list[dict[str, Any]]:
                 tid = t.get("tag_id") or t.get("id")
                 title = t.get("title") or t.get("name") or t.get("tag") or ""
                 is_default = bool(t.get("isDefault") or t.get("is_default"))
-                if is_default:
-                    continue
                 if tid:
-                    out.append({"id": int(tid), "title": str(title), "isDefault": False})
+                    out.append({"id": int(tid), "title": str(title), "isDefault": is_default})
             elif isinstance(t, int):
                 out.append({"id": t, "title": "", "isDefault": False})
             elif isinstance(t, str) and t.lstrip("-").isdigit():

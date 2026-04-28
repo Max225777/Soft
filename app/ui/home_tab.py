@@ -157,11 +157,15 @@ class HomeTab(QWidget):
         btn_stick.clicked.connect(self._bulk_stick)
         bar.addWidget(btn_stick)
 
-        btn_label = QPushButton("🏷 Метка +")
+        btn_tag = QPushButton("🏷 Привласнити тег")
+        btn_tag.clicked.connect(self._bulk_assign_tag)
+        bar.addWidget(btn_tag)
+
+        btn_label = QPushButton("📝 Публ. мітка +")
         btn_label.clicked.connect(self._bulk_label_add)
         bar.addWidget(btn_label)
 
-        btn_label_rm = QPushButton("🏷 Метка −")
+        btn_label_rm = QPushButton("📝 Публ. мітка −")
         btn_label_rm.clicked.connect(self._bulk_label_remove)
         bar.addWidget(btn_label_rm)
 
@@ -198,16 +202,27 @@ class HomeTab(QWidget):
             total_on_sale = s.execute(
                 select(func.count(Account.id)).where(Account.status == "active")
             ).scalar_one() or 0
+            total_in_db = s.execute(select(func.count(Account.id))).scalar_one() or 0
             unclassified_count = s.execute(
                 select(func.count(Account.id)).where(
                     Account.status == "active", Account.niche_id.is_(None)
                 )
             ).scalar_one() or 0
+            sold_total = s.execute(
+                select(func.count(Account.id)).where(Account.status == "sold")
+            ).scalar_one() or 0
+            other_status = max(0, total_in_db - total_on_sale - sold_total)
 
+        breakdown = ""
+        if total_in_db != total_on_sale:
+            breakdown = (
+                f"  <span style='color:#9e9e9e'>(активні: {total_on_sale}, "
+                f"продано: {sold_total}, інше: {other_status})</span>"
+            )
         self.summary_label.setText(
             f"Всього на продажі: <b>{total_on_sale}</b>  |  "
             f"Ніш: <b>{len(niches)}</b>  |  "
-            f"Без класифікації: <b>{unclassified_count}</b>"
+            f"Без класифікації: <b>{unclassified_count}</b>{breakdown}"
         )
 
         # --- прогрес автоматизації ---
@@ -430,6 +445,76 @@ class HomeTab(QWidget):
         results = bulk_actions.stick_items(self.client, ids)
         self._toast_results("Закрепление", results)
         self._reload_accounts()
+
+    def _bulk_assign_tag(self) -> None:
+        ids = self.table.selected_item_ids()
+        if not ids:
+            QMessageBox.information(self, "Нема обраних", "Спочатку виділіть акаунти ✓ у таблиці")
+            return
+        from app.core.tags import fetch_tags
+        from PySide6.QtWidgets import QDialog, QDialogButtonBox, QComboBox, QFormLayout, QLineEdit, QLabel, QPushButton
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(f"Привласнити тег ({len(ids)} акк)")
+        dlg.resize(440, 240)
+        lay = QFormLayout(dlg)
+
+        tags = fetch_tags(self.client)
+        combo = QComboBox()
+        combo.addItem("— оберіть тег —", None)
+        for t in tags:
+            label = f"#{t['id']}  {t['title']}"
+            if t.get("isDefault"):
+                label += "  (default)"
+            combo.addItem(label, int(t["id"]))
+        lay.addRow("Існуючий тег:", combo)
+
+        new_edit = QLineEdit()
+        new_edit.setPlaceholderText("Назва нового тегу")
+        lay.addRow("Або створити новий:", new_edit)
+        hint = QLabel("Якщо вписати назву нового тегу — він буде створений на Lolzteam і присвоєний обраним акк.")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color:#9e9e9e; font-size:10pt;")
+        lay.addRow(hint)
+
+        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        bb.accepted.connect(dlg.accept)
+        bb.rejected.connect(dlg.reject)
+        lay.addRow(bb)
+
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        new_title = new_edit.text().strip()
+        tag_id = combo.currentData()
+        tag_title = ""
+
+        if new_title:
+            try:
+                resp = self.client.create_tag(new_title)
+            except Exception as exc:  # noqa: BLE001
+                QMessageBox.warning(self, "Помилка створення тегу", str(exc))
+                return
+            tag_obj = resp.get("tag") or {}
+            tag_id = tag_obj.get("tag_id") or tag_obj.get("id")
+            tag_title = tag_obj.get("title") or new_title
+            if not tag_id:
+                QMessageBox.warning(self, "Помилка", f"API не повернув tag_id у відповіді: {resp}")
+                return
+            logger.info("Створено новий тег #{} '{}'", tag_id, tag_title)
+        elif tag_id is None:
+            QMessageBox.warning(self, "Помилка", "Оберіть існуючий тег або введіть назву нового")
+            return
+        else:
+            tag_obj = next((t for t in tags if int(t["id"]) == int(tag_id)), None)
+            tag_title = tag_obj["title"] if tag_obj else ""
+
+        results = bulk_actions.assign_tag_to_items(self.client, ids, int(tag_id), tag_title)
+        self._toast_results("Тег призначений", results)
+        # Перекласифікуємо одразу — щоб ніша побачила нові акк
+        niche_manager.reclassify_accounts()
+        self._reload_accounts()
+        self.reload()
 
     def _bulk_label_add(self) -> None:
         ids = self.table.selected_item_ids()

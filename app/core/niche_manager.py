@@ -34,6 +34,8 @@ def create_niche(**fields) -> Niche:
 
 
 def update_niche(niche_id: int, **fields) -> Niche | None:
+    if niche_id is None:
+        return None
     with get_session() as s:
         niche = s.get(Niche, niche_id)
         if niche is None:

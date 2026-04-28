@@ -201,6 +201,29 @@ def deactivate_items(client: LolzMarketClient, item_ids: Iterable[int]) -> dict[
     return results
 
 
+def assign_tag_to_items(client: LolzMarketClient, item_ids: Iterable[int], tag_id: int, tag_title: str = "") -> dict[int, str]:
+    """Присвоїти приватний тег tag_id всім обраним акаунтам через API.
+    Локально оновлює Account.tags щоб класифікація одразу спрацювала."""
+    results: dict[int, str] = {}
+    with get_session() as s:
+        for item_id in item_ids:
+            try:
+                client.assign_tag(item_id, tag_id)
+                acc = s.execute(select(Account).where(Account.item_id == item_id)).scalar_one_or_none()
+                if acc:
+                    tags = list(acc.tags or [])
+                    if not any(int(t.get("id", -1)) == int(tag_id) for t in tags if isinstance(t, dict)):
+                        tags.append({"id": int(tag_id), "title": tag_title, "isDefault": False})
+                    acc.tags = tags
+                results[item_id] = "ok"
+                _log(s, "tag_assign", item_id, f"Присвоєно тег #{tag_id} ({tag_title})")
+            except ApiError as exc:
+                results[item_id] = f"error: {exc}"
+                _log(s, "tag_assign", item_id, str(exc), level="ERROR")
+        s.commit()
+    return results
+
+
 def bind_to_niche(item_ids: Iterable[int], niche_id: int, priority: bool = True) -> dict[int, str]:
     results: dict[int, str] = {}
     with get_session() as s:
