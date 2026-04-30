@@ -67,9 +67,16 @@ class TasksPanel(QGroupBox):
             niches = list(s.execute(select(Niche)).scalars())
             now_hour = datetime.now(timezone.utc).hour
 
+            if not niches:
+                lines.append("<i style='color:#9e9e9e'>Ще немає ніш. Створіть нішу через «+ Нова».</i>")
+
             for n in niches:
-                if not (n.auto_bump or n.auto_stick or n.auto_bump_stuck):
-                    continue
+                acc_count = s.execute(
+                    select(func.count(Account.id)).where(
+                        Account.niche_id == n.id,
+                        Account.status == "active",
+                    )
+                ).scalar_one() or 0
                 stuck_count = s.execute(
                     select(func.count(Account.id)).where(
                         Account.niche_id == n.id,
@@ -78,35 +85,47 @@ class TasksPanel(QGroupBox):
                     )
                 ).scalar_one() or 0
 
-                if n.auto_bump and n.bumps_per_day:
-                    schedule = list(n.hourly_schedule or [])
-                    if len(schedule) == 24 and sum(schedule) > 0:
-                        target_so_far = sum(schedule[: now_hour + 1])
-                        target_total = sum(schedule)
-                        lines.append(
-                            f"🔺 <b>{n.name}</b>: до цієї години — {target_so_far} bump, "
-                            f"всього на день {target_total}"
+                if not (n.auto_bump or n.auto_stick or n.auto_bump_stuck):
+                    lines.append(
+                        f"⏸ <b>{n.name}</b> ({acc_count} акк): "
+                        "<span style='color:#ffc107'>автоматизація вимкнена</span> — "
+                        "відкрийте редактор ніші щоб увімкнути авто-bump/stick"
+                    )
+                    continue
+
+                niche_status: list[str] = [f"<b>{n.name}</b> ({acc_count} акк):"]
+
+                if n.auto_bump:
+                    if n.bumps_per_day == 0:
+                        niche_status.append(
+                            "<span style='color:#ffc107'>🔺 auto-bump увімкнено, але bumps_per_day=0 — задайте число</span>"
                         )
                     else:
-                        lines.append(
-                            f"🔺 <b>{n.name}</b>: {n.bumps_per_day} bump/добу (рівномірно)"
-                        )
+                        schedule = list(n.hourly_schedule or [])
+                        if len(schedule) == 24 and sum(schedule) > 0:
+                            target_so_far = sum(schedule[: now_hour + 1])
+                            target_total = sum(schedule)
+                            niche_status.append(
+                                f"🔺 до {now_hour:02d}:00 — {target_so_far} bump, "
+                                f"всього {target_total}/добу"
+                            )
+                        else:
+                            niche_status.append(f"🔺 {n.bumps_per_day} bump/добу (рівномірно)")
 
                 if n.auto_stick and n.stick_slots:
                     if stuck_count < n.stick_slots:
-                        lines.append(
-                            f"📌 <b>{n.name}</b>: треба ще закріпити "
-                            f"{n.stick_slots - stuck_count} акк (поточно {stuck_count}/{n.stick_slots})"
+                        niche_status.append(
+                            f"📌 закріпити ще {n.stick_slots - stuck_count} акк ({stuck_count}/{n.stick_slots})"
                         )
+                    else:
+                        niche_status.append(f"📌 закріплено {stuck_count}/{n.stick_slots} ✓")
 
                 if n.auto_bump_stuck and n.stuck_bumps_per_day:
-                    lines.append(
-                        f"🔺📌 <b>{n.name}</b>: bump закріплених — {n.stuck_bumps_per_day}/добу "
-                        f"(пауза {n.stuck_bump_cooldown_min} хв)"
+                    niche_status.append(
+                        f"🔺📌 bump закріплених {n.stuck_bumps_per_day}/добу"
                     )
 
-        if len(lines) == 1:  # тільки час до циклу
-            lines.append("<i style='color:#9e9e9e'>Жодна ніша не має активних авто-дій.</i>")
+                lines.append(" • ".join(niche_status))
 
         self.label.setText("<br>".join(lines))
 

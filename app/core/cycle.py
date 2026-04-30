@@ -34,11 +34,18 @@ class UpdateCycle:
         self._lock = threading.Lock()
         self._last_tick: datetime | None = None
         self._last_summary: dict = {}
+        self._was_shutdown = False
 
     # ---------- lifecycle ----------
     def start(self, run_now: bool = True) -> None:
         if self._scheduler.running:
             return
+        # Якщо попередній scheduler був shutdown — потрібно створити новий
+        # (APScheduler не дозволяє перезапуск після shutdown)
+        if self._was_shutdown:
+            self._scheduler = BackgroundScheduler(timezone="UTC")
+            self._was_shutdown = False
+            logger.info("Створено новий scheduler після попереднього shutdown")
         self._scheduler.add_job(
             self._safe_tick,
             IntervalTrigger(minutes=self.interval_minutes),
@@ -47,12 +54,13 @@ class UpdateCycle:
             next_run_time=datetime.now(timezone.utc) if run_now else None,
         )
         self._scheduler.start()
-        logger.info("Цикл обновления запущен (каждые {} мин)", self.interval_minutes)
+        logger.info("Цикл оновлення запущено (кожні {} хв, run_now={})", self.interval_minutes, run_now)
 
     def stop(self) -> None:
         if self._scheduler.running:
             self._scheduler.shutdown(wait=False)
-            logger.info("Цикл обновления остановлен")
+            self._was_shutdown = True
+            logger.info("Цикл оновлення зупинено")
 
     def trigger_now(self) -> bool:
         """Спробувати запустити tick прямо зараз. Повертає True якщо потік
