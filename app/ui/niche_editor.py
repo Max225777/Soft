@@ -231,38 +231,57 @@ class NicheEditor(QDialog):
     def _tags_loaded(self, tags) -> None:
         tags = list(tags or [])
         self._tags_cache = tags
-        current = self.tag_combo.currentData()
-        self.tag_combo.clear()
-        self.tag_combo.addItem("— без тега —", None)
-        for t in tags:
-            base = f"#{t['id']}  {t['title']}" if t.get("title") else f"#{t['id']}"
-            self.tag_combo.addItem(base, int(t["id"]))
+
+        # Запамʼятаємо який тег був обраний ДО оновлення списку
+        previous_tag_id = self.tag_combo.currentData()
+        # Тег ніші, який ми редагуємо (важливий fallback якщо API не повернув)
+        niche_tag_id = int(self.niche.tag_id) if (self.niche and self.niche.tag_id) else None
+        niche_tag_title = self.niche.tag_name if self.niche else ""
+
+        # Тимчасово відключаємо сигнал щоб clear() не тригерив зайві обчислення
         try:
             self.tag_combo.currentIndexChanged.disconnect()
         except (TypeError, RuntimeError):
             pass
-        self.tag_combo.currentIndexChanged.connect(self._on_tag_changed)
-        if current is not None:
-            idx = self.tag_combo.findData(current)
+
+        self.tag_combo.clear()
+        self.tag_combo.addItem("— без тега —", None)
+
+        # Збираємо id тегів які треба гарантовано показати
+        api_tag_ids = {int(t["id"]) for t in tags}
+        for t in tags:
+            base = f"#{t['id']}  {t['title']}" if t.get("title") else f"#{t['id']}"
+            self.tag_combo.addItem(base, int(t["id"]))
+
+        # Якщо тег ніші не повернувся з API — додаємо синтетично щоб не злетіло None
+        if niche_tag_id is not None and niche_tag_id not in api_tag_ids:
+            label = f"#{niche_tag_id}  {niche_tag_title}".strip()
+            self.tag_combo.addItem(label, niche_tag_id)
+            api_tag_ids.add(niche_tag_id)
+
+        # Те саме для попередньо обраного (якщо воно відмінне від ніші)
+        if previous_tag_id is not None and previous_tag_id not in api_tag_ids:
+            self.tag_combo.addItem(f"#{previous_tag_id}", int(previous_tag_id))
+
+        # Відновлюємо вибір: пріоритет — попередній вибір користувача,
+        # потім тег ніші (якщо редагуємо існуючу нішу)
+        target_id = previous_tag_id if previous_tag_id is not None else niche_tag_id
+        if target_id is not None:
+            idx = self.tag_combo.findData(int(target_id))
             if idx >= 0:
                 self.tag_combo.setCurrentIndex(idx)
-        elif self.niche and self.niche.tag_id:
-            idx = self.tag_combo.findData(int(self.niche.tag_id))
-            if idx < 0:
-                label = f"#{self.niche.tag_id}  {self.niche.tag_name or ''}"
-                self.tag_combo.addItem(label, int(self.niche.tag_id))
-                idx = self.tag_combo.count() - 1
-            self.tag_combo.setCurrentIndex(idx)
+
+        self.tag_combo.currentIndexChanged.connect(self._on_tag_changed)
 
         if tags:
             self.tags_status.setText(
-                f"<span style='color:#4caf50'>Найдено тегов: <b>{len(tags)}</b></span>"
+                f"<span style='color:#4caf50'>Знайдено тегів: <b>{len(tags)}</b></span>"
             )
         else:
             self.tags_status.setText(
-                "<span style='color:#f44336'>Тегов не найдено.</span> "
-                "Сначала нажмите «🔄 Обновить с API» на главной — программа подтянет items "
-                "и выудит из них приватные метки."
+                "<span style='color:#f44336'>Тегів не знайдено.</span> "
+                "Спочатку натисніть «🔄 Оновити з API» на головній — програма підтягне items "
+                "і зчитає з них приватні теги."
             )
 
         self._tags_cache = tags

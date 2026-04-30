@@ -36,10 +36,23 @@ def create_niche(**fields) -> Niche:
 def update_niche(niche_id: int, **fields) -> Niche | None:
     if niche_id is None:
         return None
+    from loguru import logger
     with get_session() as s:
         niche = s.get(Niche, niche_id)
         if niche is None:
             return None
+        # Захист: якщо tag_id виявився None у вхідних даних, але у БД вже був
+        # тег — НЕ перетираємо його. Це може статись якщо UI dropdown
+        # асинхронно очистився під час Save.
+        if "tag_id" in fields and fields["tag_id"] is None and niche.tag_id is not None:
+            logger.warning(
+                "update_niche: спроба перетерти tag_id={} у ніші '{}' на None — ігнорую "
+                "(імовірно асинхронний баг dropdown). Якщо хочете прибрати тег — "
+                "оберіть «— без тега —» вручну ще раз і збережіть.",
+                niche.tag_id, niche.name,
+            )
+            fields.pop("tag_id", None)
+            fields.pop("tag_name", None)
         for k, v in fields.items():
             if hasattr(niche, k):
                 setattr(niche, k, v)
