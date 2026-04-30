@@ -171,30 +171,38 @@ class MainWindow(QMainWindow):
         )
         if confirm != QMessageBox.StandardButton.Yes:
             return
-        from app.db.models import ActionLog, PriceHistory, Sale
-        from app.db.session import get_session
+        try:
+            from app.db.models import ActionLog, PriceHistory, Sale
+            from app.db.session import get_session
 
-        with get_session() as s:
-            sales = s.query(Sale).delete()
-            logs = s.query(ActionLog).delete()
-            ph = s.query(PriceHistory).delete()
-            s.commit()
-        logger.info("Очищена статистика: sales={}, action_log={}, price_history={}", sales, logs, ph)
-        self.statusBar().showMessage(
-            f"Очищено: {sales} продажів, {logs} записів логу, {ph} історії цін", 6000,
-        )
-        self._refresh_ui()
+            with get_session() as s:
+                sales = s.query(Sale).delete()
+                logs = s.query(ActionLog).delete()
+                ph = s.query(PriceHistory).delete()
+                s.commit()
+            logger.info("Очищена статистика: sales={}, action_log={}, price_history={}", sales, logs, ph)
+            self.statusBar().showMessage(
+                f"Очищено: {sales} продажів, {logs} записів логу, {ph} історії цін", 6000,
+            )
+            self._refresh_ui()
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Помилка очищення статистики: {}", exc)
+            QMessageBox.warning(self, "Помилка", f"Не вдалося очистити:\n{exc}")
 
     def _reclassify(self) -> None:
-        from app.core import niche_manager
-        counts = niche_manager.reclassify_accounts()
-        total = sum(counts.values())
-        QMessageBox.information(
-            self,
-            "Перекласифіковано",
-            f"Класифіковано {total} акк за {len(counts)} ніш.\nДеталі — у журналі подій (Файл → Журнал).",
-        )
-        self._refresh_ui()
+        try:
+            from app.core import niche_manager
+            counts = niche_manager.reclassify_accounts()
+            total = sum(counts.values())
+            QMessageBox.information(
+                self,
+                "Перекласифіковано",
+                f"Класифіковано {total} акк за {len(counts)} ніш.\nДеталі — у журналі подій (Файл → Журнал).",
+            )
+            self._refresh_ui()
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Помилка перекласифікації: {}", exc)
+            QMessageBox.warning(self, "Помилка", f"Помилка перекласифікації:\n{exc}")
 
     def _refresh_ui(self) -> None:
         self.home_tab.reload()

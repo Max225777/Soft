@@ -320,14 +320,24 @@ class HomeTab(QWidget):
         self._reload_accounts()
 
     def _create_niche(self) -> None:
-        dlg = NicheEditor(client=self.client, parent=self)
-        if dlg.exec() != NicheEditor.DialogCode.Accepted:
+        try:
+            dlg = NicheEditor(client=self.client, parent=self)
+            self._pause_periodic_refresh(True)
+            try:
+                accepted = dlg.exec() == NicheEditor.DialogCode.Accepted
+            finally:
+                self._pause_periodic_refresh(False)
+            if not accepted:
+                return
+            values = dlg.values()
+            if not values["name"]:
+                QMessageBox.warning(self, "Помилка", "Введіть назву ніші")
+                return
+            new_niche = niche_manager.create_niche(**values)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Помилка при створенні ніші: {}", exc)
+            QMessageBox.warning(self, "Помилка", f"Не вдалося створити нішу:\n{exc}")
             return
-        values = dlg.values()
-        if not values["name"]:
-            QMessageBox.warning(self, "Ошибка", "Введите название ниши")
-            return
-        new_niche = niche_manager.create_niche(**values)
         # Якщо вказана закупівельна ціна — застосувати до вже зафіксованих
         # продажів цієї ніші (перерахувати прибуток ретроактивно)
         if new_niche.default_cost > 0:
@@ -350,36 +360,69 @@ class HomeTab(QWidget):
     def _edit_niche(self) -> None:
         if self._current_niche_id is None or self._current_niche_id == UNCLASSIFIED_ID:
             return
-        with get_session() as s:
-            from app.db.models import Niche
-            niche = s.get(Niche, self._current_niche_id)
-            if niche is None:
-                return
-            dlg = NicheEditor(niche=niche, client=self.client, parent=self)
-        if dlg.exec() == NicheEditor.DialogCode.Accepted:
-            values = dlg.values()
-            niche_manager.update_niche(self._current_niche_id, **values)
-            if values.get("default_cost", 0) > 0:
-                niche_manager.apply_niche_default_cost_to_sales(
-                    self._current_niche_id, float(values["default_cost"])
-                )
-            niche_manager.reclassify_accounts()
-            self.reload()
+        try:
+            with get_session() as s:
+                from app.db.models import Niche
+                niche = s.get(Niche, self._current_niche_id)
+                if niche is None:
+                    return
+                dlg = NicheEditor(niche=niche, client=self.client, parent=self)
+            self._pause_periodic_refresh(True)
+            try:
+                accepted = dlg.exec() == NicheEditor.DialogCode.Accepted
+            finally:
+                self._pause_periodic_refresh(False)
+            if accepted:
+                values = dlg.values()
+                niche_manager.update_niche(self._current_niche_id, **values)
+                if values.get("default_cost", 0) > 0:
+                    niche_manager.apply_niche_default_cost_to_sales(
+                        self._current_niche_id, float(values["default_cost"])
+                    )
+                niche_manager.reclassify_accounts()
+                self.reload()
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Помилка при редагуванні ніші: {}", exc)
+            QMessageBox.warning(self, "Помилка", f"Не вдалося зберегти зміни:\n{exc}")
 
     def _open_limits_dialog(self) -> None:
         # відкриваємо діалог налаштувань і ОДРАЗУ після закриття оновлюємо UI
         from app.config import Settings as _Settings
         from app.ui.settings_dialog import SettingsDialog
 
+        try:
+            win = self.window()
+            settings = getattr(win, "settings", None) or _Settings.load()
+            dlg = SettingsDialog(settings, parent=self)
+            dlg.client = self.client
+            self._pause_periodic_refresh(True)
+            try:
+                accepted = dlg.exec() == SettingsDialog.DialogCode.Accepted
+            finally:
+                self._pause_periodic_refresh(False)
+            if accepted:
+                self.window().statusBar().showMessage("Ліміти збережено", 4000)
+            self.reload()
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Помилка при відкритті/закритті діалога лімітів: {}", exc)
+            QMessageBox.warning(self, "Помилка", f"Помилка діалогу:\n{exc}")
+
+    def _pause_periodic_refresh(self, paused: bool) -> None:
+        """Призупиняє/відновлює періодичні таймери UI на час відкриття діалогу.
+        Це уникає race-conditions з SQLite під час Save.
+        """
         win = self.window()
-        settings = getattr(win, "settings", None) or _Settings.load()
-        dlg = SettingsDialog(settings, parent=self)
-        # Знаходимо в дереві предків об'єкт що має client (MainWindow)
-        # — щоб autodetect-кнопка змогла знайти client
-        dlg.client = self.client
-        if dlg.exec() == SettingsDialog.DialogCode.Accepted:
-            self.window().statusBar().showMessage("Ліміти збережено", 4000)
-        self.reload()
+        for attr in ("_ui_refresh_timer", "_status_timer"):
+            timer = getattr(win, attr, None)
+            if timer is None:
+                continue
+            if paused:
+                timer.stop()
+            else:
+                if attr == "_status_timer":
+                    timer.start(1000)
+                else:
+                    timer.start(5000)
 
     def _delete_niche(self) -> None:
         if self._current_niche_id is None or self._current_niche_id == UNCLASSIFIED_ID:
