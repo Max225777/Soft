@@ -44,6 +44,10 @@ def bump_items(client: LolzMarketClient, item_ids: Iterable[int]) -> dict[int, s
                 _log(s, "bump", item_id, "Поднятие выполнено")
             except ApiError as exc:
                 results[item_id] = f"error: {exc}"
+                # Якщо 403/404 — позначаємо акк як «не можна підіймати» щоб
+                # не пробувати знов у цьому ж циклі (наступний sync поверне True якщо стан зміниться)
+                if acc and exc.status in (403, 404, 400):
+                    acc.bumps_available = 0
                 _log(s, "bump", item_id, str(exc), level="ERROR")
                 logger.error("Ошибка поднятия {}: {}", item_id, exc)
         s.commit()
@@ -70,6 +74,8 @@ def stick_items(client: LolzMarketClient, item_ids: Iterable[int]) -> dict[int, 
                 _log(s, "stick", item_id, "Закрепление выполнено")
             except ApiError as exc:
                 results[item_id] = f"error: {exc}"
+                if acc and exc.status in (403, 404, 400):
+                    acc.sticks_available = 0
                 _log(s, "stick", item_id, str(exc), level="ERROR")
         s.commit()
     return results

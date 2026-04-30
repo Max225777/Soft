@@ -122,11 +122,24 @@ def _parse_bumps_available(payload: dict) -> int | None:
       auto_bump_period: int  — секунд до следующего разрешённого bump
       canAutoBump: bool      — разрешён ли auto-bump для этого item
     """
-    can = payload.get("canBumpItem")
-    if isinstance(can, bool):
-        # Если можно — считаем что есть 1 поднятие (Lolzteam: после bump
-        # надо ждать ~24 часа до следующего, поэтому за раз доступно 1)
-        return 1 if can else 0
+    # Прямий чіткий сигнал — canBumpItem
+    if "canBumpItem" in payload:
+        can = payload.get("canBumpItem")
+        if can is False or can == 0 or can == "false":
+            return 0
+        if can is True or can == 1 or can == "true":
+            return 1
+    # canAutoBump=False — значить bot не може робити auto-bump (треба чекати)
+    if payload.get("canAutoBump") is False:
+        return 0
+    # auto_bump_period > 0 — секунд до наступного дозволеного bump
+    period = payload.get("auto_bump_period")
+    if isinstance(period, (int, float)) and period > 0:
+        return 0
+    # canNotBumpItemReason присутній → значить bump зараз неможливий
+    if payload.get("canNotBumpItemReason"):
+        return 0
+    # Числові поля з API (на всяк випадок)
     for key in ("bumpsAvailable", "bumps_available", "bumps_left", "bumpRemaining"):
         val = payload.get(key)
         if isinstance(val, (int, float)):

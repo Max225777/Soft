@@ -308,27 +308,44 @@ class UpdateCycle:
         target_count успехов либо не закончатся кандидаты.
 
         Если на акк прилетела ошибка (продан, нет прав, лимит) — берём
-        следующий из этой же ниши.
+        следующий из этой же ниши. Якщо 403 повторюється >= 5 разів поспіль —
+        припиняємо (значить у користувача проблеми з доступом до групи акк).
         """
         if target_count <= 0 or not candidates:
             return []
         success_ids: list[int] = []
         idx = 0
+        consecutive_403 = 0
+        max_attempts = max(target_count * 3, 20)
+        attempts = 0
         while len(success_ids) < target_count and idx < len(candidates):
             need = target_count - len(success_ids)
             batch = candidates[idx:idx + need]
             idx += len(batch)
             if not batch:
                 break
+            attempts += len(batch)
+            if attempts > max_attempts:
+                logger.warning("Досягнуто ліміту спроб ({}) — припиняю спроби", max_attempts)
+                break
             res = action_fn(self.client, [a.item_id for a in batch])
             for item_id, result in res.items():
                 if isinstance(result, str) and (result == "ok" or result.startswith("ok")):
                     success_ids.append(item_id)
+                    consecutive_403 = 0
                 else:
+                    if isinstance(result, str) and "403" in result:
+                        consecutive_403 += 1
                     logger.info(
-                        "Действие на item {} не удалось ({}), пробуем следующий из ниши",
-                        item_id, result,
+                        "Дія на item {} не вдалась ({}), пробуємо наступний з ніші",
+                        item_id, str(result)[:100],
                     )
+            if consecutive_403 >= 5:
+                logger.warning(
+                    "🚫 5 поспіль помилок 403 — припиняю спроби. "
+                    "Перевірте права токена або стан акаунтів у Lolzteam."
+                )
+                break
         return success_ids
 
     def _bumps_for_this_tick(self, remaining_today: int, today_start: datetime) -> int:
