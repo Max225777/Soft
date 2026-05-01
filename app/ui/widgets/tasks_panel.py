@@ -39,9 +39,10 @@ class TasksPanel(QGroupBox):
         layout.addWidget(self.label, 1)
 
         self.next_cycle_at: datetime | None = None
+        # Раз на 3 сек (раніше 1с — забагато DB-навантаження)
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._refresh)
-        self._timer.start(1000)
+        self._timer.start(3000)
 
     def set_next_cycle(self, when: datetime | None) -> None:
         self.next_cycle_at = when

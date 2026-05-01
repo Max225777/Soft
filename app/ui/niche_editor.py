@@ -208,6 +208,14 @@ class NicheEditor(QDialog):
         self._start_loading_tags()
 
     def _start_loading_tags(self) -> None:
+        # Якщо попередній виклик ще активний — скасовуємо щоб не доставив
+        # сигнал у вже оновлений UI
+        prev = getattr(self, "_tags_call", None)
+        if prev is not None:
+            try:
+                prev.cancel()
+            except Exception:  # noqa: BLE001
+                pass
         self._tags_call = AsyncCall(
             fetch_tags, self.client,
             on_done=self._tags_loaded,
@@ -215,6 +223,17 @@ class NicheEditor(QDialog):
             parent=self,
         )
         self._tags_call.start()
+
+    def closeEvent(self, event) -> None:  # noqa: N802
+        # Скасовуємо async-операції перед закриттям, щоб thread не emit-ив
+        # сигнал у вже видалений widget (інакше Qt може впасти STATUS_STACK_BUFFER_OVERRUN)
+        prev = getattr(self, "_tags_call", None)
+        if prev is not None:
+            try:
+                prev.cancel()
+            except Exception:  # noqa: BLE001
+                pass
+        super().closeEvent(event)
 
     def _tags_failed(self, exc: Exception) -> None:
         self.tags_status.setText(f"<span style='color:#f44336'>⚠ Помилка: {exc}</span>")

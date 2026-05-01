@@ -183,6 +183,15 @@ class SettingsDialog(QDialog):
         buttons.rejected.connect(self.reject)
         outer.addWidget(buttons)
 
+    def closeEvent(self, event) -> None:  # noqa: N802
+        prev = getattr(self, "_autodetect_call", None)
+        if prev is not None:
+            try:
+                prev.cancel()
+            except Exception:  # noqa: BLE001
+                pass
+        super().closeEvent(event)
+
     def _autodetect_limits(self) -> None:
         # client може бути встановлений напряму як атрибут диалога,
         # або знайдений у дереві предків
@@ -197,7 +206,14 @@ class SettingsDialog(QDialog):
         if client is None:
             QMessageBox.warning(self, "Помилка", "API-клієнт недоступний — відкрийте діалог з головного меню")
             return
-        self.autodetect_status.setText("Запрос к API… подождите")
+        self.autodetect_status.setText("Запит до API… зачекайте")
+        # Cancel попередній якщо є
+        prev = getattr(self, "_autodetect_call", None)
+        if prev is not None:
+            try:
+                prev.cancel()
+            except Exception:  # noqa: BLE001
+                pass
         self._autodetect_call = AsyncCall(
             client.detect_limits,
             on_done=self._on_autodetect_done,
