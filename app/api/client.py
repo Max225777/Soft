@@ -115,21 +115,11 @@ class LolzMarketClient:
         if self._me_cache is None:
             self._me_cache = self._submit("GET", "me", priority=PRIORITY_HIGH).result()
             try:
-                top_keys = sorted(self._me_cache.keys()) if isinstance(self._me_cache, dict) else []
-                logger.info("/me top-level keys = {}", top_keys)
                 user_obj = self._me_cache.get("user") if isinstance(self._me_cache, dict) else None
                 if isinstance(user_obj, dict):
-                    # Все ключи user — для диагностики поиска stick limit
-                    all_keys = sorted(user_obj.keys())
-                    logger.info("/me .user — все ключи: {}", all_keys)
-                    relevant = [
-                        k for k in user_obj.keys()
-                        if any(x in k.lower() for x in (
-                            "stick", "bump", "limit", "subscribe", "premium", "vip", "rank",
-                        ))
-                    ]
-                    for k in relevant:
-                        logger.info("    {} = {}", k, str(user_obj[k])[:200])
+                    bip = user_obj.get("bump_item_period")
+                    user_id = user_obj.get("user_id") or user_obj.get("id")
+                    logger.info("/me ok: user_id={}, bump_item_period={}", user_id, bip)
             except Exception:  # noqa: BLE001
                 pass
         return self._me_cache

@@ -15,7 +15,10 @@ def setup_logging(level: str = "INFO", log_file: Path | None = None) -> None:
         "<level>{level:<7}</level> | "
         "<cyan>{name}:{function}:{line}</cyan> - <level>{message}</level>"
     )
-    logger.add(sys.stderr, level=level, format=fmt, enqueue=True)
+    # Без enqueue=True — на Windows + PySide6 та фоновими потоками
+    # внутрішня черга loguru може спричиняти крах STATUS_STACK_BUFFER_OVERRUN.
+    # Синхронне логування достатньо швидке для нашого використання.
+    logger.add(sys.stderr, level=level, format=fmt)
     if log_file is not None:
         log_file.parent.mkdir(parents=True, exist_ok=True)
         logger.add(
@@ -24,7 +27,6 @@ def setup_logging(level: str = "INFO", log_file: Path | None = None) -> None:
             rotation="10 MB",
             retention="30 days",
             compression="zip",
-            enqueue=True,
             encoding="utf-8",
         )
-    logger.info("Логирование инициализировано (level={})", level)
+    logger.info("Логування ініціалізоване (level={})", level)
