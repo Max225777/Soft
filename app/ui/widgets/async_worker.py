@@ -13,7 +13,7 @@ from __future__ import annotations
 import threading
 from typing import Callable
 
-from PySide6.QtCore import QObject, Signal, Slot
+from PySide6.QtCore import QObject, Qt, Signal, Slot
 
 
 class AsyncCall(QObject):
@@ -37,10 +37,11 @@ class AsyncCall(QObject):
         self._on_error = on_error
         self._cancelled = False
 
-        # Slot-методи AsyncCall — Qt автоматично маршалить через event loop
-        # бо AsyncCall живе в main thread (parent — main-thread widget)
-        self._done.connect(self._handle_done)
-        self._failed.connect(self._handle_failed)
+        # ЯВНА QueuedConnection — emit з threading.Thread (не QThread!)
+        # AutoConnection не може правильно визначити цей випадок і робить
+        # DirectConnection → slot виконається у BG потоці і UI зламається.
+        self._done.connect(self._handle_done, Qt.ConnectionType.QueuedConnection)
+        self._failed.connect(self._handle_failed, Qt.ConnectionType.QueuedConnection)
 
         self._thread = threading.Thread(target=self._run, daemon=True, name="AsyncCall")
 

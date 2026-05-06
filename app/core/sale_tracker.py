@@ -24,22 +24,19 @@ def sync_accounts_snapshot(items: Iterable[dict]) -> dict:
 
     items_by_id: dict[int, dict] = {int(it["item_id"]): it for it in items if it.get("item_id")}
 
-    # --- диагностика тегов и лимитов bump/stick ---
+    # --- діагностика: тегів, лімітів bump/stick, спамблоку, гео ---
     if items_by_id:
         sample = next(iter(items_by_id.values()))
         tag_keys = [k for k in sample.keys() if "tag" in k.lower()]
         bump_keys = [k for k in sample.keys() if "bump" in k.lower()]
         stick_keys = [k for k in sample.keys() if "stick" in k.lower() or "stuck" in k.lower()]
+        spam_keys = [k for k in sample.keys() if any(x in k.lower() for x in ("spam", "block", "geo", "country", "origin"))]
         all_keys = sorted(sample.keys())
         logger.info(
-            "Получено items: {}; tag-keys={}; bump-keys={}; stick-keys={}; пример item_id={}",
-            len(items_by_id),
-            tag_keys,
-            bump_keys,
-            stick_keys,
-            sample.get("item_id"),
+            "items: {}; tag={}; bump={}; stick={}; spam/geo={}; item_id={}",
+            len(items_by_id), tag_keys, bump_keys, stick_keys, spam_keys, sample.get("item_id"),
         )
-        for k in tag_keys + bump_keys + stick_keys:
+        for k in tag_keys + bump_keys + stick_keys + spam_keys:
             val = sample[k]
             logger.info("  {} = {}", k, str(val)[:200])
         if not (tag_keys or bump_keys or stick_keys):

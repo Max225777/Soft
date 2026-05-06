@@ -239,17 +239,25 @@ class UpdateCycle:
                         auto_result["sticks"] += len(sticked_ok)
 
                 # --- 2. Автоподнятие обычных ---
-                if n.auto_bump and n.bumps_per_day > 0:
+                if n.auto_bump:
                     done_today = self._count_bumps_today(s, n.id, today_start, stuck=False)
-                    remaining = n.bumps_per_day - done_today
-                    # глобальный лимит — общая шапка по всем нишам
+                    if n.bumps_per_day > 0:
+                        remaining = n.bumps_per_day - done_today
+                    else:
+                        # 0 = без обмеження (по нішах). Усі кандидати на цьому tick.
+                        remaining = len([a for a in normal_accounts if a.bumps_available > 0])
+                    # Глобальний ліміт — спільний кеп по всіх нішах
                     if global_max:
                         global_left = max(0, global_max - already_today_global - auto_result["bumps"])
                         remaining = min(remaining, global_left)
                     if remaining > 0:
-                        per_tick = self._target_for_this_hour(n, done_today)
-                        if global_max:
-                            per_tick = min(per_tick, remaining)
+                        if n.bumps_per_day > 0:
+                            per_tick = self._target_for_this_hour(n, done_today)
+                            if global_max:
+                                per_tick = min(per_tick, remaining)
+                        else:
+                            # «без обмеження» — обробляємо до remaining за тик
+                            per_tick = remaining
                         candidates = [a for a in normal_accounts if a.bumps_available > 0]
                         bumped_ok = self._try_action_with_fallback(
                             bump_items, candidates, per_tick,
@@ -257,18 +265,22 @@ class UpdateCycle:
                         auto_result["bumps"] += len(bumped_ok)
 
                 # --- 3. Отдельное поднятие закреплённых (с учётом 1h cooldown) ---
-                if n.auto_bump_stuck and n.stuck_bumps_per_day > 0 and stuck_accounts:
+                if n.auto_bump_stuck and stuck_accounts:
                     done_today = self._count_bumps_today(s, n.id, today_start, stuck=True)
-                    remaining = n.stuck_bumps_per_day - done_today
-                    if remaining > 0:
-                        cooldown = timedelta(minutes=max(1, n.stuck_bump_cooldown_min))
-                        now = datetime.now(timezone.utc)
-                        eligible = [
-                            a for a in stuck_accounts
-                            if a.bumps_available > 0
-                            and (a.last_bumped_at is None or (now - a.last_bumped_at) >= cooldown)
-                        ]
-                        per_tick = self._bumps_for_this_tick(remaining, today_start)
+                    cooldown = timedelta(minutes=max(1, n.stuck_bump_cooldown_min))
+                    now = datetime.now(timezone.utc)
+                    eligible = [
+                        a for a in stuck_accounts
+                        if a.bumps_available > 0
+                        and (a.last_bumped_at is None or (now - a.last_bumped_at) >= cooldown)
+                    ]
+                    if n.stuck_bumps_per_day > 0:
+                        remaining = n.stuck_bumps_per_day - done_today
+                        per_tick = self._bumps_for_this_tick(remaining, today_start) if remaining > 0 else 0
+                    else:
+                        # 0 = без обмеження
+                        per_tick = len(eligible)
+                    if per_tick > 0:
                         bumped_ok = self._try_action_with_fallback(
                             bump_items, eligible, per_tick,
                         )

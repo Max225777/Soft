@@ -98,9 +98,7 @@ class TasksPanel(QGroupBox):
 
                 if n.auto_bump:
                     if n.bumps_per_day == 0:
-                        niche_status.append(
-                            "<span style='color:#ffc107'>🔺 auto-bump увімкнено, але bumps_per_day=0 — задайте число</span>"
-                        )
+                        niche_status.append("🔺 auto-bump (без обмеження за добу)")
                     else:
                         schedule = list(n.hourly_schedule or [])
                         if len(schedule) == 24 and sum(schedule) > 0:
@@ -121,10 +119,13 @@ class TasksPanel(QGroupBox):
                     else:
                         niche_status.append(f"📌 закріплено {stuck_count}/{n.stick_slots} ✓")
 
-                if n.auto_bump_stuck and n.stuck_bumps_per_day:
-                    niche_status.append(
-                        f"🔺📌 bump закріплених {n.stuck_bumps_per_day}/добу"
-                    )
+                if n.auto_bump_stuck:
+                    if n.stuck_bumps_per_day == 0:
+                        niche_status.append("🔺📌 bump закріплених (без обмеження за добу)")
+                    else:
+                        niche_status.append(
+                            f"🔺📌 bump закріплених {n.stuck_bumps_per_day}/добу"
+                        )
 
                 lines.append(" • ".join(niche_status))
 
