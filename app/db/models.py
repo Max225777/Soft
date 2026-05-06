@@ -61,6 +61,8 @@ class Niche(Base):
     # --- Автоподнятие (обычные, не закреплённые) ---
     auto_bump: Mapped[bool] = mapped_column(Boolean, default=False)
     bumps_per_day: Mapped[int] = mapped_column(Integer, default=0)  # сколько поднятий в сутки от этой ниши (0 = не ограничено)
+    bumps_per_tick: Mapped[int] = mapped_column(Integer, default=5)  # скільки bump за один цикл (одну ітерацію)
+    spamblock_filter: Mapped[dict] = mapped_column(JSON, default=dict)  # {only_clean:bool, allow_geo:bool, allow_unchecked:bool}
 
     # --- Автозакрепление ---
     auto_stick: Mapped[bool] = mapped_column(Boolean, default=False)

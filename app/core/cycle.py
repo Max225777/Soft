@@ -20,6 +20,44 @@ from app.db.session import get_session
 from app.services import settings_store
 
 
+def _matches_spamblock_filter(acc: Account, sf: dict | None) -> bool:
+    """Перевіряє чи акк проходить фільтр спамблоку.
+
+    sf = {only_clean: bool, allow_geo: bool, allow_unchecked: bool}
+    Якщо всі False — пропускаємо все (фільтр вимкнений).
+    Поля з API (можуть відрізнятись — підбираємо по підрядкам):
+      raw['spam_block'] / raw['spamblock_status'] / raw['spamblock'] —
+        значення типу 'absent', 'checked', 'geo', 'active', None
+    """
+    if not sf:
+        return True
+    if not (sf.get("only_clean") or sf.get("allow_geo") or sf.get("allow_unchecked")):
+        return True
+
+    raw = acc.raw or {}
+    sb_value = None
+    for key in ("spam_block", "spamblock_status", "spamblock", "spam_block_status"):
+        if key in raw and raw[key] is not None:
+            sb_value = str(raw[key]).lower()
+            break
+
+    if sb_value is None:
+        # API не повертає поле спамблоку — пропускаємо лише якщо дозволені непровірені
+        return bool(sf.get("allow_unchecked"))
+
+    is_clean = any(x in sb_value for x in ("absent", "clean", "no_block", "checked_clean", "ok"))
+    is_geo = "geo" in sb_value
+    is_unchecked = any(x in sb_value for x in ("unchecked", "not_checked", "pending"))
+
+    if is_clean and sf.get("only_clean"):
+        return True
+    if is_geo and sf.get("allow_geo"):
+        return True
+    if is_unchecked and sf.get("allow_unchecked"):
+        return True
+    return False
+
+
 class UpdateCycle:
     def __init__(
         self,
@@ -244,21 +282,19 @@ class UpdateCycle:
                     if n.bumps_per_day > 0:
                         remaining = n.bumps_per_day - done_today
                     else:
-                        # 0 = без обмеження (по нішах). Усі кандидати на цьому tick.
-                        remaining = len([a for a in normal_accounts if a.bumps_available > 0])
+                        remaining = 10**9  # без обмеження за добу
                     # Глобальний ліміт — спільний кеп по всіх нішах
                     if global_max:
                         global_left = max(0, global_max - already_today_global - auto_result["bumps"])
                         remaining = min(remaining, global_left)
                     if remaining > 0:
-                        if n.bumps_per_day > 0:
-                            per_tick = self._target_for_this_hour(n, done_today)
-                            if global_max:
-                                per_tick = min(per_tick, remaining)
-                        else:
-                            # «без обмеження» — обробляємо до remaining за тик
-                            per_tick = remaining
-                        candidates = [a for a in normal_accounts if a.bumps_available > 0]
+                        # Скільки за один цикл — береться з niche.bumps_per_tick
+                        per_tick = max(1, int(n.bumps_per_tick or 5))
+                        per_tick = min(per_tick, remaining)
+                        candidates = [
+                            a for a in normal_accounts
+                            if a.bumps_available > 0 and _matches_spamblock_filter(a, n.spamblock_filter)
+                        ]
                         bumped_ok = self._try_action_with_fallback(
                             bump_items, candidates, per_tick,
                         )

@@ -21,7 +21,6 @@ from app.api.queue import RequestQueue
 from app.config import Settings
 from app.core.cycle import UpdateCycle
 from app.services import settings_store
-from app.ui.home_tab import HomeTab
 from app.ui.logs_dialog import LogsDialog
 from app.ui.settings_dialog import SettingsDialog
 
@@ -84,8 +83,9 @@ class MainWindow(QMainWindow):
 
     # ---------- UI ----------
     def _build_ui(self) -> None:
-        # Поки що тільки головна вкладка — статистика прибрана за запитом
-        self.home_tab = HomeTab(client=self.client, trigger_refresh=self.cycle.trigger_now)
+        # Мінімальний UI — одна форма (без вкладок, без редактора ніш)
+        from app.ui.simple_form import SimpleForm
+        self.home_tab = SimpleForm(client=self.client, trigger_refresh=self.cycle.trigger_now)
         self.setCentralWidget(self.home_tab)
 
     def _build_menu(self) -> None:
