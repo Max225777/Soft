@@ -119,18 +119,15 @@ class SimpleForm(QWidget):
 
         root.addWidget(params)
 
-        # ---- Фільтри: REJECT-семантика (відмічаєш — викидається) ----
-        filt = QGroupBox("Фільтри спамблоку (відмічене ВИКЛЮЧАЄТЬСЯ з підйому)")
+        # ---- Фільтр спамблоку ----
+        filt = QGroupBox("Фільтр спамблоку")
         fb = QVBoxLayout(filt)
-        self.chk_excl_spam = QCheckBox("Не піднімати з явним спамблоком (telegram_spam_block = 1)")
-        self.chk_excl_geo = QCheckBox("Не піднімати з гео-спамблоком (= 2+)")
-        self.chk_excl_unchecked = QCheckBox("Не піднімати непровірені (= -1)")
-        fb.addWidget(self.chk_excl_spam)
-        fb.addWidget(self.chk_excl_geo)
-        fb.addWidget(self.chk_excl_unchecked)
+        self.chk_skip_spam = QCheckBox("Не піднімати акк зі спамблоком (telegram_spam_block ≥ 1)")
+        fb.addWidget(self.chk_skip_spam)
         hint_filt = QLabel(
-            "<i>Чисті акк (telegram_spam_block = 0) завжди проходять. "
-            "Якщо нічого не відмічено — фільтр вимкнено, обробляються всі.</i>"
+            "<i>Якщо галочка стоїть — програма пропускає акк лише з telegram_spam_block "
+            "= 0 (чисто) або = -1 (не перевірено). Все що ≥1 (включно з гео-спамблоком) — "
+            "пропускаємо. Якщо галочки немає — піднімаємо всіх.</i>"
         )
         hint_filt.setWordWrap(True)
         hint_filt.setStyleSheet("color:#9e9e9e; font-size:10pt;")
@@ -184,10 +181,7 @@ class SimpleForm(QWidget):
         self.bumps_per_tick_spin.setValue(n.bumps_per_tick or 5)
         self.bumps_per_day_spin.setValue(n.bumps_per_day or 0)
         sf = n.spamblock_filter or {}
-        # Підтримуємо як нові ключі (REJECT), так і старі (ALLOW) для сумісності
-        self.chk_excl_spam.setChecked(bool(sf.get("exclude_spamblock")))
-        self.chk_excl_geo.setChecked(bool(sf.get("exclude_geo")))
-        self.chk_excl_unchecked.setChecked(bool(sf.get("exclude_unchecked")))
+        self.chk_skip_spam.setChecked(bool(sf.get("skip_spamblock")))
         # Інтервал — глобальний
         win = self.window()
         settings = getattr(win, "settings", None)
@@ -285,9 +279,7 @@ class SimpleForm(QWidget):
                     break
 
         spam_filter = {
-            "exclude_spamblock": self.chk_excl_spam.isChecked(),
-            "exclude_geo": self.chk_excl_geo.isChecked(),
-            "exclude_unchecked": self.chk_excl_unchecked.isChecked(),
+            "skip_spamblock": self.chk_skip_spam.isChecked(),
         }
 
         n = self._get_or_create_niche()

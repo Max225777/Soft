@@ -21,59 +21,34 @@ from app.services import settings_store
 
 
 def _matches_spamblock_filter(acc: Account, sf: dict | None) -> bool:
-    """Перевіряє чи акк проходить фільтр спамблоку.
+    """Перевіряє чи акк проходить фільтр.
 
-    Семантика — REJECT: користувач відмічає що ВИКЛЮЧИТИ.
-    sf = {
-        exclude_spamblock: bool,  # не піднімати акк з явним спамблоком
-        exclude_geo:       bool,  # не піднімати з гео-спамблоком
-        exclude_unchecked: bool,  # не піднімати непровірені
-    }
+    sf = {"skip_spamblock": bool}
 
-    Чисті акк (=0) завжди проходять.
-    Якщо жодна галочка не стоїть — фільтр вимкнений, всі проходять.
+    Якщо skip_spamblock=True — НЕ піднімаємо акк де telegram_spam_block ≥ 1
+    (= є спамблок будь-якого типу, включно з гео).
 
-    Lolzteam telegram_spam_block:
-       0 = чисто (без блоку)
-      -1 = НЕ перевірено
-      ≥1 = є блок (1 — звичайний, ≥2 — інші стани/гео)
+    Якщо False або поле відсутнє — пропускаємо всіх.
+
+    Значення в Lolzteam (за нашими спостереженнями):
+       0 = чисто     ← пропускаємо
+      -1 = не перевірено  ← пропускаємо (невідомо)
+       1 = є спамблок  ← відсіюємо якщо skip_spamblock=True
+       ≥2 = гео або інше ← відсіюємо якщо skip_spamblock=True
     """
-    if not sf:
+    if not sf or not sf.get("skip_spamblock"):
         return True
-    if not (sf.get("exclude_spamblock") or sf.get("exclude_geo") or sf.get("exclude_unchecked")):
-        return True
-
     raw = acc.raw or {}
-    sb_raw = None
-    for key in ("telegram_spam_block", "spam_block", "spamblock_status", "spamblock"):
-        if key in raw and raw[key] is not None:
-            sb_raw = raw[key]
-            break
-    if sb_raw is None:
-        # Поле відсутнє — трактуємо як «непровірено»
-        return not sf.get("exclude_unchecked", False)
-
-    # Числове значення (Lolzteam Telegram convention)
-    if isinstance(sb_raw, (int, float)) or (isinstance(sb_raw, str) and sb_raw.lstrip("-").isdigit()):
-        sb_int = int(sb_raw)
-        if sb_int == 0:
-            return True  # чистий — завжди пропускаємо
-        if sb_int == -1:
-            return not sf.get("exclude_unchecked", False)
-        if sb_int == 1:
-            return not sf.get("exclude_spamblock", False)
-        # 2+ — інше (можливо гео-спамблок)
-        return not sf.get("exclude_geo", False)
-
-    # Рядкове значення (запасний)
-    sb_str = str(sb_raw).lower()
-    if any(x in sb_str for x in ("absent", "clean", "no_block", "ok")):
+    sb = raw.get("telegram_spam_block")
+    if sb is None:
+        return True  # невідомо — пропускаємо
+    try:
+        sb_int = int(sb)
+    except (TypeError, ValueError):
         return True
-    if any(x in sb_str for x in ("unchecked", "not_checked", "pending")):
-        return not sf.get("exclude_unchecked", False)
-    if "geo" in sb_str:
-        return not sf.get("exclude_geo", False)
-    return not sf.get("exclude_spamblock", False)
+    # 0 (чисто) і -1 (непровірено) — пропускаємо
+    # 1+ (любий блок) — відсіюємо
+    return sb_int < 1
 
 
 class UpdateCycle:
