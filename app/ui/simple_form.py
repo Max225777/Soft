@@ -49,6 +49,7 @@ class SimpleForm(QWidget):
         self.trigger_refresh = trigger_refresh
         self._tags_cache: list[dict] = []
         self._tags_call: AsyncCall | None = None
+        self._prune_legacy_niches()
         self._build_ui()
         self._load_state()
         QTimer.singleShot(100, self._reload_tags)
@@ -56,6 +57,17 @@ class SimpleForm(QWidget):
         self._refresh_timer = QTimer(self)
         self._refresh_timer.timeout.connect(self._refresh_status)
         self._refresh_timer.start(3000)
+
+    @staticmethod
+    def _prune_legacy_niches() -> None:
+        """Прибираємо всі ніші окрім «Default» — мінімалістичний UI."""
+        with get_session() as s:
+            old = list(s.execute(select(Niche).where(Niche.name != SINGLE_NICHE_NAME)).scalars())
+            for o in old:
+                logger.info("Видаляю стару нішу '{}' (id={}) — мінімалістичний UI", o.name, o.id)
+                s.delete(o)
+            if old:
+                s.commit()
 
     # ---------- UI ----------
     def _build_ui(self) -> None:
@@ -215,10 +227,6 @@ class SimpleForm(QWidget):
         n = self._get_or_create_niche()
         current = n.tag_id
 
-        try:
-            self.tag_combo.currentIndexChanged.disconnect()
-        except (TypeError, RuntimeError):
-            pass
         self.tag_combo.clear()
         self.tag_combo.addItem("— оберіть тег —", None)
         seen = set()
@@ -360,16 +368,26 @@ class SimpleForm(QWidget):
                 f"всього на продажі: {acc_total}"
             )
 
-            # Журнал
+            # Журнал — підтягуємо title акаунту (через outerjoin по item_id)
             with get_session() as s:
                 rows = list(s.execute(
-                    select(ActionLog).order_by(desc(ActionLog.created_at)).limit(50)
-                ).scalars())
+                    select(ActionLog, Account.title)
+                    .outerjoin(Account, Account.item_id == ActionLog.item_id)
+                    .order_by(desc(ActionLog.created_at))
+                    .limit(50)
+                ))
             lines = []
-            for r in rows:
-                t = r.created_at.strftime("%H:%M:%S") if r.created_at else "??"
-                emoji = "✓" if r.level == "INFO" else ("⚠" if r.level == "WARNING" else "✗")
-                lines.append(f"{t}  {emoji}  {r.action}  #{r.item_id or '—'}  {r.message[:80]}")
+            for log_row, title in rows:
+                t = log_row.created_at.strftime("%H:%M:%S") if log_row.created_at else "??"
+                emoji = "✓" if log_row.level == "INFO" else ("⚠" if log_row.level == "WARNING" else "✗")
+                # Імʼя акаунта (перші 50 символів) замість item_id
+                if title:
+                    name = title[:50]
+                elif log_row.item_id:
+                    name = f"#{log_row.item_id}"
+                else:
+                    name = "—"
+                lines.append(f"{t}  {emoji}  {log_row.action:<8} {name}  {log_row.message[:60]}")
             self.log_view.setPlainText("\n".join(lines))
         except Exception:  # noqa: BLE001
             logger.exception("SimpleForm._refresh_status")
