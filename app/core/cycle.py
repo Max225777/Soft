@@ -23,39 +23,57 @@ from app.services import settings_store
 def _matches_spamblock_filter(acc: Account, sf: dict | None) -> bool:
     """Перевіряє чи акк проходить фільтр спамблоку.
 
-    sf = {only_clean: bool, allow_geo: bool, allow_unchecked: bool}
-    Якщо всі False — пропускаємо все (фільтр вимкнений).
-    Поля з API (можуть відрізнятись — підбираємо по підрядкам):
-      raw['spam_block'] / raw['spamblock_status'] / raw['spamblock'] —
-        значення типу 'absent', 'checked', 'geo', 'active', None
+    Семантика — REJECT: користувач відмічає що ВИКЛЮЧИТИ.
+    sf = {
+        exclude_spamblock: bool,  # не піднімати акк з явним спамблоком
+        exclude_geo:       bool,  # не піднімати з гео-спамблоком
+        exclude_unchecked: bool,  # не піднімати непровірені
+    }
+
+    Чисті акк (=0) завжди проходять.
+    Якщо жодна галочка не стоїть — фільтр вимкнений, всі проходять.
+
+    Lolzteam telegram_spam_block:
+       0 = чисто (без блоку)
+      -1 = НЕ перевірено
+      ≥1 = є блок (1 — звичайний, ≥2 — інші стани/гео)
     """
     if not sf:
         return True
-    if not (sf.get("only_clean") or sf.get("allow_geo") or sf.get("allow_unchecked")):
+    if not (sf.get("exclude_spamblock") or sf.get("exclude_geo") or sf.get("exclude_unchecked")):
         return True
 
     raw = acc.raw or {}
-    sb_value = None
-    for key in ("spam_block", "spamblock_status", "spamblock", "spam_block_status"):
+    sb_raw = None
+    for key in ("telegram_spam_block", "spam_block", "spamblock_status", "spamblock"):
         if key in raw and raw[key] is not None:
-            sb_value = str(raw[key]).lower()
+            sb_raw = raw[key]
             break
+    if sb_raw is None:
+        # Поле відсутнє — трактуємо як «непровірено»
+        return not sf.get("exclude_unchecked", False)
 
-    if sb_value is None:
-        # API не повертає поле спамблоку — пропускаємо лише якщо дозволені непровірені
-        return bool(sf.get("allow_unchecked"))
+    # Числове значення (Lolzteam Telegram convention)
+    if isinstance(sb_raw, (int, float)) or (isinstance(sb_raw, str) and sb_raw.lstrip("-").isdigit()):
+        sb_int = int(sb_raw)
+        if sb_int == 0:
+            return True  # чистий — завжди пропускаємо
+        if sb_int == -1:
+            return not sf.get("exclude_unchecked", False)
+        if sb_int == 1:
+            return not sf.get("exclude_spamblock", False)
+        # 2+ — інше (можливо гео-спамблок)
+        return not sf.get("exclude_geo", False)
 
-    is_clean = any(x in sb_value for x in ("absent", "clean", "no_block", "checked_clean", "ok"))
-    is_geo = "geo" in sb_value
-    is_unchecked = any(x in sb_value for x in ("unchecked", "not_checked", "pending"))
-
-    if is_clean and sf.get("only_clean"):
+    # Рядкове значення (запасний)
+    sb_str = str(sb_raw).lower()
+    if any(x in sb_str for x in ("absent", "clean", "no_block", "ok")):
         return True
-    if is_geo and sf.get("allow_geo"):
-        return True
-    if is_unchecked and sf.get("allow_unchecked"):
-        return True
-    return False
+    if any(x in sb_str for x in ("unchecked", "not_checked", "pending")):
+        return not sf.get("exclude_unchecked", False)
+    if "geo" in sb_str:
+        return not sf.get("exclude_geo", False)
+    return not sf.get("exclude_spamblock", False)
 
 
 class UpdateCycle:

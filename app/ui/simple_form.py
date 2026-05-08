@@ -119,18 +119,18 @@ class SimpleForm(QWidget):
 
         root.addWidget(params)
 
-        # ---- Фільтри спамблоку ----
-        filt = QGroupBox("Фільтри (за можливості — залежить від відповіді API)")
+        # ---- Фільтри: REJECT-семантика (відмічаєш — викидається) ----
+        filt = QGroupBox("Фільтри спамблоку (відмічене ВИКЛЮЧАЄТЬСЯ з підйому)")
         fb = QVBoxLayout(filt)
-        self.chk_only_clean = QCheckBox("Тільки без спамблоку (перевірено)")
-        self.chk_allow_geo = QCheckBox("Можна з гео-спамблоком")
-        self.chk_allow_unchecked = QCheckBox("Включно з непровіреними")
-        fb.addWidget(self.chk_only_clean)
-        fb.addWidget(self.chk_allow_geo)
-        fb.addWidget(self.chk_allow_unchecked)
+        self.chk_excl_spam = QCheckBox("Не піднімати з явним спамблоком (telegram_spam_block = 1)")
+        self.chk_excl_geo = QCheckBox("Не піднімати з гео-спамблоком (= 2+)")
+        self.chk_excl_unchecked = QCheckBox("Не піднімати непровірені (= -1)")
+        fb.addWidget(self.chk_excl_spam)
+        fb.addWidget(self.chk_excl_geo)
+        fb.addWidget(self.chk_excl_unchecked)
         hint_filt = QLabel(
-            "<i>Фільтри застосовуються по полях item-у з API (spam_block, item_origin тощо). "
-            "Якщо API не повертає таких полів — всі акк підпадають.</i>"
+            "<i>Чисті акк (telegram_spam_block = 0) завжди проходять. "
+            "Якщо нічого не відмічено — фільтр вимкнено, обробляються всі.</i>"
         )
         hint_filt.setWordWrap(True)
         hint_filt.setStyleSheet("color:#9e9e9e; font-size:10pt;")
@@ -184,9 +184,10 @@ class SimpleForm(QWidget):
         self.bumps_per_tick_spin.setValue(n.bumps_per_tick or 5)
         self.bumps_per_day_spin.setValue(n.bumps_per_day or 0)
         sf = n.spamblock_filter or {}
-        self.chk_only_clean.setChecked(bool(sf.get("only_clean")))
-        self.chk_allow_geo.setChecked(bool(sf.get("allow_geo")))
-        self.chk_allow_unchecked.setChecked(bool(sf.get("allow_unchecked")))
+        # Підтримуємо як нові ключі (REJECT), так і старі (ALLOW) для сумісності
+        self.chk_excl_spam.setChecked(bool(sf.get("exclude_spamblock")))
+        self.chk_excl_geo.setChecked(bool(sf.get("exclude_geo")))
+        self.chk_excl_unchecked.setChecked(bool(sf.get("exclude_unchecked")))
         # Інтервал — глобальний
         win = self.window()
         settings = getattr(win, "settings", None)
@@ -284,9 +285,9 @@ class SimpleForm(QWidget):
                     break
 
         spam_filter = {
-            "only_clean": self.chk_only_clean.isChecked(),
-            "allow_geo": self.chk_allow_geo.isChecked(),
-            "allow_unchecked": self.chk_allow_unchecked.isChecked(),
+            "exclude_spamblock": self.chk_excl_spam.isChecked(),
+            "exclude_geo": self.chk_excl_geo.isChecked(),
+            "exclude_unchecked": self.chk_excl_unchecked.isChecked(),
         }
 
         n = self._get_or_create_niche()
@@ -331,25 +332,47 @@ class SimpleForm(QWidget):
     # ---------- status & log ----------
     def _refresh_status(self) -> None:
         try:
+            from app.core.cycle import _matches_spamblock_filter
+
             n = self._get_or_create_niche()
             today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
             with get_session() as s:
                 acc_total = s.execute(
                     select(func.count(Account.id)).where(Account.status == "active")
                 ).scalar_one() or 0
-                in_niche = s.execute(
-                    select(func.count(Account.id)).where(
+                in_niche_accounts = list(s.execute(
+                    select(Account).where(
                         Account.niche_id == n.id,
                         Account.status == "active",
                     )
-                ).scalar_one() or 0
-                ready = s.execute(
-                    select(func.count(Account.id)).where(
-                        Account.niche_id == n.id,
-                        Account.status == "active",
-                        Account.bumps_available > 0,
-                    )
-                ).scalar_one() or 0
+                ).scalars())
+                in_niche = len(in_niche_accounts)
+                ready = sum(1 for a in in_niche_accounts if a.bumps_available > 0)
+                ready_after_filter = sum(
+                    1 for a in in_niche_accounts
+                    if a.bumps_available > 0 and _matches_spamblock_filter(a, n.spamblock_filter)
+                )
+                # Breakdown по telegram_spam_block у нішевих акк
+                sb_counts = {"clean": 0, "spamblock": 0, "geo": 0, "unchecked": 0, "unknown": 0}
+                for a in in_niche_accounts:
+                    raw = a.raw or {}
+                    sb = raw.get("telegram_spam_block")
+                    if sb is None:
+                        sb_counts["unknown"] += 1
+                    else:
+                        try:
+                            sb_int = int(sb)
+                        except (TypeError, ValueError):
+                            sb_counts["unknown"] += 1
+                            continue
+                        if sb_int == 0:
+                            sb_counts["clean"] += 1
+                        elif sb_int == -1:
+                            sb_counts["unchecked"] += 1
+                        elif sb_int == 1:
+                            sb_counts["spamblock"] += 1
+                        else:
+                            sb_counts["geo"] += 1
                 bumps_today = s.execute(
                     select(func.count(ActionLog.id)).where(
                         ActionLog.action == "bump",
@@ -361,11 +384,27 @@ class SimpleForm(QWidget):
             status = "🟢 Запущено" if n.auto_bump else "⏸ Зупинено"
             limit_str = f"{n.bumps_per_day}" if n.bumps_per_day else "∞"
             tag_str = f"#{n.tag_id} {n.tag_name}" if n.tag_id else "не обрано"
+            filter_active = any((n.spamblock_filter or {}).values())
+            ready_line = (
+                f"готові до bump: <b>{ready_after_filter}</b> з {ready} (фільтр)"
+                if filter_active else
+                f"готові до bump: <b>{ready}</b>"
+            )
+            sb_breakdown = (
+                f"<span style='color:#9e9e9e'>Спамблок: "
+                f"<span style='color:#4caf50'>чистих {sb_counts['clean']}</span>, "
+                f"непровірено {sb_counts['unchecked']}, "
+                f"<span style='color:#f44336'>з блоком {sb_counts['spamblock']}</span>, "
+                f"гео {sb_counts['geo']}"
+                + (f", невідомо {sb_counts['unknown']}" if sb_counts["unknown"] else "")
+                + "</span>"
+            )
             self.status_label.setText(
                 f"<b>{status}</b>  |  Тег: <b>{tag_str}</b><br>"
                 f"Bump сьогодні: <b style='color:#4caf50'>{bumps_today}</b> / {limit_str}<br>"
-                f"У тегу акк: <b>{in_niche}</b>  |  готові до bump зараз: <b>{ready}</b>  |  "
-                f"всього на продажі: {acc_total}"
+                f"У тегу акк: <b>{in_niche}</b>  |  {ready_line}  |  "
+                f"всього на продажі: {acc_total}<br>"
+                f"{sb_breakdown}"
             )
 
             # Журнал — підтягуємо title акаунту (через outerjoin по item_id)
