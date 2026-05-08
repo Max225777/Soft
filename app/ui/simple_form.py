@@ -393,6 +393,11 @@ class SimpleForm(QWidget):
             logger.exception("SimpleForm._refresh_status")
 
     def reload(self) -> None:
-        """Сумісність з MainWindow._refresh_ui (зворотний виклик)."""
-        self._load_state()
+        """Сумісність з MainWindow._refresh_ui.
+
+        ВАЖЛИВО: НЕ перезавантажуємо поля форми (_load_state) —
+        інакше періодичний таймер MainWindow затирав би дані які
+        користувач щойно ввів. _load_state викликається лише раз —
+        у __init__. Сюди — лише оновлення статусу і журналу.
+        """
         self._refresh_status()
