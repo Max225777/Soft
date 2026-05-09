@@ -40,31 +40,19 @@ def aggregate_tags_from_accounts() -> list[dict]:
 
 
 def fetch_tags(client: LolzMarketClient | None) -> list[dict]:
-    """Сначала пробуем API, затем агрегируем из локальной БД."""
-    api_tags: list[dict] = []
+    """Швидко: спочатку беремо з локальної БД (Account.tags), і ТІЛЬКИ
+    якщо локально пусто — звертаємось до API (повільно, ~25 сек)."""
+    local_tags = aggregate_tags_from_accounts()
+    if local_tags:
+        logger.info("fetch_tags: знайдено {} тегів локально (без API запиту)", len(local_tags))
+        return local_tags
+
+    logger.info("fetch_tags: локально пусто, тягну з API…")
     if client and client.token:
         try:
             api_tags = client.list_my_tags()
-            logger.info("fetch_tags: с API получено {} тегов", len(api_tags))
+            logger.info("fetch_tags: з API отримано {} тегів", len(api_tags))
+            return api_tags
         except Exception as exc:  # noqa: BLE001
-            logger.warning("fetch_tags: ошибка вызова API: {}", exc)
-            api_tags = []
-    else:
-        logger.info("fetch_tags: нет токена, пропускаем API")
-
-    local_tags = aggregate_tags_from_accounts()
-    logger.info("fetch_tags: из локальной БД (Account.tags) собрано {} уникальных тегов", len(local_tags))
-
-    merged: dict[int, dict] = {t["id"]: dict(t) for t in local_tags}
-    for t in api_tags:
-        tid = t["id"]
-        existing = merged.get(tid, {"id": tid, "title": "", "isDefault": False})
-        if t.get("title"):
-            existing["title"] = t["title"]
-        if t.get("isDefault"):
-            existing["isDefault"] = True
-        merged[tid] = existing
-
-    result = sorted(merged.values(), key=lambda x: x["id"])
-    logger.info("fetch_tags: итого после слияния — {} тегов", len(result))
-    return result
+            logger.warning("fetch_tags: помилка API: {}", exc)
+    return []

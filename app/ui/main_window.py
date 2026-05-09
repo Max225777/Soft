@@ -54,10 +54,11 @@ class MainWindow(QMainWindow):
         if not token:
             QTimer.singleShot(200, self._prompt_for_token)
         elif settings.cycle_autostart:
-            run_now = self._is_db_empty()
+            # Стартуємо tick одразу якщо БД порожня АБО є запущена ніша
+            run_now = self._is_db_empty() or self._has_running_niche()
             self.cycle.start(run_now=run_now)
             if run_now:
-                logger.info("БД порожня — стартуємо перший цикл одразу")
+                logger.info("Перший цикл стартує одразу (БД пуста або є запущена ніша)")
 
         self._status_timer = QTimer(self)
         self._status_timer.timeout.connect(self._refresh_status)
@@ -71,6 +72,19 @@ class MainWindow(QMainWindow):
         from app.db.session import get_session
         with get_session() as s:
             return (s.execute(select(func.count(Account.id))).scalar_one() or 0) == 0
+
+    @staticmethod
+    def _has_running_niche() -> bool:
+        """Повертає True якщо в БД є хоча б одна ніша з auto_bump=True."""
+        from sqlalchemy import select
+
+        from app.db.models import Niche
+        from app.db.session import get_session
+        with get_session() as s:
+            niche = s.execute(
+                select(Niche).where(Niche.auto_bump.is_(True)).limit(1)
+            ).scalar_one_or_none()
+            return niche is not None
 
     # ---------- UI ----------
     def _build_ui(self) -> None:
