@@ -46,7 +46,7 @@ class Settings:
     api_max_retries: int = 3
 
     # Cycle
-    cycle_interval_minutes: int = 20
+    cycle_interval_seconds: int = 1200  # 20 хв
     cycle_autostart: bool = True
     notify_sales: bool = True
     sound_on_sale: bool = False
@@ -88,7 +88,10 @@ class Settings:
             # Для search-эндпоинтов queue.RequestQueue отдельно держит окно 20/мин.
             api_min_delay=max(_get_float("LOLZ_API_MIN_DELAY", 0.6), 0.3),
             api_max_retries=_get_int("LOLZ_API_MAX_RETRIES", 3),
-            cycle_interval_minutes=_get_int("CYCLE_INTERVAL_MINUTES", 20),
+            cycle_interval_seconds=_get_int(
+                "CYCLE_INTERVAL_SECONDS",
+                _get_int("CYCLE_INTERVAL_MINUTES", 20) * 60,
+            ),
             cycle_autostart=_get_bool("CYCLE_AUTOSTART", True) and not args.no_auto_cycle,
             notify_sales=_get_bool("NOTIFY_SALES", True),
             sound_on_sale=_get_bool("SOUND_ON_SALE", False),

@@ -112,10 +112,11 @@ class SimpleForm(QWidget):
         form.addRow("Макс за добу (0 = без обмеження):", self.bumps_per_day_spin)
 
         self.interval_spin = QSpinBox()
-        self.interval_spin.setRange(1, 1440)
-        self.interval_spin.setValue(20)
-        self.interval_spin.setSuffix(" хв")
-        form.addRow("Інтервал циклу:", self.interval_spin)
+        self.interval_spin.setRange(5, 86400)  # від 5 сек до 24 год
+        self.interval_spin.setValue(1200)
+        self.interval_spin.setSuffix(" сек")
+        self.interval_spin.setToolTip("60 = 1 хв, 600 = 10 хв, 1200 = 20 хв, 3600 = 1 год")
+        form.addRow("Інтервал циклу (сек):", self.interval_spin)
 
         root.addWidget(params)
 
@@ -186,7 +187,7 @@ class SimpleForm(QWidget):
         win = self.window()
         settings = getattr(win, "settings", None)
         if settings is not None:
-            self.interval_spin.setValue(int(settings.cycle_interval_minutes or 20))
+            self.interval_spin.setValue(int(settings.cycle_interval_seconds or 1200))
         self._update_toggle_button(n.auto_bump)
 
     def _update_toggle_button(self, running: bool) -> None:
@@ -296,13 +297,13 @@ class SimpleForm(QWidget):
         # Зберігаємо інтервал у налаштуваннях додатку
         win = self.window()
         if hasattr(win, "settings"):
-            new_interval = int(self.interval_spin.value())
-            win.settings.cycle_interval_minutes = new_interval
-            settings_store.set_kv("cycle_interval_minutes", str(new_interval))
+            new_interval_sec = int(self.interval_spin.value())
+            win.settings.cycle_interval_seconds = new_interval_sec
+            settings_store.set_kv("cycle_interval_seconds", str(new_interval_sec))
             # Перезапуск циклу з новим інтервалом
             cycle = getattr(win, "cycle", None)
             if cycle is not None:
-                cycle.interval_minutes = new_interval
+                cycle.interval_seconds = new_interval_sec
                 cycle.stop()
                 cycle.start(run_now=running)
 

@@ -40,7 +40,7 @@ class MainWindow(QMainWindow):
         )
         self.cycle = UpdateCycle(
             client=self.client,
-            interval_minutes=settings.cycle_interval_minutes,
+            interval_seconds=settings.cycle_interval_seconds,
             on_tick=self._on_cycle_tick,
         )
 
@@ -140,7 +140,7 @@ class MainWindow(QMainWindow):
             self.queue.min_delay = max(self.settings.api_min_delay, 0.3)
             if self.cycle._scheduler.running:
                 self.cycle.stop()
-            self.cycle.interval_minutes = self.settings.cycle_interval_minutes
+            self.cycle.interval_seconds = self.settings.cycle_interval_seconds
             if self.settings.cycle_autostart:
                 self.cycle.start(run_now=False)
             self.statusBar().showMessage("Налаштування збережено", 3000)

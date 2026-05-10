@@ -55,11 +55,11 @@ class UpdateCycle:
     def __init__(
         self,
         client: LolzMarketClient,
-        interval_minutes: int = 20,
+        interval_seconds: int = 1200,
         on_tick: Callable[[dict], None] | None = None,
     ) -> None:
         self.client = client
-        self.interval_minutes = interval_minutes
+        self.interval_seconds = max(int(interval_seconds), 5)
         self.on_tick = on_tick
         self._scheduler = BackgroundScheduler(timezone="UTC")
         self._lock = threading.Lock()
@@ -79,13 +79,16 @@ class UpdateCycle:
             logger.info("Створено новий scheduler після попереднього shutdown")
         self._scheduler.add_job(
             self._safe_tick,
-            IntervalTrigger(minutes=self.interval_minutes),
+            IntervalTrigger(seconds=self.interval_seconds),
             id="update_cycle",
             replace_existing=True,
             next_run_time=datetime.now(timezone.utc) if run_now else None,
         )
         self._scheduler.start()
-        logger.info("Цикл оновлення запущено (кожні {} хв, run_now={})", self.interval_minutes, run_now)
+        logger.info(
+            "Цикл оновлення запущено (кожні {} сек, run_now={})",
+            self.interval_seconds, run_now,
+        )
 
     def stop(self) -> None:
         if self._scheduler.running:
@@ -401,7 +404,7 @@ class UpdateCycle:
         """Распределяет оставшиеся bumps равномерно до конца суток."""
         now = datetime.now(timezone.utc)
         seconds_left = max((today_start.replace(hour=23, minute=59) - now).total_seconds(), 60)
-        ticks_left = max(int(seconds_left / (self.interval_minutes * 60)), 1)
+        ticks_left = max(int(seconds_left / max(self.interval_seconds, 1)), 1)
         per_tick = max(1, remaining_today // ticks_left)
         return min(per_tick, remaining_today)
 
