@@ -46,7 +46,8 @@ class Settings:
     api_max_retries: int = 3
 
     # Cycle
-    cycle_interval_seconds: int = 1200  # 20 хв
+    cycle_interval_seconds: int = 1200  # bump tick — 20 хв default
+    fetch_interval_seconds: int = 600   # повний fetch items з API — 10 хв default
     cycle_autostart: bool = True
     notify_sales: bool = True
     sound_on_sale: bool = False
@@ -92,6 +93,7 @@ class Settings:
                 "CYCLE_INTERVAL_SECONDS",
                 _get_int("CYCLE_INTERVAL_MINUTES", 20) * 60,
             ),
+            fetch_interval_seconds=_get_int("FETCH_INTERVAL_SECONDS", 600),
             cycle_autostart=_get_bool("CYCLE_AUTOSTART", True) and not args.no_auto_cycle,
             notify_sales=_get_bool("NOTIFY_SALES", True),
             sound_on_sale=_get_bool("SOUND_ON_SALE", False),

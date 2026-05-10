@@ -41,6 +41,7 @@ class MainWindow(QMainWindow):
         self.cycle = UpdateCycle(
             client=self.client,
             interval_seconds=settings.cycle_interval_seconds,
+            fetch_interval_seconds=settings.fetch_interval_seconds,
             on_tick=self._on_cycle_tick,
         )
 

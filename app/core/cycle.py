@@ -57,13 +57,19 @@ class UpdateCycle:
         client: LolzMarketClient,
         interval_seconds: int = 1200,
         on_tick: Callable[[dict], None] | None = None,
+        fetch_interval_seconds: int = 600,
     ) -> None:
         self.client = client
-        self.interval_seconds = max(int(interval_seconds), 5)
+        self.interval_seconds = max(int(interval_seconds), 1)
+        # Скільки часу між повноцінними fetch items з API (повільно: 22+ сек).
+        # Якщо interval_seconds малий (10) — fetch робиться лише раз на 10 хв,
+        # між цим tick'и тільки bump'ають з локального кешу.
+        self.fetch_interval_seconds = max(int(fetch_interval_seconds), 30)
         self.on_tick = on_tick
         self._scheduler = BackgroundScheduler(timezone="UTC")
         self._lock = threading.Lock()
         self._last_tick: datetime | None = None
+        self._last_fetch_at: datetime | None = None
         self._last_summary: dict = {}
         self._was_shutdown = False
 
@@ -136,29 +142,45 @@ class UpdateCycle:
 
     def _tick(self) -> None:
         started = datetime.now(timezone.utc)
-        logger.info("=== TICK START {} ===", started.isoformat())
 
-        # 1. Проверка API + получение списка моих аккаунтов
-        try:
-            me = self.client.get_me()
-            logger.debug("API /me ok: user_id={}", (me.get("user") or {}).get("user_id") or me.get("user_id"))
-        except ApiError as exc:
-            logger.error("API недоступен: {}", exc)
-            self._last_summary = {"error": str(exc)}
-            return
+        # FETCH робимо тільки якщо минуло >= fetch_interval_seconds від
+        # попереднього (або це перший раз). Між цим — лише швидкий bump
+        # з локального кешу.
+        do_fetch = (
+            self._last_fetch_at is None
+            or (started - self._last_fetch_at).total_seconds() >= self.fetch_interval_seconds
+        )
+        sync_summary: dict = {}
 
-        items = self._fetch_all_items()
+        if do_fetch:
+            logger.info("=== FETCH+BUMP TICK {} ===", started.isoformat())
+            try:
+                me = self.client.get_me()
+                logger.debug(
+                    "API /me ok: user_id={}",
+                    (me.get("user") or {}).get("user_id") or me.get("user_id"),
+                )
+            except ApiError as exc:
+                logger.error("API недоступний: {}", exc)
+                self._last_summary = {"error": str(exc)}
+                return
 
-        # 2. Синхронизация и фиксация продаж
-        sync_summary = sync_accounts_snapshot(items)
+            items = self._fetch_all_items()
+            sync_summary = sync_accounts_snapshot(items)
+            reclassify_accounts()
+            self._last_fetch_at = datetime.now(timezone.utc)
+        else:
+            elapsed = int((started - self._last_fetch_at).total_seconds())
+            logger.info(
+                "=== BUMP-ONLY TICK {} (наступний fetch через {}с) ===",
+                started.isoformat(timespec="seconds"),
+                max(0, self.fetch_interval_seconds - elapsed),
+            )
 
-        # 3. Реклассификация аккаунтов по нишам
-        reclassify_accounts()
-
-        # 4. Ежедневный сброс счётчиков bumps/sticks
+        # Ежедневный сброс лічильників bumps/sticks
         self._reset_daily_limits()
 
-        # 5. Автоматические действия по нишам
+        # Автоматичні дії по нішах (бамп / закріплення)
         auto_summary = self._run_auto_actions()
 
         self._last_tick = datetime.now(timezone.utc)
@@ -166,6 +188,7 @@ class UpdateCycle:
             **sync_summary,
             "auto": auto_summary,
             "duration_sec": (self._last_tick - started).total_seconds(),
+            "fetched": do_fetch,
         }
         logger.info("=== TICK END {} ===", self._last_summary)
 

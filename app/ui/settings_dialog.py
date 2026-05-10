@@ -96,7 +96,7 @@ class SettingsDialog(QDialog):
         cycle_box = QGroupBox("Цикл оновлення")
         cycle_form = QFormLayout(cycle_box)
         self.interval_spin = QSpinBox()
-        self.interval_spin.setRange(5, 86400)
+        self.interval_spin.setRange(1, 86400)
         self.interval_spin.setSuffix(" сек")
         cycle_form.addRow("Інтервал циклу (сек):", self.interval_spin)
         self.autostart_chk = QCheckBox("Автоматично запускати при старті")

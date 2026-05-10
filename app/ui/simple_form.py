@@ -112,11 +112,21 @@ class SimpleForm(QWidget):
         form.addRow("Макс за добу (0 = без обмеження):", self.bumps_per_day_spin)
 
         self.interval_spin = QSpinBox()
-        self.interval_spin.setRange(5, 86400)  # від 5 сек до 24 год
+        self.interval_spin.setRange(1, 86400)  # від 1 сек до 24 год
         self.interval_spin.setValue(1200)
         self.interval_spin.setSuffix(" сек")
-        self.interval_spin.setToolTip("60 = 1 хв, 600 = 10 хв, 1200 = 20 хв, 3600 = 1 год")
-        form.addRow("Інтервал циклу (сек):", self.interval_spin)
+        self.interval_spin.setToolTip("Як часто бот робить bump-tick. 5 = кожні 5 сек, 60 = щохвилини")
+        form.addRow("Інтервал bump (сек):", self.interval_spin)
+
+        self.fetch_interval_spin = QSpinBox()
+        self.fetch_interval_spin.setRange(30, 86400)
+        self.fetch_interval_spin.setValue(600)
+        self.fetch_interval_spin.setSuffix(" сек")
+        self.fetch_interval_spin.setToolTip(
+            "Як часто синхронізуватись з API (тяжкий запит, ~22 сек). "
+            "Між цим bump'аємо з кешу. 600 = раз на 10 хв."
+        )
+        form.addRow("Інтервал fetch з API (сек):", self.fetch_interval_spin)
 
         root.addWidget(params)
 
@@ -188,6 +198,7 @@ class SimpleForm(QWidget):
         settings = getattr(win, "settings", None)
         if settings is not None:
             self.interval_spin.setValue(int(settings.cycle_interval_seconds or 1200))
+            self.fetch_interval_spin.setValue(int(settings.fetch_interval_seconds or 600))
         self._update_toggle_button(n.auto_bump)
 
     def _update_toggle_button(self, running: bool) -> None:
@@ -298,12 +309,16 @@ class SimpleForm(QWidget):
         win = self.window()
         if hasattr(win, "settings"):
             new_interval_sec = int(self.interval_spin.value())
+            new_fetch_sec = int(self.fetch_interval_spin.value())
             win.settings.cycle_interval_seconds = new_interval_sec
+            win.settings.fetch_interval_seconds = new_fetch_sec
             settings_store.set_kv("cycle_interval_seconds", str(new_interval_sec))
-            # Перезапуск циклу з новим інтервалом
+            settings_store.set_kv("fetch_interval_seconds", str(new_fetch_sec))
+            # Перезапуск циклу з новими інтервалами
             cycle = getattr(win, "cycle", None)
             if cycle is not None:
-                cycle.interval_seconds = new_interval_sec
+                cycle.interval_seconds = max(1, new_interval_sec)
+                cycle.fetch_interval_seconds = max(30, new_fetch_sec)
                 cycle.stop()
                 cycle.start(run_now=running)
 
