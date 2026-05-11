@@ -8,6 +8,7 @@ from lemur_shop.db.models import Order, ReferralPayout, User
 from lemur_shop.db.session import AsyncSessionLocal
 from lemur_shop.i18n import t
 from lemur_shop.keyboards.inline import back_to_main, lang_keyboard
+from lemur_shop.utils.currency import format_balance
 
 router = Router()
 
@@ -30,7 +31,7 @@ async def cb_profile(callback: CallbackQuery) -> None:
         f"{t(lang, 'profile_title')}\n\n"
         f"<b>{name}</b>  {uname}\n\n"
         f"{t(lang, 'profile_lang')}: {lang_label}\n"
-        f"{t(lang, 'profile_bal')}: <b>${user.balance_usd}</b>\n"
+        f"{t(lang, 'profile_bal')}: {await format_balance(user.balance_usd, lang)}\n"
         f"{t(lang, 'profile_orders')}: <b>{orders_count}</b>"
     )
 
