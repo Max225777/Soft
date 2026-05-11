@@ -2,70 +2,74 @@ from __future__ import annotations
 
 from aiogram import F, Router
 from aiogram.types import CallbackQuery
+from sqlalchemy import func, select
 
-from bot.config import settings
-from bot.db.models import User
-from bot.db.session import AsyncSessionLocal
-from bot.keyboards.inline import back_keyboard
-from bot.services import referral as ref_svc
-from bot.services.balance import get_balance_usd
-from bot.utils.currency import format_amount
+from lemur_shop.db.models import Order, ReferralPayout, User
+from lemur_shop.db.session import AsyncSessionLocal
+from lemur_shop.i18n import t
+from lemur_shop.keyboards.inline import back_to_main, lang_keyboard
 
 router = Router()
 
 
 @router.callback_query(F.data == "menu:profile")
 async def cb_profile(callback: CallbackQuery) -> None:
-    async with AsyncSessionLocal() as session:
-        user = await session.get(User, callback.from_user.id)
+    async with AsyncSessionLocal() as s:
+        user = await s.get(User, callback.from_user.id)
         if not user:
-            await callback.answer("Спочатку введіть /start")
             return
-
-        balance_usd = await get_balance_usd(session, user.id)
-        orders_count = len(user.orders) if user.orders else 0
-
-    region_labels = {"UA": "🇺🇦 Україна", "RU": "🇷🇺 Росія", "KZ": "🇰🇿 Казахстан"}
-    currency_labels = {"USD": "$ USD", "UAH": "₴ UAH", "RUB": "₽ RUB", "KZT": "₸ KZT"}
-
+        orders_count = await s.scalar(
+            select(func.count()).where(Order.user_id == user.id)
+        )
+    lang = user.lang
     name = user.full_name or user.username or str(user.id)
-    username_str = f"@{user.username}" if user.username else "—"
+    uname = f"@{user.username}" if user.username else "—"
+    lang_label = "🇺🇦 Українська" if lang == "ua" else "🇷🇺 Русский"
 
     text = (
-        f"👤 <b>Профіль</b>\n\n"
-        f"<b>{name}</b>\n"
-        f"{username_str}\n\n"
-        f"📍 Регіон: {region_labels.get(user.region, user.region)}\n"
-        f"💱 Валюта: {currency_labels.get(user.display_currency, user.display_currency)}\n"
-        f"💳 Баланс: <b>{format_amount(balance_usd, user.display_currency)}</b>\n"
-        f"🛍 Замовлень: {orders_count}\n"
+        f"{t(lang, 'profile_title')}\n\n"
+        f"<b>{name}</b>  {uname}\n\n"
+        f"{t(lang, 'profile_lang')}: {lang_label}\n"
+        f"{t(lang, 'profile_bal')}: <b>${user.balance_usd}</b>\n"
+        f"{t(lang, 'profile_orders')}: <b>{orders_count}</b>"
     )
 
-    await callback.message.edit_text(text, reply_markup=back_keyboard(), parse_mode="HTML")
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
+    from aiogram.types import InlineKeyboardButton
+    b = InlineKeyboardBuilder()
+    b.row(InlineKeyboardButton(text=t(lang, "btn_change_lang"), callback_data="menu:change_lang"))
+    b.row(InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu:main"))
+
+    await callback.message.edit_text(text, reply_markup=b.as_markup(), parse_mode="HTML")
+
+
+@router.callback_query(F.data == "menu:change_lang")
+async def cb_change_lang(callback: CallbackQuery) -> None:
+    await callback.message.edit_text(t("ru", "choose_lang"), reply_markup=lang_keyboard())
 
 
 @router.callback_query(F.data == "menu:referral")
 async def cb_referral(callback: CallbackQuery) -> None:
-    async with AsyncSessionLocal() as session:
-        user = await session.get(User, callback.from_user.id)
+    async with AsyncSessionLocal() as s:
+        user = await s.get(User, callback.from_user.id)
         if not user:
-            await callback.answer("Спочатку введіть /start")
             return
-
-        stats = await ref_svc.get_referral_stats(session, user.id)
-
-    bot_username = (await callback.bot.get_me()).username
-    ref_link = f"https://t.me/{bot_username}?start={user.referral_code}"
+        ref_count = await s.scalar(
+            select(func.count()).where(User.referred_by_id == user.id)
+        )
+        earned = await s.scalar(
+            select(func.coalesce(func.sum(ReferralPayout.bonus_usd), 0))
+            .where(ReferralPayout.referrer_id == user.id)
+        )
+    lang = user.lang
+    me = await callback.bot.get_me()
+    link = f"https://t.me/{me.username}?start={user.referral_code}"
 
     text = (
-        f"👥 <b>Реферальна програма</b>\n\n"
-        f"Ваш бонус: <b>+{stats['bonus_percent']:.0f}%</b> з кожної покупки реферала\n\n"
-        f"📊 Статистика:\n"
-        f"  • Запрошено: <b>{stats['referrals_count']}</b> чол.\n"
-        f"  • Зароблено: <b>{format_amount(stats['total_earned_usd'], 'USD')}</b>\n\n"
-        f"🔗 Ваше посилання:\n"
-        f"<code>{ref_link}</code>\n\n"
-        f"<i>Натисніть щоб скопіювати</i>"
+        f"{t(lang, 'ref_title')}\n\n"
+        f"{t(lang, 'ref_bonus', pct=5)}\n\n"
+        f"{t(lang, 'ref_invited', n=ref_count or 0)}\n"
+        f"{t(lang, 'ref_earned', amt=f'{float(earned or 0):.2f}')}\n\n"
+        f"{t(lang, 'ref_link')}\n<code>{link}</code>"
     )
-
-    await callback.message.edit_text(text, reply_markup=back_keyboard(), parse_mode="HTML")
+    await callback.message.edit_text(text, reply_markup=back_to_main(lang), parse_mode="HTML")

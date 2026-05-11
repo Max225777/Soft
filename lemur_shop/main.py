@@ -6,45 +6,31 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.fsm.storage.memory import MemoryStorage
 
-from bot.config import settings
-from bot.db.init import create_tables
-from bot.handlers import balance, profile, start
-from bot.services.stars import fetch_stars_rate, set_rate
-from bot.utils.currency import fetch_rates, set_rates
+from lemur_shop.config import settings
+from lemur_shop.db.init import create_tables
+from lemur_shop.handlers import admin, profile, shop, start
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 
-async def on_startup(bot: Bot) -> None:
+async def main() -> None:
     await create_tables()
 
-    # Курс зірок
-    rate = await fetch_stars_rate()
-    set_rate(rate)
-    log.info("Stars rate: 1 USD = %s ⭐", rate)
-
-    # Курси валют
-    rates = await fetch_rates()
-    set_rates(rates)
-    log.info("Exchange rates loaded: %s", rates)
-
-
-async def main() -> None:
     bot = Bot(
         token=settings.BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
-    dp = Dispatcher()
-
-    dp.startup.register(on_startup)
+    dp = Dispatcher(storage=MemoryStorage())
 
     dp.include_router(start.router)
-    dp.include_router(balance.router)
+    dp.include_router(shop.router)
     dp.include_router(profile.router)
+    dp.include_router(admin.router)
 
-    log.info("Starting Лемур bot...")
+    log.info("Лемур бот запущено")
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
 

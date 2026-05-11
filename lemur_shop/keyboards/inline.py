@@ -1,68 +1,72 @@
 from __future__ import annotations
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from bot.config import settings
-from bot.db.models import Currency, Region
+from lemur_shop.i18n import t
 
 
-def region_keyboard() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(text="🇺🇦 Україна", callback_data="region:UA"),
-        InlineKeyboardButton(text="🇷🇺 Россия",  callback_data="region:RU"),
-        InlineKeyboardButton(text="🇰🇿 Казахстан", callback_data="region:KZ"),
+def lang_keyboard() -> InlineKeyboardMarkup:
+    b = InlineKeyboardBuilder()
+    b.row(
+        InlineKeyboardButton(text="🇺🇦 Українська", callback_data="lang:ua"),
+        InlineKeyboardButton(text="🇷🇺 Русский",    callback_data="lang:ru"),
     )
-    return builder.as_markup()
+    return b.as_markup()
 
 
-def currency_keyboard() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(text="$ USD", callback_data="currency:USD"),
-        InlineKeyboardButton(text="₴ UAH", callback_data="currency:UAH"),
-        InlineKeyboardButton(text="₽ RUB", callback_data="currency:RUB"),
-        InlineKeyboardButton(text="₸ KZT", callback_data="currency:KZT"),
+def main_menu(lang: str, is_admin: bool = False) -> InlineKeyboardMarkup:
+    b = InlineKeyboardBuilder()
+    b.row(InlineKeyboardButton(text=t(lang, "btn_shop"),    callback_data="menu:shop"))
+    b.row(
+        InlineKeyboardButton(text=t(lang, "btn_profile"),  callback_data="menu:profile"),
+        InlineKeyboardButton(text=t(lang, "btn_referral"), callback_data="menu:referral"),
     )
-    return builder.as_markup()
+    if is_admin:
+        b.row(InlineKeyboardButton(text=t(lang, "btn_admin"), callback_data="menu:admin"))
+    return b.as_markup()
 
 
-def main_menu_keyboard(webapp_url: str) -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(
-            text="🛍 Відкрити магазин",
-            web_app=WebAppInfo(url=webapp_url),
-        )
-    )
-    builder.row(
-        InlineKeyboardButton(text="💳 Баланс", callback_data="menu:balance"),
-        InlineKeyboardButton(text="👤 Профіль", callback_data="menu:profile"),
-    )
-    builder.row(
-        InlineKeyboardButton(text="👥 Реферали", callback_data="menu:referral"),
-    )
-    return builder.as_markup()
+def categories_keyboard(lang: str) -> InlineKeyboardMarkup:
+    b = InlineKeyboardBuilder()
+    b.row(InlineKeyboardButton(text=t(lang, "cat_accounts"), callback_data="cat:tg_account"))
+    b.row(InlineKeyboardButton(text=t(lang, "cat_stars"),    callback_data="cat:stars"))
+    b.row(InlineKeyboardButton(text=t(lang, "cat_premium"),  callback_data="cat:premium"))
+    b.row(InlineKeyboardButton(text=t(lang, "btn_back"),     callback_data="menu:main"))
+    return b.as_markup()
 
 
-def balance_keyboard() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(text="💳 Карта (FreeCassa)", callback_data="deposit:card"),
-        InlineKeyboardButton(text="🔷 Крипта (CryptoBot)", callback_data="deposit:crypto"),
-    )
-    builder.row(
-        InlineKeyboardButton(text="⭐ Telegram Stars", callback_data="deposit:stars"),
-    )
-    builder.row(
-        InlineKeyboardButton(text="🌍 Змінити валюту", callback_data="menu:currency"),
-        InlineKeyboardButton(text="◀ Назад", callback_data="menu:back"),
-    )
-    return builder.as_markup()
+def products_keyboard(lang: str, products: list) -> InlineKeyboardMarkup:
+    b = InlineKeyboardBuilder()
+    for p in products:
+        b.row(InlineKeyboardButton(
+            text=f"{p.title} — ${p.price_usd}",
+            callback_data=f"buy:{p.id}",
+        ))
+    b.row(InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu:shop"))
+    return b.as_markup()
 
 
-def back_keyboard(callback: str = "menu:back") -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text="◀ Назад", callback_data=callback))
-    return builder.as_markup()
+def back_to_main(lang: str) -> InlineKeyboardMarkup:
+    b = InlineKeyboardBuilder()
+    b.row(InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu:main"))
+    return b.as_markup()
+
+
+def admin_keyboard(lang: str) -> InlineKeyboardMarkup:
+    b = InlineKeyboardBuilder()
+    b.row(InlineKeyboardButton(text=t(lang, "btn_orders"), callback_data="admin:orders"))
+    b.row(InlineKeyboardButton(text=t(lang, "btn_back"),   callback_data="menu:main"))
+    return b.as_markup()
+
+
+def orders_keyboard(lang: str, orders: list) -> InlineKeyboardMarkup:
+    b = InlineKeyboardBuilder()
+    for o in orders:
+        if o.status == "pending":
+            b.row(InlineKeyboardButton(
+                text=f"#{o.id} ${o.price_usd} — {t(lang, 'btn_deliver')}",
+                callback_data=f"deliver:{o.id}",
+            ))
+    b.row(InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu:admin"))
+    return b.as_markup()
