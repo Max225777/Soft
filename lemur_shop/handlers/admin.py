@@ -10,9 +10,11 @@ from lemur_shop.config import settings
 from lemur_shop.db.models import Order, User
 from lemur_shop.db.session import AsyncSessionLocal
 from lemur_shop.i18n import t
-from lemur_shop.keyboards.inline import admin_keyboard, back_to_main, orders_keyboard
+from lemur_shop.keyboards.inline import admin_keyboard, back_to_main, orders_keyboard, resend_keyboard
 
 router = Router()
+
+MAX_RESENDS = 5
 
 
 class DeliverFSM(StatesGroup):
@@ -21,6 +23,14 @@ class DeliverFSM(StatesGroup):
 
 def _is_admin(user_id: int) -> bool:
     return user_id in settings.ADMIN_IDS
+
+
+def _parse_delivery(text: str) -> tuple[str, str] | None:
+    """Парсить 'phone\ncode'. Повертає (phone, code) або None."""
+    lines = [l.strip() for l in text.strip().splitlines() if l.strip()]
+    if len(lines) >= 2:
+        return lines[0], lines[1]
+    return None
 
 
 @router.callback_query(F.data == "menu:admin")
@@ -84,7 +94,7 @@ async def cb_deliver(callback: CallbackQuery, state: FSMContext) -> None:
 
     await state.update_data(order_id=order_id, lang=lang)
     await state.set_state(DeliverFSM.waiting_data)
-    await callback.message.answer(t(lang, "deliver_prompt"))
+    await callback.message.answer(t(lang, "deliver_prompt"), parse_mode="HTML")
 
 
 @router.message(DeliverFSM.waiting_data)
@@ -92,6 +102,13 @@ async def on_deliver_data(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     order_id: int = data["order_id"]
     lang: str = data["lang"]
+
+    parsed = _parse_delivery(message.text or "")
+    if not parsed:
+        await message.answer(t(lang, "deliver_bad_fmt"), parse_mode="HTML")
+        return
+
+    phone, code = parsed
     await state.clear()
 
     async with AsyncSessionLocal() as s:
@@ -101,7 +118,8 @@ async def on_deliver_data(message: Message, state: FSMContext) -> None:
                 await message.answer("❌ Order not found")
                 return
             order.status = "delivered"
-            order.delivered_data = message.text
+            order.delivered_data = f"{phone}\n{code}"
+            order.resend_count = 1
             buyer_id = order.user_id
 
     await message.answer(t(lang, "delivered_ok", id=order_id))
@@ -110,10 +128,46 @@ async def on_deliver_data(message: Message, state: FSMContext) -> None:
         async with AsyncSessionLocal() as s:
             buyer = await s.get(User, buyer_id)
         buyer_lang = buyer.lang if buyer else "ru"
+        kb = resend_keyboard(buyer_lang, order_id, 1)
         await message.bot.send_message(
             buyer_id,
-            t(buyer_lang, "notify_user", id=order_id, data=message.text),
+            t(buyer_lang, "account_data", id=order_id, phone=phone, code=code),
+            reply_markup=kb,
             parse_mode="HTML",
         )
     except Exception:
         pass
+
+
+@router.callback_query(F.data.startswith("resend:"))
+async def cb_resend(callback: CallbackQuery) -> None:
+    order_id = int(callback.data.split(":")[1])
+
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            order = await s.get(Order, order_id)
+            if not order or order.user_id != callback.from_user.id:
+                await callback.answer("❌")
+                return
+            if order.resend_count >= MAX_RESENDS:
+                await callback.answer(t("ru", "resend_limit"), show_alert=True)
+                return
+
+            order.resend_count += 1
+            count = order.resend_count
+            raw = order.delivered_data or ""
+
+        buyer = await s.get(User, callback.from_user.id)
+        lang = buyer.lang if buyer else "ru"
+
+    lines = raw.splitlines()
+    phone = lines[0] if lines else "?"
+    code = lines[1] if len(lines) > 1 else "?"
+
+    kb = resend_keyboard(lang, order_id, count)
+    await callback.message.answer(
+        t(lang, "resend_ok", id=order_id, phone=phone, code=code),
+        reply_markup=kb,
+        parse_mode="HTML",
+    )
+    await callback.answer()

@@ -77,7 +77,7 @@ async def cb_buy(callback: CallbackQuery) -> None:
 
     admin_contact = f"@{settings.ADMIN_USERNAME}" if settings.ADMIN_USERNAME else "адміну"
     await callback.message.edit_text(
-        t(lang, "order_contact", admin=admin_contact) + f"\n\n<i>Замовлення #{order_id}</i>",
+        t(lang, "order_contact", id=order_id, admin=admin_contact),
         reply_markup=back_to_main(lang),
         parse_mode="HTML",
     )

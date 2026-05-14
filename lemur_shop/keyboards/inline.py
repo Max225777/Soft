@@ -5,6 +5,8 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from lemur_shop.i18n import t
 
+MAX_RESENDS = 5
+
 
 def lang_keyboard() -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
@@ -29,10 +31,10 @@ def main_menu(lang: str, is_admin: bool = False) -> InlineKeyboardMarkup:
 
 def categories_keyboard(lang: str) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
-    b.row(InlineKeyboardButton(text=t(lang, "cat_accounts"), callback_data="cat:tg_account"))
-    b.row(InlineKeyboardButton(text=t(lang, "cat_stars"),    callback_data="cat:stars"))
-    b.row(InlineKeyboardButton(text=t(lang, "cat_premium"),  callback_data="cat:premium"))
-    b.row(InlineKeyboardButton(text=t(lang, "btn_back"),     callback_data="menu:main"))
+    b.row(InlineKeyboardButton(text=t(lang, "cat_ua"), callback_data="cat:ua"))
+    b.row(InlineKeyboardButton(text=t(lang, "cat_kz"), callback_data="cat:kz"))
+    b.row(InlineKeyboardButton(text=t(lang, "cat_ru"), callback_data="cat:ru"))
+    b.row(InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu:main"))
     return b.as_markup()
 
 
@@ -44,6 +46,19 @@ def products_keyboard(lang: str, products: list) -> InlineKeyboardMarkup:
             callback_data=f"buy:{p.id}",
         ))
     b.row(InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu:shop"))
+    return b.as_markup()
+
+
+def resend_keyboard(lang: str, order_id: int, resend_count: int) -> InlineKeyboardMarkup | None:
+    """Кнопка 'Отримати ще раз'. None якщо ліміт вичерпано."""
+    left = MAX_RESENDS - resend_count
+    if left <= 0:
+        return None
+    b = InlineKeyboardBuilder()
+    b.row(InlineKeyboardButton(
+        text=t(lang, "resend_btn", left=left),
+        callback_data=f"resend:{order_id}",
+    ))
     return b.as_markup()
 
 

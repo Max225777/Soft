@@ -60,6 +60,7 @@ class Order(Base):
     price_usd: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     status: Mapped[str] = mapped_column(String(16), default="pending")
     delivered_data: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resend_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
     user: Mapped["User"] = relationship(back_populates="orders")
