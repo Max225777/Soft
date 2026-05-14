@@ -6,11 +6,13 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy import func, select
 
+from lemur_shop.api.lolz import LolzApiError
 from lemur_shop.config import settings
 from lemur_shop.db.models import Order, User
 from lemur_shop.db.session import AsyncSessionLocal
 from lemur_shop.i18n import t
 from lemur_shop.keyboards.inline import admin_keyboard, back_to_main, orders_keyboard, resend_keyboard
+from lemur_shop.services.lolz_shop import auto_buy
 
 router = Router()
 
@@ -171,3 +173,55 @@ async def cb_resend(callback: CallbackQuery) -> None:
         parse_mode="HTML",
     )
     await callback.answer()
+
+
+@router.callback_query(F.data.startswith("autodeliver:"))
+async def cb_autodeliver(callback: CallbackQuery) -> None:
+    if not _is_admin(callback.from_user.id):
+        await callback.answer("❌")
+        return
+
+    order_id = int(callback.data.split(":")[1])
+
+    async with AsyncSessionLocal() as s:
+        order = await s.get(Order, order_id)
+        if not order or order.status != "pending":
+            await callback.answer("❌ Замовлення вже оброблено або не знайдено", show_alert=True)
+            return
+        lolz_item_id = order.lolz_item_id
+        price = float(order.price_usd)
+        buyer_id = order.user_id
+        buyer = await s.get(User, buyer_id)
+        buyer_lang = buyer.lang if buyer else "ru"
+
+    if not lolz_item_id:
+        await callback.answer("❌ Немає Lolz item ID", show_alert=True)
+        return
+
+    await callback.answer("⏳ Купую акаунт на Lolz...")
+
+    try:
+        phone, code = await auto_buy(lolz_item_id, price)
+    except (LolzApiError, ValueError) as e:
+        await callback.message.answer(f"❌ Помилка автовидачі: {e}\n\nВведіть дані вручну через /deliver.")
+        return
+
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            order = await s.get(Order, order_id)
+            order.status = "delivered"
+            order.delivered_data = f"{phone}\n{code}"
+            order.resend_count = 1
+
+    await callback.message.answer(f"✅ Автовидача замовлення #{order_id} виконана: {phone}")
+
+    try:
+        kb = resend_keyboard(buyer_lang, order_id, 1)
+        await callback.bot.send_message(
+            buyer_id,
+            t(buyer_lang, "account_data", id=order_id, phone=phone, code=code),
+            reply_markup=kb,
+            parse_mode="HTML",
+        )
+    except Exception:
+        pass

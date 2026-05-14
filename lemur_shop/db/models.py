@@ -56,7 +56,8 @@ class Order(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
-    product_id: Mapped[int] = mapped_column(Integer, ForeignKey("products.id"), nullable=False)
+    product_id: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    lolz_item_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     price_usd: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     status: Mapped[str] = mapped_column(String(16), default="pending")
     delivered_data: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -64,7 +65,6 @@ class Order(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
     user: Mapped["User"] = relationship(back_populates="orders")
-    product: Mapped["Product"] = relationship(back_populates="orders")
 
 
 class ReferralPayout(Base):
