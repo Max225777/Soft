@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from bot.db.models import Base
-from bot.db.session import engine
+from lemur_shop.db.models import Base
+from lemur_shop.db.session import engine
 
 
 async def create_tables() -> None:
