@@ -7,6 +7,12 @@ from lemur_shop.i18n import t
 
 MAX_RESENDS = 5
 
+# Активні категорії: (callback_data, i18n_key)
+# Додавай нові країни тут коли отримаєш посилання
+ACTIVE_CATEGORIES = [
+    ("cat:us", "cat_us"),
+]
+
 
 def lang_keyboard() -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
@@ -31,26 +37,13 @@ def main_menu(lang: str, is_admin: bool = False) -> InlineKeyboardMarkup:
 
 def categories_keyboard(lang: str) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
-    b.row(InlineKeyboardButton(text=t(lang, "cat_ua"), callback_data="cat:ua"))
-    b.row(InlineKeyboardButton(text=t(lang, "cat_kz"), callback_data="cat:kz"))
-    b.row(InlineKeyboardButton(text=t(lang, "cat_ru"), callback_data="cat:ru"))
+    for cb_data, key in ACTIVE_CATEGORIES:
+        b.row(InlineKeyboardButton(text=t(lang, key), callback_data=cb_data))
     b.row(InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu:main"))
     return b.as_markup()
 
 
-def products_keyboard(lang: str, products: list) -> InlineKeyboardMarkup:
-    b = InlineKeyboardBuilder()
-    for p in products:
-        b.row(InlineKeyboardButton(
-            text=f"{p.title} — ${p.price_usd}",
-            callback_data=f"buy:{p.id}",
-        ))
-    b.row(InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu:shop"))
-    return b.as_markup()
-
-
 def resend_keyboard(lang: str, order_id: int, resend_count: int) -> InlineKeyboardMarkup | None:
-    """Кнопка 'Отримати ще раз'. None якщо ліміт вичерпано."""
     left = MAX_RESENDS - resend_count
     if left <= 0:
         return None
