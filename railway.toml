@@ -4,3 +4,4 @@ builder = "nixpacks"
 [deploy]
 startCommand = "python -m lemur_shop.main"
 restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
