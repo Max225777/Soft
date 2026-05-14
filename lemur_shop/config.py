@@ -8,8 +8,6 @@ class Settings(BaseSettings):
 
     BOT_TOKEN: str = ""
     ADMIN_IDS: list[int] = []
-    ADMIN_USERNAME: str = ""   # @username адміна для зв'язку
-    ADMIN_CHAT_ID: int | None = None  # chat_id для сповіщень адміну
 
     DATABASE_URL: str = "postgresql+asyncpg://lemur:lemur@localhost:5432/lemur"
 
