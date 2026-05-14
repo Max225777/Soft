@@ -18,5 +18,7 @@ class Settings(BaseSettings):
 
     REFERRAL_BONUS_PERCENT: float = 5.0
 
+    WEBAPP_URL: str = ""   # https://your-domain.com — URL задеплоєного Mini App
+
 
 settings = Settings()
