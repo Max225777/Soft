@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -12,25 +13,43 @@ from lemur_shop.config import settings
 from lemur_shop.db.init import create_tables
 from lemur_shop.handlers import admin, profile, shop, start
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout,
+)
 log = logging.getLogger(__name__)
 
 
 async def main() -> None:
-    await create_tables()
+    if not settings.BOT_TOKEN:
+        log.error("BOT_TOKEN не задано — зупинка")
+        return
+
+    log.info("Підключення до БД...")
+    try:
+        await create_tables()
+        log.info("БД готова")
+    except Exception as e:
+        log.error("Помилка БД: %s", e)
+        raise
 
     bot = Bot(
         token=settings.BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
-    dp = Dispatcher(storage=MemoryStorage())
 
+    # Видаляємо webhook якщо був встановлений раніше
+    await bot.delete_webhook(drop_pending_updates=True)
+    log.info("Webhook видалено")
+
+    dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(start.router)
     dp.include_router(shop.router)
     dp.include_router(profile.router)
     dp.include_router(admin.router)
 
-    log.info("Лемур бот запущено")
+    log.info("🦎 Лемур бот запущено")
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
 
