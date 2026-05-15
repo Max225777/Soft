@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import sys
+from aiohttp import web
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -21,6 +23,21 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 
+async def health(request: web.Request) -> web.Response:
+    return web.Response(text="ok")
+
+
+async def run_health_server() -> None:
+    port = int(os.environ.get("PORT", 8080))
+    app = web.Application()
+    app.router.add_get("/", health)
+    app.router.add_get("/health", health)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    await web.TCPSite(runner, "0.0.0.0", port).start()
+    log.info("Health server on port %s", port)
+
+
 async def main() -> None:
     if not settings.BOT_TOKEN:
         log.error("BOT_TOKEN не задано — зупинка")
@@ -34,12 +51,12 @@ async def main() -> None:
         log.error("Помилка БД: %s", e)
         raise
 
+    await run_health_server()
+
     bot = Bot(
         token=settings.BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
-
-    # Видаляємо webhook якщо був встановлений раніше
     await bot.delete_webhook(drop_pending_updates=True)
     log.info("Webhook видалено")
 
