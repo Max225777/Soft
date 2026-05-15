@@ -39,6 +39,28 @@ async def index(request: web.Request) -> web.Response:
     return web.Response(text="Mini App not built yet")
 
 
+def _build_app(dp: Dispatcher, bot: Bot, webhook_path: str | None) -> web.Application:
+    app = web.Application()
+    if webhook_path:
+        SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=webhook_path)
+    app.router.add_get("/health", health)
+    if os.path.exists(STATIC_DIR):
+        app.router.add_static("/assets", os.path.join(STATIC_DIR, "assets"), show_index=False)
+        app.router.add_get("/", index)
+        app.router.add_get("/{tail:.*}", index)
+    else:
+        app.router.add_get("/", health)
+    return app
+
+
+async def _run_app(app: web.Application) -> None:
+    port = int(os.environ.get("PORT", 8080))
+    runner = web.AppRunner(app)
+    await runner.setup()
+    await web.TCPSite(runner, "0.0.0.0", port).start()
+    log.info("Web server on :%s", port)
+
+
 async def main() -> None:
     if not settings.BOT_TOKEN:
         log.error("BOT_TOKEN не задано — зупинка")
@@ -63,44 +85,24 @@ async def main() -> None:
     dp.include_router(profile.router)
     dp.include_router(admin.router)
 
-    # On Render use webhook (no polling conflict on redeploy).
-    # Locally fall back to polling.
-    render_url = os.environ.get("RENDER_EXTERNAL_URL", "")
-    webhook_base = (settings.WEBAPP_URL or render_url).rstrip("/")
+    webhook_base = settings.WEBAPP_URL.rstrip("/") if settings.WEBAPP_URL else ""
 
     if webhook_base:
-        webhook_url = webhook_base + "/webhook"
+        # Webhook mode — no polling conflicts on redeploy
+        webhook_path = "/webhook"
+        webhook_url = webhook_base + webhook_path
+        log.info("Встановлюю webhook: %s", webhook_url)
         await bot.set_webhook(webhook_url, drop_pending_updates=True)
-        log.info("Webhook встановлено: %s", webhook_url)
-
-        port = int(os.environ.get("PORT", 8080))
-        app = web.Application()
-        SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path="/webhook")
-        app.router.add_get("/health", health)
-        if os.path.exists(STATIC_DIR):
-            app.router.add_static("/assets", os.path.join(STATIC_DIR, "assets"), show_index=False)
-            app.router.add_get("/", index)
-            app.router.add_get("/{tail:.*}", index)
-        else:
-            app.router.add_get("/", health)
-
-        runner = web.AppRunner(app)
-        await runner.setup()
-        await web.TCPSite(runner, "0.0.0.0", port).start()
-        log.info("Web server (webhook) on :%s", port)
-        log.info("🦎 Лемур бот запущено")
+        app = _build_app(dp, bot, webhook_path)
+        await _run_app(app)
+        log.info("🦎 Лемур бот запущено (webhook)")
         await asyncio.Event().wait()
     else:
-        # Local dev: polling mode
-        port = int(os.environ.get("PORT", 8080))
-        app = web.Application()
-        app.router.add_get("/health", health)
-        app.router.add_get("/", health)
-        runner = web.AppRunner(app)
-        await runner.setup()
-        await web.TCPSite(runner, "0.0.0.0", port).start()
-        log.info("Web server (polling) on :%s", port)
-
+        # Polling mode — wait for previous instance to die after SIGTERM
+        app = _build_app(dp, bot, None)
+        await _run_app(app)
+        log.info("Чекаю завершення попереднього інстансу...")
+        await asyncio.sleep(15)
         await bot.delete_webhook(drop_pending_updates=True)
         log.info("🦎 Лемур бот запущено (polling)")
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
