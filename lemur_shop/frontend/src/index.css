@@ -221,9 +221,11 @@ code {
 /* ── Balance glow ───────────────────────── */
 @keyframes balance-glow {
   0%,100% { filter: drop-shadow(0 0 6px rgba(255,107,43,.3)); }
-  50%      { filter: drop-shadow(0 0 16px rgba(255,107,43,.7)); }
+  50%      { filter: drop-shadow(0 0 18px rgba(255,107,43,.75)); }
 }
 .balance-glow { animation: balance-glow 3s ease-in-out infinite; display: inline-block; }
+
+@keyframes bar-shine { 0%,100%{transform:translateX(-100%)} 60%{transform:translateX(100%)} }
 
 /* ── Cat icon ───────────────────────────── */
 .cat-icon {
