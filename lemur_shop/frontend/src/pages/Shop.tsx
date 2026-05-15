@@ -332,12 +332,52 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
         />
       )}
       <div className="page">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
           <button
             onClick={() => setView('menu')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--orange)', fontSize: 26, lineHeight: 1 }}
           >‹</button>
           <h1 style={{ margin: 0 }}>{T.tg_accounts}</h1>
+        </div>
+
+        {/* How-it-works banner */}
+        <div style={{
+          background: 'linear-gradient(135deg, #1E1428 0%, #141018 100%)',
+          border: '1px solid rgba(255,107,43,.2)',
+          borderRadius: 16,
+          padding: '14px 16px',
+          marginBottom: 14,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: 1, marginBottom: 12 }}>
+            {T.how_it_works.toUpperCase()}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
+            {T.how_steps.map((step, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                  <div style={{
+                    width: 38, height: 38, borderRadius: 12,
+                    background: i === T.how_steps.length - 1
+                      ? 'linear-gradient(135deg, rgba(255,107,43,.3), rgba(255,107,43,.1))'
+                      : 'rgba(255,255,255,.06)',
+                    border: i === T.how_steps.length - 1
+                      ? '1px solid rgba(255,107,43,.4)'
+                      : '1px solid rgba(255,255,255,.08)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 18, marginBottom: 6, flexShrink: 0,
+                  }}>
+                    {step.icon}
+                  </div>
+                  <div style={{ fontSize: 10, color: 'var(--text2)', lineHeight: 1.35, fontWeight: 500 }}>
+                    {step.text}
+                  </div>
+                </div>
+                {i < T.how_steps.length - 1 && (
+                  <div style={{ color: 'var(--orange)', fontSize: 16, fontWeight: 300, marginTop: 10, flexShrink: 0, padding: '0 2px' }}>›</div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
         {cats.length === 0 ? (
