@@ -1,27 +1,26 @@
 from __future__ import annotations
 
-import re
-import ssl
 from collections.abc import AsyncGenerator
+from urllib.parse import urlparse, urlunparse
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from lemur_shop.config import settings
 
-# Railway дає postgresql://, SQLAlchemy async потребує postgresql+asyncpg://
-_url = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+# Railway/Neon дають postgresql://, потрібен postgresql+asyncpg://
+_raw = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-# asyncpg не підтримує sslmode як query параметр — прибираємо
-_has_ssl = "sslmode=" in _url
-_url = re.sub(r"[?&]sslmode=[^&]*", "", _url).rstrip("?").rstrip("&")
-
-_connect_args: dict = {"ssl": True} if _has_ssl else {}
+# asyncpg не підтримує query params (sslmode, channel_binding тощо)
+# Прибираємо всі query params і передаємо ssl окремо
+_parsed = urlparse(_raw)
+_needs_ssl = "sslmode=" in (settings.DATABASE_URL)
+_clean_url = urlunparse(_parsed._replace(query=""))
 
 engine = create_async_engine(
-    _url,
+    _clean_url,
     echo=False,
     pool_pre_ping=True,
-    connect_args=_connect_args,
+    connect_args={"ssl": True} if _needs_ssl else {},
 )
 
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
