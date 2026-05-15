@@ -1,7 +1,7 @@
 import type { Lang } from '../i18n'
 import { getT } from '../i18n'
 
-type Tab = 'shop' | 'profile' | 'referral'
+type Tab = 'shop' | 'profile' | 'balance'
 
 interface Props { active: Tab; onChange(t: Tab): void; lang: Lang }
 
@@ -19,19 +19,22 @@ const icons: Record<Tab, JSX.Element> = {
       <circle cx="12" cy="7" r="4"/>
     </svg>
   ),
-  referral: (
+  balance: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-      <circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+      <rect x="2" y="5" width="20" height="14" rx="2"/>
+      <line x1="2" y1="10" x2="22" y2="10"/>
     </svg>
   ),
 }
 
 export default function BottomNav({ active, onChange, lang }: Props) {
   const T = getT(lang)
-  const tabs: Tab[] = ['shop', 'profile', 'referral']
-  const labels = { shop: T.shop, profile: T.profile, referral: T.referral }
+  const tabs: Tab[] = ['shop', 'profile', 'balance']
+  const labels: Record<Tab, string> = {
+    shop: T.shop,
+    profile: T.profile,
+    balance: T.balance_tab,
+  }
   return (
     <nav className="nav">
       {tabs.map(tab => (
