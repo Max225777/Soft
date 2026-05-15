@@ -59,16 +59,16 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
   // ─── Головне меню магазину ─────────────────────────────────────────────────
   if (view === 'menu') return (
     <div className="page">
-      <h1>{T.shop}</h1>
+      <h1 style={{ marginBottom: 20 }}>{T.shop}</h1>
 
       {/* TG Акаунти — активний */}
       <div
         className="card"
-        style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}
+        style={{ display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer', padding: '18px 16px' }}
         onClick={() => setView('list')}
       >
         <div style={{
-          width: 48, height: 48, borderRadius: 12,
+          width: 64, height: 64, borderRadius: 16,
           background: 'linear-gradient(135deg, #2AABEE, #229ED9)',
           color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0,
@@ -76,42 +76,42 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
           {TG_ICON}
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>{T.tg_accounts}</div>
-          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{T.tg_accounts_desc}</div>
+          <div style={{ fontWeight: 700, fontSize: 17 }}>{T.tg_accounts}</div>
+          <div className="muted" style={{ fontSize: 13, marginTop: 3 }}>{T.tg_accounts_desc}</div>
         </div>
-        <div style={{ color: 'var(--muted)', fontSize: 20 }}>›</div>
+        <div style={{ color: 'var(--muted)', fontSize: 22 }}>›</div>
       </div>
 
       {/* Telegram Stars — заглушка */}
-      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14, opacity: 0.5 }}>
+      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, opacity: 0.5, padding: '18px 16px' }}>
         <div style={{
-          width: 48, height: 48, borderRadius: 12,
+          width: 64, height: 64, borderRadius: 16,
           background: 'linear-gradient(135deg, #FFD700, #FFA500)',
           color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0, fontSize: 26,
+          flexShrink: 0, fontSize: 32,
         }}>
           ⭐
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>{T.tg_stars}</div>
-          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{T.tg_stars_desc}</div>
+          <div style={{ fontWeight: 700, fontSize: 17 }}>{T.tg_stars}</div>
+          <div className="muted" style={{ fontSize: 13, marginTop: 3 }}>{T.tg_stars_desc}</div>
         </div>
         <span className="badge badge-orange" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{T.in_dev}</span>
       </div>
 
       {/* Накрутка — заглушка */}
-      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14, opacity: 0.5 }}>
+      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, opacity: 0.5, padding: '18px 16px' }}>
         <div style={{
-          width: 48, height: 48, borderRadius: 12,
+          width: 64, height: 64, borderRadius: 16,
           background: 'linear-gradient(135deg, #7A9E5F, #5a7a42)',
           color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0, fontSize: 26,
+          flexShrink: 0, fontSize: 32,
         }}>
           👥
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>{T.tg_boost}</div>
-          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{T.tg_boost_desc}</div>
+          <div style={{ fontWeight: 700, fontSize: 17 }}>{T.tg_boost}</div>
+          <div className="muted" style={{ fontSize: 13, marginTop: 3 }}>{T.tg_boost_desc}</div>
         </div>
         <span className="badge badge-orange" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{T.in_dev}</span>
       </div>

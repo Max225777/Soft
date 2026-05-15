@@ -18,31 +18,40 @@ router = Router()
 
 _CHARS = string.ascii_uppercase + string.digits
 
-WELCOME_TEXT = (
-    "🦎 <b>Лемур</b>\n\n"
-    "Цифровой магазин TG-аккаунтов.\n\n"
-    "Нажмите кнопку ниже, чтобы открыть магазин."
-)
+WELCOME = {
+    "ru": (
+        "🦎 <b>Лемур</b>\n\n"
+        "Цифровой магазин TG-аккаунтов.\n\n"
+        "Нажмите кнопку ниже, чтобы открыть магазин."
+    ),
+    "ua": (
+        "🦎 <b>Лемур</b>\n\n"
+        "Цифровий магазин TG-акаунтів.\n\n"
+        "Натисніть кнопку нижче, щоб відкрити магазин."
+    ),
+    "en": (
+        "🦎 <b>Lemur</b>\n\n"
+        "Digital shop for TG accounts.\n\n"
+        "Press the button below to open the shop."
+    ),
+}
+
+BTN_LABEL = {"ru": "🛍 Открыть магазин", "ua": "🛍 Відкрити магазин", "en": "🛍 Open shop"}
 
 
-async def _make_code(session) -> str:
+def _open_keyboard(lang: str) -> InlineKeyboardMarkup:
+    label = BTN_LABEL.get(lang, BTN_LABEL["ru"])
+    if settings.WEBAPP_URL:
+        btn = InlineKeyboardButton(text=label, web_app=WebAppInfo(url=settings.WEBAPP_URL))
+    else:
+        btn = InlineKeyboardButton(text=label, callback_data="menu:shop")
+    return InlineKeyboardMarkup(inline_keyboard=[[btn]])
     from sqlalchemy import select
     for _ in range(10):
         code = "".join(secrets.choice(_CHARS) for _ in range(8))
         if not await session.scalar(select(User).where(User.referral_code == code).limit(1)):
             return code
     raise RuntimeError("ref code collision")
-
-
-def _open_keyboard() -> InlineKeyboardMarkup:
-    if settings.WEBAPP_URL:
-        btn = InlineKeyboardButton(
-            text="🛍 Открыть магазин",
-            web_app=WebAppInfo(url=settings.WEBAPP_URL),
-        )
-    else:
-        btn = InlineKeyboardButton(text="🛍 Открыть магазин", callback_data="menu:shop")
-    return InlineKeyboardMarkup(inline_keyboard=[[btn]])
 
 
 @router.message(CommandStart())
@@ -67,4 +76,5 @@ async def cmd_start(message: Message) -> None:
             else:
                 user.username = message.from_user.username
 
-    await message.answer(WELCOME_TEXT, reply_markup=_open_keyboard(), parse_mode="HTML")
+    lang = user.lang if user.lang in WELCOME else "ru"
+    await message.answer(WELCOME[lang], reply_markup=_open_keyboard(lang), parse_mode="HTML")
