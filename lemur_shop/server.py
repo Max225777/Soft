@@ -178,6 +178,8 @@ async def api_me(user: User = Depends(get_current_user)):
         "balance_usd":  usd,
         "balance_uah":  round(usd * uah, 0),
         "balance_rub":  round(usd * rub, 0),
+        "rate_uah":     uah,
+        "rate_rub":     rub,
         "orders_count": orders_count,
         "is_admin":     user.id in settings.ADMIN_IDS,
     }
@@ -242,7 +244,7 @@ async def api_orders(user: User = Depends(get_current_user)):
         orders = result.scalars().all()
     return [
         {"id": o.id, "price_usd": float(o.price_usd), "status": o.status,
-         "created_at": o.created_at.isoformat()}
+         "created_at": o.created_at.isoformat(), "delivered_data": o.delivered_data}
         for o in orders
     ]
 

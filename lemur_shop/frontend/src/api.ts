@@ -30,11 +30,15 @@ export interface Me {
   id: number; name: string; username: string | null
   lang: 'ua' | 'ru' | 'en'
   balance_usd: number; balance_uah: number; balance_rub: number
+  rate_uah: number; rate_rub: number
   orders_count: number; is_admin: boolean
 }
 export interface Item  { item_id: number; title: string; price: number; reg_date: string }
 export interface BuyResult { order_id: number; phone: string; code: string }
-export interface Order { id: number; price_usd: number; status: string; created_at: string }
+export interface Order {
+  id: number; price_usd: number; status: string
+  created_at: string; delivered_data: string | null
+}
 
 declare global {
   interface Window { Telegram?: { WebApp: { initData: string; expand(): void; close(): void } } }
