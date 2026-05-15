@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import httpx
 
 from lemur_shop.config import settings
+
+log = logging.getLogger(__name__)
 
 
 class LolzApiError(Exception):
@@ -63,7 +66,8 @@ class LolzClient:
 
     async def get_telegram_code(self, item_id: int) -> str:
         """Отримати код для входу в Telegram-акаунт."""
-        data = await self._post(f"{item_id}/telegram-login-code")
+        data = await self._get(f"{item_id}/telegram-login-code")
+        log.info("telegram-login-code response for #%s: %s", item_id, data)
         code = (
             data.get("telegramLoginCode")
             or data.get("telegram_login_code")
