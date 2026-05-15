@@ -61,5 +61,16 @@ class LolzClient:
         data = await self._post(f"{item_id}/fast-buy", {"price": price})
         return data.get("item") or data
 
+    async def get_telegram_code(self, item_id: int) -> str:
+        """Отримати код для входу в Telegram-акаунт."""
+        data = await self._post(f"{item_id}/telegram-login-code")
+        code = (
+            data.get("telegramLoginCode")
+            or data.get("telegram_login_code")
+            or data.get("code")
+            or ""
+        )
+        return str(code).strip()
+
 
 lolz = LolzClient()

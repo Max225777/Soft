@@ -28,49 +28,39 @@ async def search_accounts(category: str, limit: int = 8) -> list[dict]:
         return []
 
 
-def extract_credentials(item: dict) -> tuple[str, str] | None:
-    # Телефон — завжди в telegram_phone
+async def auto_buy(item_id: int, price: float) -> str:
+    """Купує акаунт і повертає телефон."""
+    try:
+        item = await lolz.fast_buy(item_id, price)
+    except httpx.ReadTimeout:
+        log.warning("fast_buy timeout for #%s, trying get_item", item_id)
+        item = await lolz.get_item(item_id)
+
     phone = str(item.get("telegram_phone") or "").strip()
     if phone and not phone.startswith("+"):
         phone = "+" + phone
 
-    # Сесія — в полі login (hex-encoded Telegram session)
-    session = str(item.get("login") or "").strip()
-    if not session:
-        ld = item.get("loginData") or {}
-        session = str(ld.get("login") or ld.get("raw") or "").strip()
-
-    log.info("Extracted phone=%r session_len=%d", phone, len(session))
-    if phone and session:
-        return phone, session
-    return None
-
-
-async def auto_buy(item_id: int, price: float) -> tuple[str, str]:
-    try:
-        item = await lolz.fast_buy(item_id, price)
-        log.info("fast_buy response for #%s: %s", item_id, item)
-    except httpx.ReadTimeout:
-        log.warning("fast_buy timeout for #%s, trying get_item", item_id)
+    if not phone:
         item = await lolz.get_item(item_id)
-    creds = extract_credentials(item)
-    if creds:
-        return creds
-    log.info("Retrying get_item for #%s", item_id)
-    item = await lolz.get_item(item_id)
-    creds = extract_credentials(item)
-    if creds:
-        return creds
-    raise ValueError(f"Credentials not found in item #{item_id}. Keys: {list(item.keys())}")
+        phone = str(item.get("telegram_phone") or "").strip()
+        if phone and not phone.startswith("+"):
+            phone = "+" + phone
+
+    if not phone:
+        raise ValueError(f"Phone not found in item #{item_id}. Keys: {list(item.keys())}")
+
+    log.info("Bought item #%s, phone=%r", item_id, phone)
+    return phone
 
 
-async def auto_buy_category(category: str) -> tuple[str, str]:
-    """Шукає найдешевший акаунт у категорії та купує його."""
+async def auto_buy_category(category: str) -> tuple[str, int]:
+    """Шукає найдешевший акаунт у категорії, купує і повертає (phone, lolz_item_id)."""
     items = await search_accounts(category, limit=10)
     if not items:
         raise LolzApiError("No accounts available in this category")
     items_sorted = sorted(items, key=lambda x: float(x.get("price") or x.get("price_usd") or 999))
     item = items_sorted[0]
-    item_id = item.get("item_id") or item.get("id")
+    item_id = int(item.get("item_id") or item.get("id"))
     lolz_price = float(item.get("price") or item.get("price_usd") or 0)
-    return await auto_buy(int(item_id), lolz_price)
+    phone = await auto_buy(item_id, lolz_price)
+    return phone, item_id

@@ -223,7 +223,7 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
         raise HTTPException(status_code=402, detail="insufficient_balance")
 
     try:
-        phone, code = await auto_buy_category(body.category)
+        phone, lolz_item_id = await auto_buy_category(body.category)
     except (LolzApiError, ValueError, httpx.TimeoutException) as e:
         raise HTTPException(status_code=502, detail=str(e))
 
@@ -234,17 +234,35 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
             order = Order(
                 user_id=user.id,
                 product_id=0,
-                lolz_item_id=None,
+                lolz_item_id=lolz_item_id,
                 price_usd=shop_price,
                 status="delivered",
-                delivered_data=f"{phone}\n{code}",
-                resend_count=1,
+                delivered_data=phone,
+                resend_count=0,
             )
             s.add(order)
             await s.flush()
             order_id = order.id
             created_at = order.created_at
-    return {"order_id": order_id, "phone": phone, "code": code, "created_at": created_at.isoformat()}
+    return {"order_id": order_id, "phone": phone, "created_at": created_at.isoformat()}
+
+
+@app.post("/api/get-code/{order_id}")
+async def api_get_code(order_id: int, user: User = Depends(get_current_user)):
+    from lemur_shop.api.lolz import lolz as lolz_client
+    async with AsyncSessionLocal() as s:
+        order = await s.get(Order, order_id)
+    if not order or order.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if not order.lolz_item_id:
+        raise HTTPException(status_code=400, detail="No lolz item linked to this order")
+    try:
+        code = await lolz_client.get_telegram_code(order.lolz_item_id)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    if not code:
+        raise HTTPException(status_code=502, detail="Empty code returned")
+    return {"code": code}
 
 
 @app.get("/api/orders")

@@ -23,6 +23,7 @@ export const api = {
   categories: () => req<Category[]>('/categories'),
   buy:        (category: string) => req<BuyResult>('/buy', { method: 'POST', body: JSON.stringify({ category }) }),
   orders:     () => req<Order[]>('/orders'),
+  getCode:    (orderId: number) => req<{ code: string }>(`/get-code/${orderId}`, { method: 'POST' }),
 }
 
 export interface Me {
@@ -33,7 +34,7 @@ export interface Me {
   orders_count: number; is_admin: boolean
 }
 export interface Category { category: string; flag: string; title: string; price_usd: number }
-export interface BuyResult { order_id: number; phone: string; code: string; created_at: string }
+export interface BuyResult { order_id: number; phone: string; created_at: string }
 export interface Order {
   id: number; price_usd: number; status: string
   created_at: string; delivered_data: string | null

@@ -26,6 +26,8 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
   const [cats, setCats]     = useState<Category[]>([])
   const [result, setResult] = useState<BuyResult | null>(null)
   const [errMsg, setErr]    = useState('')
+  const [code, setCode]     = useState('')
+  const [gettingCode, setGettingCode] = useState(false)
   const [copied, setCopied] = useState<'phone' | 'code' | ''>('')
 
   useEffect(() => {
@@ -34,6 +36,7 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
 
   async function buy(cat: Category) {
     setView('buying')
+    setCode('')
     try {
       const res = await api.buy(cat.category)
       setResult(res)
@@ -49,6 +52,19 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
     }
   }
 
+  async function getCode() {
+    if (!result) return
+    setGettingCode(true)
+    try {
+      const res = await api.getCode(result.order_id)
+      setCode(res.code)
+    } catch (e: any) {
+      setCode('❌ ' + (e.message ?? 'error'))
+    } finally {
+      setGettingCode(false)
+    }
+  }
+
   function copy(text: string, which: 'phone' | 'code') {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(which)
@@ -61,7 +77,6 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
     <div className="page">
       <h1 style={{ marginBottom: 20 }}>{T.shop}</h1>
 
-      {/* TG Акаунти — активний */}
       <div
         className="card"
         style={{ display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer', padding: '18px 16px' }}
@@ -82,16 +97,13 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
         <div style={{ color: 'var(--muted)', fontSize: 22 }}>›</div>
       </div>
 
-      {/* Telegram Stars — заглушка */}
       <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, opacity: 0.5, padding: '18px 16px' }}>
         <div style={{
           width: 64, height: 64, borderRadius: 16,
           background: 'linear-gradient(135deg, #FFD700, #FFA500)',
           color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0, fontSize: 32,
-        }}>
-          ⭐
-        </div>
+        }}>⭐</div>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 700, fontSize: 17 }}>{T.tg_stars}</div>
           <div className="muted" style={{ fontSize: 13, marginTop: 3 }}>{T.tg_stars_desc}</div>
@@ -99,16 +111,13 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
         <span className="badge badge-orange" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{T.in_dev}</span>
       </div>
 
-      {/* Накрутка — заглушка */}
       <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, opacity: 0.5, padding: '18px 16px' }}>
         <div style={{
           width: 64, height: 64, borderRadius: 16,
           background: 'linear-gradient(135deg, #7A9E5F, #5a7a42)',
           color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0, fontSize: 32,
-        }}>
-          👥
-        </div>
+        }}>👥</div>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 700, fontSize: 17 }}>{T.tg_boost}</div>
           <div className="muted" style={{ fontSize: 13, marginTop: 3 }}>{T.tg_boost_desc}</div>
@@ -148,9 +157,7 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
               className="btn btn-primary"
               style={{ padding: '8px 16px', width: 'auto', fontSize: 14 }}
               onClick={() => buy(cat)}
-            >
-              {T.buy}
-            </button>
+            >{T.buy}</button>
           </div>
         ))
       )}
@@ -195,29 +202,43 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
         </div>
       </div>
 
-      <div className="card">
-        <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{T.your_code}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <code style={{ flex: 1, fontSize: 28, fontWeight: 700, letterSpacing: 6 }}>{result.code}</code>
-          <button className="btn btn-secondary" style={{ width: 'auto', padding: '7px 12px' }}
-            onClick={() => copy(result.code, 'code')}>
-            {copied === 'code' ? T.copied : T.copy}
-          </button>
-        </div>
-      </div>
-
       <div className="card" style={{ background: 'var(--sand)' }}>
         <div style={{ fontWeight: 600, marginBottom: 8 }}>📋 {T.instruction}</div>
         <ol style={{ paddingLeft: 18, lineHeight: 2, margin: 0 }}>
-          <li>{T.step1} <a href="https://justrunmy.app/panel/add" target="_blank" rel="noreferrer" style={{ color: 'var(--orange)' }}>justrunmy.app</a></li>
+          <li>{T.step1}</li>
           <li>{T.step2}: <code>{result.phone}</code></li>
-          <li>{T.step3}: <code>{result.code}</code></li>
+          <li>{T.step3}</li>
           <li>{T.step4}</li>
         </ol>
         <p style={{ marginTop: 10, color: 'var(--brown)', fontSize: 12 }}>{T.warning}</p>
       </div>
 
-      <button className="btn btn-secondary" onClick={() => { setResult(null); setView('menu') }}>
+      <div className="card">
+        <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{T.your_code}</div>
+        {code && !code.startsWith('❌') ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <code style={{ flex: 1, fontSize: 28, fontWeight: 700, letterSpacing: 6 }}>{code}</code>
+            <button className="btn btn-secondary" style={{ width: 'auto', padding: '7px 12px' }}
+              onClick={() => copy(code, 'code')}>
+              {copied === 'code' ? T.copied : T.copy}
+            </button>
+          </div>
+        ) : (
+          <>
+            {code && <p style={{ color: 'var(--red, #e53)', fontSize: 13, margin: '0 0 8px' }}>{code}</p>}
+            <button
+              className="btn btn-primary"
+              style={{ fontSize: 15 }}
+              disabled={gettingCode}
+              onClick={getCode}
+            >
+              {gettingCode ? T.getting_code : T.get_code}
+            </button>
+          </>
+        )}
+      </div>
+
+      <button className="btn btn-secondary" onClick={() => { setResult(null); setCode(''); setView('menu') }}>
         {T.back}
       </button>
     </div>

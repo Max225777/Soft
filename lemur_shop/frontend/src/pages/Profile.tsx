@@ -17,6 +17,8 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
   const [orders, setOrders] = useState<Order[]>([])
   const [loadingOrders, setLoadingOrders] = useState(true)
   const [openOrder, setOpenOrder] = useState<number | null>(null)
+  const [codes, setCodes] = useState<Record<number, string>>({})
+  const [gettingCode, setGettingCode] = useState<number | null>(null)
   const [copied, setCopied] = useState<string>('')
 
   useEffect(() => {
@@ -34,6 +36,18 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
       setCopied(key)
       setTimeout(() => setCopied(''), 2000)
     })
+  }
+
+  async function getCode(orderId: number) {
+    setGettingCode(orderId)
+    try {
+      const res = await api.getCode(orderId)
+      setCodes(prev => ({ ...prev, [orderId]: res.code }))
+    } catch (e: any) {
+      setCodes(prev => ({ ...prev, [orderId]: '❌ ' + (e.message ?? 'error') }))
+    } finally {
+      setGettingCode(null)
+    }
   }
 
   if (!me) return <div className="page"><p className="muted">{T.loading}</p></div>
@@ -103,8 +117,11 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
         <div className="card" style={{ textAlign: 'center', color: 'var(--brown2)' }}>{T.no_orders}</div>
       ) : (
         orders.map(o => {
-          const [phone, code] = o.delivered_data ? o.delivered_data.split('\n') : ['', '']
+          const phone = o.delivered_data || ''
           const isOpen = openOrder === o.id
+          const orderCode = codes[o.id] || ''
+          const isGetting = gettingCode === o.id
+
           return (
             <div key={o.id} className="card" style={{ marginBottom: 8 }}>
               <div
@@ -126,7 +143,8 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
 
               {isOpen && phone && (
                 <div style={{ marginTop: 12, borderTop: '1px solid var(--sand)', paddingTop: 12 }}>
-                  <div style={{ marginBottom: 8 }}>
+                  {/* Телефон */}
+                  <div style={{ marginBottom: 12 }}>
                     <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>📱 {T.your_phone}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <code style={{ flex: 1, fontSize: 15, fontWeight: 700 }}>{phone}</code>
@@ -136,18 +154,42 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
                       </button>
                     </div>
                   </div>
-                  {code && (
-                    <div>
-                      <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>🔑 {T.your_code}</div>
+
+                  {/* Інструкція */}
+                  <div style={{ marginBottom: 12, background: 'var(--sand)', borderRadius: 8, padding: '10px 12px', fontSize: 13 }}>
+                    <ol style={{ paddingLeft: 16, lineHeight: 1.8, margin: 0 }}>
+                      <li>{T.step1}</li>
+                      <li>{T.step2}: <code>{phone}</code></li>
+                      <li>{T.step3}</li>
+                      <li>{T.step4}</li>
+                    </ol>
+                  </div>
+
+                  {/* Код */}
+                  <div>
+                    <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>🔑 {T.your_code}</div>
+                    {orderCode && !orderCode.startsWith('❌') ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <code style={{ flex: 1, fontSize: 17, fontWeight: 700, letterSpacing: 2 }}>{code}</code>
+                        <code style={{ flex: 1, fontSize: 22, fontWeight: 700, letterSpacing: 4 }}>{orderCode}</code>
                         <button className="btn btn-secondary" style={{ width: 'auto', padding: '5px 10px', fontSize: 12 }}
-                          onClick={() => copy(code, `code-${o.id}`)}>
+                          onClick={() => copy(orderCode, `code-${o.id}`)}>
                           {copied === `code-${o.id}` ? T.copied : T.copy}
                         </button>
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <>
+                        {orderCode && <p style={{ color: '#e53', fontSize: 12, margin: '0 0 6px' }}>{orderCode}</p>}
+                        <button
+                          className="btn btn-primary"
+                          style={{ fontSize: 14 }}
+                          disabled={isGetting}
+                          onClick={() => getCode(o.id)}
+                        >
+                          {isGetting ? T.getting_code : T.get_code}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
