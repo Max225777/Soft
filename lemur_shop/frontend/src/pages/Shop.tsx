@@ -166,19 +166,28 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
   )
 
   // ─── Успіх ─────────────────────────────────────────────────────────────────
-  if (view === 'success' && result) return (
+  if (view === 'success' && result) {
+    const receivedAt = result.created_at
+      ? new Date(result.created_at).toLocaleString(lang === 'en' ? 'en-GB' : lang === 'ua' ? 'uk-UA' : 'ru-RU',
+          { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : ''
+
+    return (
     <div className="page">
       <div className="card" style={{ textAlign: 'center', marginBottom: 12 }}>
         <div style={{ fontSize: 36, marginBottom: 6 }}>✅</div>
         <div style={{ fontWeight: 700, fontSize: 15 }}>
           {T.order_num} #{String(result.order_id).padStart(5, '0')}
         </div>
+        {receivedAt && (
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{T.received_at}: {receivedAt}</div>
+        )}
       </div>
 
       <div className="card">
-        <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{T.your_phone}</div>
+        <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{T.your_phone}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <code style={{ flex: 1, fontSize: 18, fontWeight: 700 }}>{result.phone}</code>
+          <code style={{ flex: 1, fontSize: 20, fontWeight: 700, letterSpacing: 1 }}>{result.phone}</code>
           <button className="btn btn-secondary" style={{ width: 'auto', padding: '7px 12px' }}
             onClick={() => copy(result.phone, 'phone')}>
             {copied === 'phone' ? T.copied : T.copy}
@@ -187,9 +196,9 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
       </div>
 
       <div className="card">
-        <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{T.your_code}</div>
+        <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{T.your_code}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <code style={{ flex: 1, fontSize: 22, fontWeight: 700, letterSpacing: 3 }}>{result.code}</code>
+          <code style={{ flex: 1, fontSize: 28, fontWeight: 700, letterSpacing: 6 }}>{result.code}</code>
           <button className="btn btn-secondary" style={{ width: 'auto', padding: '7px 12px' }}
             onClick={() => copy(result.code, 'code')}>
             {copied === 'code' ? T.copied : T.copy}
@@ -212,7 +221,8 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
         {T.back}
       </button>
     </div>
-  )
+    )
+  }
 
   // ─── Помилка ───────────────────────────────────────────────────────────────
   if (view === 'error') return (

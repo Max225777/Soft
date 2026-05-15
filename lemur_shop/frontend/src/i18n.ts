@@ -40,6 +40,7 @@ const UA = {
   tg_boost:    'Накрутка в TG',
   tg_boost_desc: 'Підписники, перегляди, реакції',
   in_dev:      'В розробці',
+  received_at: '🕐 Отримано',
 }
 
 const RU: typeof UA = {
@@ -84,6 +85,7 @@ const RU: typeof UA = {
   tg_boost:    'Накрутка в TG',
   tg_boost_desc: 'Подписчики, просмотры, реакции',
   in_dev:      'В разработке',
+  received_at: '🕐 Получено',
 }
 
 const EN: typeof UA = {
@@ -128,6 +130,7 @@ const EN: typeof UA = {
   tg_boost:    'TG Boost',
   tg_boost_desc: 'Subscribers, views, reactions',
   in_dev:      'In development',
+  received_at: '🕐 Received',
 }
 
 export type Lang = 'ua' | 'ru' | 'en'

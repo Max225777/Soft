@@ -243,7 +243,8 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
             s.add(order)
             await s.flush()
             order_id = order.id
-    return {"order_id": order_id, "phone": phone, "code": code}
+            created_at = order.created_at
+    return {"order_id": order_id, "phone": phone, "code": code, "created_at": created_at.isoformat()}
 
 
 @app.get("/api/orders")

@@ -116,7 +116,9 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
                     {T.order_num} #{String(o.id).padStart(5, '0')}
                   </div>
                   <div className="muted" style={{ fontSize: 12 }}>
-                    {new Date(o.created_at).toLocaleDateString()} · ${o.price_usd.toFixed(2)}
+                    {new Date(o.created_at).toLocaleString(lang === 'en' ? 'en-GB' : lang === 'ua' ? 'uk-UA' : 'ru-RU',
+                      { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }
+                    )} · ${o.price_usd.toFixed(2)}
                   </div>
                 </div>
                 <div style={{ fontSize: 18 }}>{isOpen ? '▲' : '▼'}</div>
