@@ -75,6 +75,8 @@ async def main() -> None:
         token=settings.BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
+    # Wait for the previous instance to stop after SIGTERM before polling
+    await asyncio.sleep(8)
     await bot.delete_webhook(drop_pending_updates=True)
 
     dp = Dispatcher(storage=MemoryStorage())
