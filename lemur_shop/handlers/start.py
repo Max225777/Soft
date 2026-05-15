@@ -46,6 +46,9 @@ def _open_keyboard(lang: str) -> InlineKeyboardMarkup:
     else:
         btn = InlineKeyboardButton(text=label, callback_data="menu:shop")
     return InlineKeyboardMarkup(inline_keyboard=[[btn]])
+
+
+async def _make_code(session) -> str:
     from sqlalchemy import select
     for _ in range(10):
         code = "".join(secrets.choice(_CHARS) for _ in range(8))
