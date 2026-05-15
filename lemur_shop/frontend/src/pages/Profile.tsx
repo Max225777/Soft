@@ -64,10 +64,10 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
       {/* Balance */}
       <div className="card" style={{ textAlign: 'center', marginBottom: 12 }}>
         <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>{T.balance}</div>
-        <div style={{ fontSize: 28, color: 'var(--orange)' }}>
+        <div className="glow-text" style={{ fontSize: 32, color: 'var(--orange)' }}>
           {balanceLocal
-            ? <><span style={{ fontWeight: 700 }}>{balanceLocal}</span><span style={{ fontWeight: 400, fontSize: 18, marginLeft: 6 }}>(${usd.toFixed(2)})</span></>
-            : <span style={{ fontWeight: 700 }}>${usd.toFixed(2)}</span>
+            ? <><span style={{ fontWeight: 800 }}>{balanceLocal}</span><span style={{ fontWeight: 400, fontSize: 18, marginLeft: 8, color: 'var(--muted2)' }}>(${usd.toFixed(2)})</span></>
+            : <span style={{ fontWeight: 800 }}>${usd.toFixed(2)}</span>
           }
         </div>
       </div>
@@ -86,8 +86,9 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
           <div style={{ fontWeight: 700, fontSize: 16 }}>{me.name}</div>
           {me.username && <div className="muted" style={{ fontSize: 13 }}>@{me.username}</div>}
         </div>
-        <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--brown2)' }}>
-          {me.orders_count} {T.orders.toLowerCase()}
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--orange)' }}>{me.orders_count}</div>
+          <div className="muted" style={{ fontSize: 11 }}>покупок</div>
         </div>
       </div>
 

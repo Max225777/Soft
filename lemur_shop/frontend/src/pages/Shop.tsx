@@ -79,48 +79,33 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
 
       <div
         className="card"
-        style={{ display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer', padding: '18px 16px' }}
+        style={{ display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer', padding: '22px 16px' }}
         onClick={() => setView('list')}
       >
-        <div style={{
-          width: 64, height: 64, borderRadius: 16,
-          background: 'linear-gradient(135deg, #2AABEE, #229ED9)',
-          color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-        }}>
+        <div className="cat-icon" style={{ background: 'linear-gradient(135deg, #2AABEE, #1178B8)', color: '#fff' }}>
           {TG_ICON}
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 17 }}>{T.tg_accounts}</div>
-          <div className="muted" style={{ fontSize: 13, marginTop: 3 }}>{T.tg_accounts_desc}</div>
+          <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_accounts}</div>
+          <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{T.tg_accounts_desc}</div>
         </div>
-        <div style={{ color: 'var(--muted)', fontSize: 22 }}>›</div>
+        <div style={{ color: 'var(--orange2)', fontSize: 24, fontWeight: 300 }}>›</div>
       </div>
 
-      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, opacity: 0.5, padding: '18px 16px' }}>
-        <div style={{
-          width: 64, height: 64, borderRadius: 16,
-          background: 'linear-gradient(135deg, #FFD700, #FFA500)',
-          color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0, fontSize: 32,
-        }}>⭐</div>
+      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, opacity: 0.45, padding: '22px 16px' }}>
+        <div className="cat-icon" style={{ background: 'linear-gradient(135deg, #FFD700, #E8950A)', color: '#fff', fontSize: 30 }}>⭐</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 17 }}>{T.tg_stars}</div>
-          <div className="muted" style={{ fontSize: 13, marginTop: 3 }}>{T.tg_stars_desc}</div>
+          <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_stars}</div>
+          <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{T.tg_stars_desc}</div>
         </div>
         <span className="badge badge-orange" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{T.in_dev}</span>
       </div>
 
-      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, opacity: 0.5, padding: '18px 16px' }}>
-        <div style={{
-          width: 64, height: 64, borderRadius: 16,
-          background: 'linear-gradient(135deg, #7A9E5F, #5a7a42)',
-          color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0, fontSize: 32,
-        }}>👥</div>
+      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, opacity: 0.45, padding: '22px 16px' }}>
+        <div className="cat-icon" style={{ background: 'linear-gradient(135deg, #5FBA47, #3a8a28)', color: '#fff', fontSize: 30 }}>👥</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 17 }}>{T.tg_boost}</div>
-          <div className="muted" style={{ fontSize: 13, marginTop: 3 }}>{T.tg_boost_desc}</div>
+          <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_boost}</div>
+          <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{T.tg_boost_desc}</div>
         </div>
         <span className="badge badge-orange" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{T.in_dev}</span>
       </div>
@@ -133,31 +118,36 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <button
           onClick={() => setView('menu')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--orange)', fontSize: 22 }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--orange)', fontSize: 26, lineHeight: 1 }}
         >‹</button>
         <h1 style={{ margin: 0 }}>{T.tg_accounts}</h1>
       </div>
 
       {cats.length === 0 ? (
         <>
-          <div className="card"><div className="skeleton" style={{ height: 60 }} /></div>
-          <div className="card"><div className="skeleton" style={{ height: 60 }} /></div>
+          <div className="card"><div className="skeleton" style={{ height: 80 }} /></div>
+          <div className="card"><div className="skeleton" style={{ height: 80 }} /></div>
         </>
       ) : (
         cats.map(cat => (
-          <div key={cat.category} className="card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ fontSize: 32, flexShrink: 0 }}>{cat.flag}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 16 }}>{cat.title}</div>
-              <div style={{ color: 'var(--orange)', fontSize: 14, marginTop: 2 }}>
-                {localPrice(cat.price_usd, lang, me)}
+          <div key={cat.category} className="card" style={{ padding: '20px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+              <div style={{ fontSize: 44, flexShrink: 0, lineHeight: 1 }}>{cat.flag}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 800, fontSize: 17 }}>{cat.title}</div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>Telegram account</div>
               </div>
             </div>
-            <button
-              className="btn btn-primary"
-              style={{ padding: '8px 16px', width: 'auto', fontSize: 14 }}
-              onClick={() => buy(cat)}
-            >{T.buy}</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="price-pill" style={{ flex: 1, justifyContent: 'center', fontSize: 15, padding: '9px 12px' }}>
+                {localPrice(cat.price_usd, lang, me)}
+              </div>
+              <button
+                className="btn btn-primary"
+                style={{ width: 'auto', padding: '10px 22px', fontSize: 15 }}
+                onClick={() => buy(cat)}
+              >{T.buy}</button>
+            </div>
           </div>
         ))
       )}
