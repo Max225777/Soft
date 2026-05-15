@@ -94,10 +94,12 @@ async def _is_subscribed(bot: Bot, user_id: int) -> bool:
         member = await bot.get_chat_member(
             chat_id=settings.CHANNEL_USERNAME, user_id=user_id
         )
-        return member.status not in ("left", "kicked")
+        subscribed = member.status not in ("left", "kicked")
+        log.info("Sub check user=%s status=%s -> %s", user_id, member.status, subscribed)
+        return subscribed
     except Exception as e:
-        log.warning("Subscription check failed: %s", e)
-        return True  # якщо не вдалось перевірити — пропускаємо
+        log.warning("Sub check failed for user=%s: %s — blocking", user_id, e)
+        return False
 
 
 async def _make_code(session) -> str:

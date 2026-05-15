@@ -315,8 +315,8 @@ async def api_check_sub(user: User = Depends(get_current_user)):
         )
         subscribed = member.status not in ("left", "kicked")
     except Exception as e:
-        log.warning("check-sub error: %s", e)
-        subscribed = True
+        log.warning("check-sub error for user=%s: %s — blocking", user.id, e)
+        subscribed = False
     return {"subscribed": subscribed}
 
 
