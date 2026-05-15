@@ -3,6 +3,8 @@ from __future__ import annotations
 import secrets
 import string
 
+import logging
+
 from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.types import (
@@ -10,6 +12,8 @@ from aiogram.types import (
 )
 
 from lemur_shop.config import settings
+
+log = logging.getLogger(__name__)
 from lemur_shop.db.models import User
 from lemur_shop.db.session import AsyncSessionLocal
 from lemur_shop.i18n import t
@@ -51,6 +55,7 @@ def _main_menu(lang: str, is_admin: bool = False) -> InlineKeyboardMarkup:
 
 @router.message(CommandStart())
 async def cmd_start(message: Message) -> None:
+    log.info("/start від user_id=%s", message.from_user.id)
     parts = (message.text or "").split(maxsplit=1)
     ref_code = parts[1].strip() if len(parts) > 1 else None
 
