@@ -87,12 +87,19 @@ async def main() -> None:
 
     webhook_base = settings.WEBAPP_URL.rstrip("/") if settings.WEBAPP_URL else ""
 
+    use_webhook = False
     if webhook_base:
-        # Webhook mode — no polling conflicts on redeploy
         webhook_path = "/webhook"
         webhook_url = webhook_base + webhook_path
         log.info("Встановлюю webhook: %s", webhook_url)
-        await bot.set_webhook(webhook_url, drop_pending_updates=True)
+        try:
+            await bot.set_webhook(webhook_url, drop_pending_updates=True)
+            use_webhook = True
+            log.info("Webhook встановлено")
+        except Exception as e:
+            log.warning("Webhook не вдалось встановити (%s) — переходжу на polling", e)
+
+    if use_webhook:
         app = _build_app(dp, bot, webhook_path)
         await _run_app(app)
         log.info("🦎 Лемур бот запущено (webhook)")
