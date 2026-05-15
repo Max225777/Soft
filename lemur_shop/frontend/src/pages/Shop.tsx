@@ -85,27 +85,31 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
           background: 'rgba(0,0,0,.25)', borderRadius: 14,
           border: '1px solid var(--border)', padding: '14px 16px', marginBottom: 16,
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <span className="muted" style={{ fontSize: 13 }}>{T.original_price}</span>
-            <span style={{ fontWeight: 600, fontSize: 14, textDecoration: 'line-through', color: 'var(--muted)' }}>
-              {fmtPrice(cat.price_usd)}
-            </span>
-          </div>
+          {discount > 0 && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span className="muted" style={{ fontSize: 13 }}>{T.original_price}</span>
+                <span style={{ fontWeight: 600, fontSize: 14, textDecoration: 'line-through', color: 'var(--muted)' }}>
+                  {fmtPrice(cat.price_usd)}
+                </span>
+              </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="muted" style={{ fontSize: 13 }}>{T.your_discount}</span>
-              <span style={{
-                fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                background: `${lvl.color}20`, color: lvl.color, border: `1px solid ${lvl.color}35`,
-              }}>
-                {lvl.icon} −{discount}%
-              </span>
-            </div>
-            <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--green)' }}>−{fmtPrice(cat.price_usd - finalUsd)}</span>
-          </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="muted" style={{ fontSize: 13 }}>{T.your_discount}</span>
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                    background: `${lvl.color}20`, color: lvl.color, border: `1px solid ${lvl.color}35`,
+                  }}>
+                    {lvl.icon} −{discount}%
+                  </span>
+                </div>
+                <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--green)' }}>−{fmtPrice(cat.price_usd - finalUsd)}</span>
+              </div>
 
-          <div style={{ height: 1, background: 'var(--border)', marginBottom: 12 }} />
+              <div style={{ height: 1, background: 'var(--border)', marginBottom: 12 }} />
+            </>
+          )}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 700, fontSize: 15 }}>{T.final_price}</span>
@@ -196,44 +200,126 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
   }
 
   // ─── Головне меню ─────────────────────────────────────────────────────────
-  if (view === 'menu') return (
-    <div className="page">
-      <h1 style={{ marginBottom: 18 }}>{T.shop}</h1>
+  if (view === 'menu') {
+    const spent = me?.total_spent_usd ?? 0
+    const lvl = getLevel(spent)
+    const usd = me?.balance_usd ?? 0
+    const mainBalance = me
+      ? (lang === 'ua' && me.rate_uah
+          ? `${Math.round(usd * me.rate_uah)}₴`
+          : lang === 'ru' && me.rate_rub
+          ? `${Math.round(usd * me.rate_rub)}₽`
+          : `$${usd.toFixed(2)}`)
+      : '…'
+    const subBalance = me && ((lang === 'ua' && me.rate_uah) || (lang === 'ru' && me.rate_rub))
+      ? `($${usd.toFixed(2)})`
+      : null
 
-      <div
-        className="card"
-        style={{ display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer', padding: '22px 16px' }}
-        onClick={() => setView('list')}
-      >
-        <div className="cat-icon" style={{ background: 'linear-gradient(135deg, #2AABEE, #1178B8)', color: '#fff' }}>
-          {TG_ICON}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_accounts}</div>
-          <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{T.tg_accounts_desc}</div>
-        </div>
-        <div style={{ color: 'var(--orange2)', fontSize: 24, fontWeight: 300 }}>›</div>
-      </div>
+    return (
+      <div className="page">
+        {/* Hero card */}
+        <div style={{
+          background: 'linear-gradient(135deg, #1E1428 0%, #1A1020 50%, #141018 100%)',
+          border: '1px solid rgba(255,107,43,.22)',
+          borderRadius: 20,
+          padding: '20px 18px',
+          marginBottom: 14,
+          position: 'relative',
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            position: 'absolute', top: -30, right: -30,
+            width: 150, height: 150, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,107,43,.12) 0%, transparent 70%)',
+            pointerEvents: 'none',
+          }} />
 
-      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, opacity: 0.45, padding: '22px 16px' }}>
-        <div className="cat-icon" style={{ background: 'linear-gradient(135deg, #FFD700, #E8950A)', color: '#fff', fontSize: 30 }}>⭐</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_stars}</div>
-          <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{T.tg_stars_desc}</div>
-        </div>
-        <span className="badge badge-orange" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{T.in_dev}</span>
-      </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 4 }}>
+                {T.balance.toUpperCase()}
+              </div>
+              <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1 }}>
+                <span style={{ fontWeight: 800, fontSize: 30 }}>{mainBalance}</span>
+                {subBalance && <span style={{ fontWeight: 400, fontSize: 13, marginLeft: 7, color: 'var(--muted)' }}>{subBalance}</span>}
+              </div>
+            </div>
 
-      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16, opacity: 0.45, padding: '22px 16px' }}>
-        <div className="cat-icon" style={{ background: 'linear-gradient(135deg, #5FBA47, #3a8a28)', color: '#fff', fontSize: 30 }}>👥</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_boost}</div>
-          <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{T.tg_boost_desc}</div>
+            <div style={{ flex: 1 }} />
+
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: `${lvl.color}15`, border: `1px solid ${lvl.color}30`,
+              borderRadius: 20, padding: '6px 12px',
+              flexShrink: 0,
+            }}>
+              <span style={{ fontSize: 16 }}>{lvl.icon}</span>
+              <span style={{ fontWeight: 700, fontSize: 12, color: lvl.color }}>{lvl.name[lang]}</span>
+              {lvl.discount > 0 && (
+                <span style={{
+                  fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 20,
+                  background: `${lvl.color}25`, color: lvl.color,
+                }}>−{lvl.discount}%</span>
+              )}
+            </div>
+          </div>
         </div>
-        <span className="badge badge-orange" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{T.in_dev}</span>
+
+        <h1 style={{ marginBottom: 14, fontSize: 19 }}>{T.shop}</h1>
+
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+            border: '1px solid rgba(42,171,238,.2)',
+            borderRadius: 16, padding: '20px 16px',
+            display: 'flex', alignItems: 'center', gap: 16,
+            cursor: 'pointer', marginBottom: 10,
+            boxShadow: '0 4px 20px rgba(42,171,238,.1)',
+          }}
+          onClick={() => setView('list')}
+        >
+          <div className="cat-icon" style={{ background: 'linear-gradient(135deg, #2AABEE, #1178B8)', color: '#fff' }}>
+            {TG_ICON}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_accounts}</div>
+            <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{T.tg_accounts_desc}</div>
+          </div>
+          <div style={{ color: '#2AABEE', fontSize: 24, fontWeight: 300 }}>›</div>
+        </div>
+
+        <div style={{
+          background: 'linear-gradient(135deg, #1a180a 0%, #1a1600 100%)',
+          border: '1px solid rgba(255,215,0,.12)',
+          borderRadius: 16, padding: '20px 16px',
+          display: 'flex', alignItems: 'center', gap: 16,
+          opacity: 0.5, marginBottom: 10,
+        }}>
+          <div className="cat-icon" style={{ background: 'linear-gradient(135deg, #FFD700, #E8950A)', color: '#fff', fontSize: 30 }}>⭐</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_stars}</div>
+            <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{T.tg_stars_desc}</div>
+          </div>
+          <span className="badge badge-orange" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{T.in_dev}</span>
+        </div>
+
+        <div style={{
+          background: 'linear-gradient(135deg, #0e1a0e 0%, #0a140a 100%)',
+          border: '1px solid rgba(95,186,71,.12)',
+          borderRadius: 16, padding: '20px 16px',
+          display: 'flex', alignItems: 'center', gap: 16,
+          opacity: 0.5,
+        }}>
+          <div className="cat-icon" style={{ background: 'linear-gradient(135deg, #5FBA47, #3a8a28)', color: '#fff', fontSize: 30 }}>👥</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_boost}</div>
+            <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{T.tg_boost_desc}</div>
+          </div>
+          <span className="badge badge-orange" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{T.in_dev}</span>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   // ─── Список ───────────────────────────────────────────────────────────────
   if (view === 'list') return (

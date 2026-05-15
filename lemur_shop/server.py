@@ -186,10 +186,10 @@ class SetLangRequest(BaseModel):
 
 def _level_discount_pct(total_spent_usd: float) -> int:
     if total_spent_usd >= 100: return 5
-    if total_spent_usd >= 50:  return 4
-    if total_spent_usd >= 15:  return 3
-    if total_spent_usd >= 5:   return 2
-    return 1
+    if total_spent_usd >= 50:  return 3
+    if total_spent_usd >= 15:  return 2
+    if total_spent_usd >= 5:   return 1
+    return 0
 
 
 @app.get("/api/me")

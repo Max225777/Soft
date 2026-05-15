@@ -50,7 +50,7 @@ const UA = {
   final_price:    'До сплати',
   confirm:        'Підтвердити',
   cancel:         'Скасувати',
-  level_info:     'За кожен витрачений долар ваш рівень зростає — ми нараховуємо знижку від 1% до 5% на всі покупки',
+  level_info:     'За кожну вашу покупку рівень зростає — ми нараховуємо знижку до 5% на всі наступні покупки',
   to_next_lvl_usd: (n: string, icon: string, name: string) => `До ${icon} ${name}: ще $${n}`,
 }
 
@@ -106,7 +106,7 @@ const RU: typeof UA = {
   final_price:    'К оплате',
   confirm:        'Подтвердить',
   cancel:         'Отмена',
-  level_info:     'За каждый потраченный доллар ваш уровень растёт — мы начисляем скидку от 1% до 5% на все покупки',
+  level_info:     'За каждую вашу покупку уровень растёт — мы начисляем скидку до 5% на все последующие покупки',
   to_next_lvl_usd: (n: string, icon: string, name: string) => `До ${icon} ${name}: ещё $${n}`,
 }
 
@@ -162,7 +162,7 @@ const EN: typeof UA = {
   final_price:    'Total',
   confirm:        'Confirm',
   cancel:         'Cancel',
-  level_info:     'Every dollar you spend raises your level — we give you a 1–5% discount on all purchases',
+  level_info:     'Every purchase raises your level — we give you up to 5% discount on all future purchases',
   to_next_lvl_usd: (n: string, icon: string, name: string) => `${icon} ${name}: $${n} more`,
 }
 

@@ -12,10 +12,10 @@ const LANG_LABELS: Record<string, string> = {
 const LANG_KEY = 'lemur_lang'
 
 export const LEVELS = [
-  { min: 0,   max: 4.99,     icon: '🌿', name: { ua: 'Новачок',     ru: 'Новичок',   en: 'Newbie'      }, discount: 1, color: '#52B788', glow: 'rgba(82,183,136,.45)' },
-  { min: 5,   max: 14.99,    icon: '⚡', name: { ua: 'Активний',    ru: 'Активный',  en: 'Active'      }, discount: 2, color: '#4DA6E8', glow: 'rgba(77,166,232,.45)' },
-  { min: 15,  max: 49.99,    icon: '🔥', name: { ua: 'Досвідчений', ru: 'Опытний',   en: 'Experienced' }, discount: 3, color: '#FF7B30', glow: 'rgba(255,123,48,.45)' },
-  { min: 50,  max: 99.99,    icon: '💎', name: { ua: 'Преміум',     ru: 'Премиум',   en: 'Premium'     }, discount: 4, color: '#B77FFF', glow: 'rgba(183,127,255,.45)' },
+  { min: 0,   max: 4.99,     icon: '🌿', name: { ua: 'Новачок',     ru: 'Новичок',   en: 'Newbie'      }, discount: 0, color: '#52B788', glow: 'rgba(82,183,136,.45)' },
+  { min: 5,   max: 14.99,    icon: '⚡', name: { ua: 'Активний',    ru: 'Активний',  en: 'Active'      }, discount: 1, color: '#4DA6E8', glow: 'rgba(77,166,232,.45)' },
+  { min: 15,  max: 49.99,    icon: '🔥', name: { ua: 'Досвідчений', ru: 'Опытный',   en: 'Experienced' }, discount: 2, color: '#FF7B30', glow: 'rgba(255,123,48,.45)' },
+  { min: 50,  max: 99.99,    icon: '💎', name: { ua: 'Преміум',     ru: 'Премиум',   en: 'Premium'     }, discount: 3, color: '#B77FFF', glow: 'rgba(183,127,255,.45)' },
   { min: 100, max: Infinity, icon: '👑', name: { ua: 'Легенда',     ru: 'Легенда',   en: 'Legend'      }, discount: 5, color: '#FFB830', glow: 'rgba(255,184,48,.50)' },
 ]
 
@@ -37,9 +37,15 @@ function needForNext(n: number) {
 }
 
 const DISCOUNT_LABEL: Record<Lang, (d: number) => string> = {
-  ua: d => `Знижка ${d}% на покупки`,
-  ru: d => `Скидка ${d}% на покупки`,
-  en: d => `${d}% discount on purchases`,
+  ua: d => d > 0 ? `Знижка ${d}% на покупки` : 'Знижки ще немає',
+  ru: d => d > 0 ? `Скидка ${d}% на покупки` : 'Скидки пока нет',
+  en: d => d > 0 ? `${d}% discount on purchases` : 'No discount yet',
+}
+
+function fmtLocal(usd: number, me: Me, lang: Lang): string {
+  if (lang === 'ua' && me.rate_uah) return `${Math.round(usd * me.rate_uah)}₴`
+  if (lang === 'ru' && me.rate_rub) return `${Math.round(usd * me.rate_rub)}₽`
+  return `$${usd.toFixed(2)}`
 }
 
 export default function Profile({ me, lang, onChangeLang }: Props) {
@@ -134,7 +140,7 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
             {me.username && <div className="muted" style={{ fontSize: 13, marginTop: 1 }}>@{me.username}</div>}
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--orange)' }}>${spent.toFixed(2)}</div>
+            <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--orange)' }}>{fmtLocal(spent, me, lang)}</div>
             <div className="muted" style={{ fontSize: 11 }}>
               {lang === 'ua' ? 'витрачено' : lang === 'ru' ? 'потрачено' : 'spent'}
             </div>
@@ -191,7 +197,9 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
 
           {/* Progress bar */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span className="muted" style={{ fontSize: 11 }}>${spent.toFixed(2)} / {lvl.max === Infinity ? '∞' : `$${lvl.max}`}</span>
+            <span className="muted" style={{ fontSize: 11 }}>
+              {fmtLocal(spent, me, lang)} / {lvl.max === Infinity ? '∞' : fmtLocal(lvl.max, me, lang)}
+            </span>
             <span style={{ fontSize: 11, color: lvl.color, fontWeight: 700 }}>{Math.round(progress)}%</span>
           </div>
           <div style={{ height: 12, background: 'rgba(255,255,255,.06)', borderRadius: 8, overflow: 'hidden', marginBottom: 10 }}>
@@ -231,7 +239,7 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
 
           {toNext !== null && nextLvl && (
             <div className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 10 }}>
-              {T.to_next_lvl_usd(toNext.toFixed(2), nextLvl.icon, nextLvl.name[lang])}
+              {T.to_next_lvl_usd(fmtLocal(toNext, me, lang), nextLvl.icon, nextLvl.name[lang])}
             </div>
           )}
 
