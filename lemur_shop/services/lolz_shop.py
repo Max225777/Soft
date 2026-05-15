@@ -29,44 +29,20 @@ async def search_accounts(category: str, limit: int = 8) -> list[dict]:
 
 
 def extract_credentials(item: dict) -> tuple[str, str] | None:
-    log.info("Item keys: %s", list(item.keys()))
-    log.info("Item data: %s", {k: v for k, v in item.items() if k not in ("description",)})
+    # Телефон — завжди в telegram_phone
+    phone = str(item.get("telegram_phone") or "").strip()
+    if phone and not phone.startswith("+"):
+        phone = "+" + phone
 
-    # Шукаємо у всіх можливих полях + вкладених словниках
-    def _search(d: dict, *keys):
-        for k in keys:
-            v = d.get(k)
-            if v:
-                return str(v).strip()
-        return ""
+    # Сесія — в полі login (hex-encoded Telegram session)
+    session = str(item.get("login") or "").strip()
+    if not session:
+        ld = item.get("loginData") or {}
+        session = str(ld.get("login") or ld.get("raw") or "").strip()
 
-    phone = _search(item,
-        "login", "phone", "account_phone", "account_login",
-        "phoneNumber", "phone_number",
-    )
-    code = _search(item,
-        "password", "sms_code", "two_fa", "account_password",
-        "twofa", "2fa", "code", "auth_code",
-    )
-
-    # Іноді дані в item["data"] або item["item"]
-    for nested_key in ("data", "item", "account", "account_data"):
-        nested = item.get(nested_key)
-        if isinstance(nested, dict):
-            if not phone:
-                phone = _search(nested,
-                    "login", "phone", "account_phone", "account_login",
-                    "phoneNumber", "phone_number",
-                )
-            if not code:
-                code = _search(nested,
-                    "password", "sms_code", "two_fa", "account_password",
-                    "twofa", "2fa", "code", "auth_code",
-                )
-
-    log.info("Extracted phone=%r code=%r", phone, code)
-    if phone and code:
-        return phone, code
+    log.info("Extracted phone=%r session_len=%d", phone, len(session))
+    if phone and session:
+        return phone, session
     return None
 
 
