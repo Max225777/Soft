@@ -65,8 +65,10 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
       <div className="card" style={{ textAlign: 'center', marginBottom: 12 }}>
         <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>{T.balance}</div>
         <div style={{ fontSize: 28, color: 'var(--orange)' }}>
-          <span style={{ fontWeight: 700 }}>${usd.toFixed(2)}</span>
-          {balanceLocal && <span style={{ fontWeight: 400, fontSize: 18, marginLeft: 6 }}>{balanceLocal}</span>}
+          {balanceLocal
+            ? <><span style={{ fontWeight: 700 }}>{balanceLocal}</span><span style={{ fontWeight: 400, fontSize: 18, marginLeft: 6 }}>(${usd.toFixed(2)})</span></>
+            : <span style={{ fontWeight: 700 }}>${usd.toFixed(2)}</span>
+          }
         </div>
       </div>
 

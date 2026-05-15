@@ -7,11 +7,11 @@ interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void }
 type View = 'menu' | 'list' | 'buying' | 'success' | 'error'
 
 function localPrice(usd: number, lang: Lang, me: Me | null): JSX.Element {
-  const base = <span style={{ fontWeight: 700 }}>${usd.toFixed(2)}</span>
-  if (!me) return base
-  if (lang === 'ua' && me.rate_uah) return <>{base} <span style={{ fontWeight: 400 }}>(~{Math.round(usd * me.rate_uah)}₴)</span></>
-  if (lang === 'ru' && me.rate_rub) return <>{base} <span style={{ fontWeight: 400 }}>(~{Math.round(usd * me.rate_rub)}₽)</span></>
-  return base
+  const usdSpan = <span style={{ fontWeight: 400 }}>(${usd.toFixed(2)})</span>
+  if (!me) return <span style={{ fontWeight: 700 }}>${usd.toFixed(2)}</span>
+  if (lang === 'ua' && me.rate_uah) return <><span style={{ fontWeight: 700 }}>{Math.round(usd * me.rate_uah)}₴</span> {usdSpan}</>
+  if (lang === 'ru' && me.rate_rub) return <><span style={{ fontWeight: 700 }}>{Math.round(usd * me.rate_rub)}₽</span> {usdSpan}</>
+  return <span style={{ fontWeight: 700 }}>${usd.toFixed(2)}</span>
 }
 
 const TG_ICON = (
