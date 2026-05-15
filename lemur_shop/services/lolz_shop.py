@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import httpx
+import logging
 
 from lemur_shop.api.lolz import LolzApiError, lolz
+
+log = logging.getLogger(__name__)
 
 # Конфіг категорій: country code, назва, прапор, ЦІНА В МАГАЗИНІ
 CATEGORIES: dict[str, dict] = {
@@ -26,38 +29,63 @@ async def search_accounts(category: str, limit: int = 8) -> list[dict]:
 
 
 def extract_credentials(item: dict) -> tuple[str, str] | None:
-    phone = (
-        item.get("login")
-        or item.get("phone")
-        or item.get("account_phone")
-        or ""
+    log.info("Item keys: %s", list(item.keys()))
+    log.info("Item data: %s", {k: v for k, v in item.items() if k not in ("description",)})
+
+    # Шукаємо у всіх можливих полях + вкладених словниках
+    def _search(d: dict, *keys):
+        for k in keys:
+            v = d.get(k)
+            if v:
+                return str(v).strip()
+        return ""
+
+    phone = _search(item,
+        "login", "phone", "account_phone", "account_login",
+        "phoneNumber", "phone_number",
     )
-    code = (
-        item.get("password")
-        or item.get("sms_code")
-        or item.get("two_fa")
-        or item.get("account_password")
-        or ""
+    code = _search(item,
+        "password", "sms_code", "two_fa", "account_password",
+        "twofa", "2fa", "code", "auth_code",
     )
+
+    # Іноді дані в item["data"] або item["item"]
+    for nested_key in ("data", "item", "account", "account_data"):
+        nested = item.get(nested_key)
+        if isinstance(nested, dict):
+            if not phone:
+                phone = _search(nested,
+                    "login", "phone", "account_phone", "account_login",
+                    "phoneNumber", "phone_number",
+                )
+            if not code:
+                code = _search(nested,
+                    "password", "sms_code", "two_fa", "account_password",
+                    "twofa", "2fa", "code", "auth_code",
+                )
+
+    log.info("Extracted phone=%r code=%r", phone, code)
     if phone and code:
-        return str(phone).strip(), str(code).strip()
+        return phone, code
     return None
 
 
 async def auto_buy(item_id: int, price: float) -> tuple[str, str]:
     try:
         item = await lolz.fast_buy(item_id, price)
+        log.info("fast_buy response for #%s: %s", item_id, item)
     except httpx.ReadTimeout:
-        # Lolz обробив запит але не встиг відповісти — пробуємо отримати дані
+        log.warning("fast_buy timeout for #%s, trying get_item", item_id)
         item = await lolz.get_item(item_id)
     creds = extract_credentials(item)
     if creds:
         return creds
+    log.info("Retrying get_item for #%s", item_id)
     item = await lolz.get_item(item_id)
     creds = extract_credentials(item)
     if creds:
         return creds
-    raise ValueError(f"Credentials not found in item #{item_id}")
+    raise ValueError(f"Credentials not found in item #{item_id}. Keys: {list(item.keys())}")
 
 
 async def auto_buy_category(category: str) -> tuple[str, str]:
