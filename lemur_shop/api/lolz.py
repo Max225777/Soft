@@ -67,14 +67,11 @@ class LolzClient:
     async def get_telegram_code(self, item_id: int) -> str:
         """Отримати код для входу в Telegram-акаунт."""
         data = await self._get(f"{item_id}/telegram-login-code")
-        log.info("telegram-login-code response for #%s: %s", item_id, data)
-        code = (
-            data.get("telegramLoginCode")
-            or data.get("telegram_login_code")
-            or data.get("code")
-            or ""
-        )
-        return str(code).strip()
+        codes = data.get("codes") or []
+        if codes:
+            # Береємо найновіший код (перший у списку)
+            return str(codes[0].get("code", "")).strip()
+        return ""
 
 
 lolz = LolzClient()
