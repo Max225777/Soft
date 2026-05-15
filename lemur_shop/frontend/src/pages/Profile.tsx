@@ -26,8 +26,8 @@ function getLevelIdx(n: number) { return LEVELS.findIndex(l => n >= l.min && n <
 function getProgress(n: number) {
   const lvl = getLevel(n)
   if (lvl.max === Infinity) return 100
-  const raw = ((n - lvl.min) / (lvl.max - lvl.min + 1)) * 100
-  return Math.max(raw, 5) // мінімум 5% завжди
+  const raw = ((n - lvl.min) / (lvl.max - lvl.min)) * 100
+  return Math.max(raw, 12)
 }
 
 function needForNext(n: number) {
@@ -187,7 +187,11 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
           </div>
 
           {/* Progress bar */}
-          <div style={{ height: 8, background: 'rgba(255,255,255,.06)', borderRadius: 8, overflow: 'hidden', marginBottom: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <span className="muted" style={{ fontSize: 11 }}>{me.orders_count} / {lvl.max === Infinity ? '∞' : lvl.max + 1}</span>
+            <span style={{ fontSize: 11, color: lvl.color, fontWeight: 700 }}>{Math.round(progress)}%</span>
+          </div>
+          <div style={{ height: 12, background: 'rgba(255,255,255,.06)', borderRadius: 8, overflow: 'hidden', marginBottom: 10 }}>
             <div style={{
               height: '100%', borderRadius: 8,
               width: `${progress}%`,
