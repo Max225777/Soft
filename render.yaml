@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: lemur-shop
+    runtime: python
+    buildCommand: |
+      pip install -r requirements.txt
+      curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+      apt-get install -y nodejs
+      cd lemur_shop/frontend && npm install && npm run build
+    startCommand: python -m lemur_shop.main
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0

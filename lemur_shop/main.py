@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import sys
+
 from aiohttp import web
 
 from aiogram import Bot, Dispatcher
@@ -22,20 +23,37 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+
 
 async def health(request: web.Request) -> web.Response:
     return web.Response(text="ok")
 
 
-async def run_health_server() -> None:
+async def index(request: web.Request) -> web.Response:
+    index_path = os.path.join(STATIC_DIR, "index.html")
+    if os.path.exists(index_path):
+        with open(index_path) as f:
+            return web.Response(text=f.read(), content_type="text/html")
+    return web.Response(text="Mini App not built yet")
+
+
+async def run_web_server() -> None:
     port = int(os.environ.get("PORT", 8080))
     app = web.Application()
-    app.router.add_get("/", health)
     app.router.add_get("/health", health)
+
+    if os.path.exists(STATIC_DIR):
+        app.router.add_static("/assets", os.path.join(STATIC_DIR, "assets"), show_index=False)
+        app.router.add_get("/", index)
+        app.router.add_get("/{tail:.*}", index)
+    else:
+        app.router.add_get("/", health)
+
     runner = web.AppRunner(app)
     await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", port).start()
-    log.info("Health server on port %s", port)
+    log.info("Web server on :%s", port)
 
 
 async def main() -> None:
@@ -51,14 +69,13 @@ async def main() -> None:
         log.error("Помилка БД: %s", e)
         raise
 
-    await run_health_server()
+    await run_web_server()
 
     bot = Bot(
         token=settings.BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     await bot.delete_webhook(drop_pending_updates=True)
-    log.info("Webhook видалено")
 
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(start.router)
