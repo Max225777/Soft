@@ -26,7 +26,9 @@ from lemur_shop.config import settings
 from lemur_shop.db.init import create_tables
 from lemur_shop.db.models import Order, ReferralPayout, User
 from lemur_shop.db.session import AsyncSessionLocal
-from lemur_shop.services.lolz_shop import auto_buy, search_accounts
+from decimal import Decimal
+
+from lemur_shop.services.lolz_shop import CATEGORIES, auto_buy_category
 from lemur_shop.utils.currency import get_rate
 
 log = logging.getLogger(__name__)
@@ -152,8 +154,6 @@ async def health():
 # ─── Schemas ──────────────────────────────────────────────────────────────────
 
 class BuyRequest(BaseModel):
-    item_id: int
-    price: float
     category: str
 
 class SetLangRequest(BaseModel):
@@ -197,33 +197,44 @@ async def api_set_lang(body: SetLangRequest, user: User = Depends(get_current_us
     return {"ok": True}
 
 
-@app.get("/api/shop/{category}")
-async def api_shop(category: str, user: User = Depends(get_current_user)):
-    items = await search_accounts(category)
+@app.get("/api/categories")
+async def api_categories(user: User = Depends(get_current_user)):
     return [
         {
-            "item_id":  item.get("item_id") or item.get("id"),
-            "title":    item.get("item_origin") or "TG аккаунт",
-            "price":    float(item.get("price") or item.get("price_usd") or 0),
-            "reg_date": item.get("reg_date") or "",
+            "category":  cat,
+            "flag":      info["flag"],
+            "title":     info["title"],
+            "price_usd": info["price_usd"],
         }
-        for item in items
+        for cat, info in CATEGORIES.items()
     ]
 
 
 @app.post("/api/buy")
 async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
+    cat_info = CATEGORIES.get(body.category)
+    if not cat_info:
+        raise HTTPException(status_code=400, detail="Unknown category")
+
+    shop_price = Decimal(str(cat_info["price_usd"]))
+
+    if user.balance_usd < shop_price:
+        raise HTTPException(status_code=402, detail="insufficient_balance")
+
     try:
-        phone, code = await auto_buy(body.item_id, body.price)
+        phone, code = await auto_buy_category(body.category)
     except (LolzApiError, ValueError) as e:
         raise HTTPException(status_code=502, detail=str(e))
+
     async with AsyncSessionLocal() as s:
         async with s.begin():
+            u = await s.get(User, user.id)
+            u.balance_usd = u.balance_usd - shop_price
             order = Order(
                 user_id=user.id,
                 product_id=0,
-                lolz_item_id=body.item_id,
-                price_usd=body.price,
+                lolz_item_id=None,
+                price_usd=shop_price,
                 status="delivered",
                 delivered_data=f"{phone}\n{code}",
                 resend_count=1,

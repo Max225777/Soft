@@ -18,12 +18,11 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  me:      () => req<Me>('/me'),
-  setLang: (lang: string) => req<{ ok: boolean }>('/set-lang', { method: 'POST', body: JSON.stringify({ lang }) }),
-  shop:    (cat: string) => req<Item[]>(`/shop/${cat}`),
-  buy:     (item_id: number, price: number, category: string) =>
-             req<BuyResult>('/buy', { method: 'POST', body: JSON.stringify({ item_id, price, category }) }),
-  orders:  () => req<Order[]>('/orders'),
+  me:         () => req<Me>('/me'),
+  setLang:    (lang: string) => req<{ ok: boolean }>('/set-lang', { method: 'POST', body: JSON.stringify({ lang }) }),
+  categories: () => req<Category[]>('/categories'),
+  buy:        (category: string) => req<BuyResult>('/buy', { method: 'POST', body: JSON.stringify({ category }) }),
+  orders:     () => req<Order[]>('/orders'),
 }
 
 export interface Me {
@@ -33,7 +32,7 @@ export interface Me {
   rate_uah: number; rate_rub: number
   orders_count: number; is_admin: boolean
 }
-export interface Item  { item_id: number; title: string; price: number; reg_date: string }
+export interface Category { category: string; flag: string; title: string; price_usd: number }
 export interface BuyResult { order_id: number; phone: string; code: string }
 export interface Order {
   id: number; price_usd: number; status: string

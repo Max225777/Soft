@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { api, type Item, type BuyResult, type Me } from '../api'
+import { api, type Category, type BuyResult, type Me } from '../api'
 import { getT, type Lang } from '../i18n'
 
-interface Props { lang: Lang; me: Me | null }
+interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void }
 
 type View = 'list' | 'buying' | 'success' | 'error'
 
@@ -14,25 +14,30 @@ function localPrice(usd: number, lang: Lang, me: Me | null): string {
   return base
 }
 
-export default function Shop({ lang, me }: Props) {
+export default function Shop({ lang, me, onGoToBalance }: Props) {
   const T = getT(lang)
   const [view, setView]     = useState<View>('list')
-  const [items, setItems]   = useState<Item[]>([])
+  const [cats, setCats]     = useState<Category[]>([])
   const [result, setResult] = useState<BuyResult | null>(null)
   const [errMsg, setErr]    = useState('')
   const [copied, setCopied] = useState<'phone' | 'code' | ''>('')
 
   useEffect(() => {
-    api.shop('us').catch(() => []).then(setItems)
+    api.categories().catch(() => []).then(setCats)
   }, [])
 
-  async function buy(item: Item) {
+  async function buy(cat: Category) {
     setView('buying')
     try {
-      const res = await api.buy(item.item_id, item.price, 'us')
+      const res = await api.buy(cat.category)
       setResult(res)
       setView('success')
     } catch (e: any) {
+      if (e.message === 'insufficient_balance') {
+        setView('list')
+        onGoToBalance()
+        return
+      }
       setErr(e.message ?? T.buy_error)
       setView('error')
     }
@@ -47,32 +52,29 @@ export default function Shop({ lang, me }: Props) {
 
   if (view === 'list') return (
     <div className="page">
-      <h1>{T.usa_accounts}</h1>
-      {items.length === 0 ? (
+      <h1>{T.shop}</h1>
+      {cats.length === 0 ? (
         <>
-          <div className="card"><div className="skeleton" style={{ height: 56 }} /></div>
-          <div className="card"><div className="skeleton" style={{ height: 56 }} /></div>
-          <div className="card"><div className="skeleton" style={{ height: 56 }} /></div>
+          <div className="card"><div className="skeleton" style={{ height: 60 }} /></div>
+          <div className="card"><div className="skeleton" style={{ height: 60 }} /></div>
         </>
       ) : (
-        items.map(item => (
-          <div key={item.item_id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        cats.map(cat => (
+          <div key={cat.category} className="card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ fontSize: 32, flexShrink: 0 }}>{cat.flag}</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>{item.title || 'TG account'}</div>
-              {item.reg_date && <div className="muted" style={{ fontSize: 12 }}>{item.reg_date}</div>}
-            </div>
-            <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <div style={{ fontWeight: 700, color: 'var(--orange)', fontSize: 15, marginBottom: 4 }}>
-                {localPrice(item.price, lang, me)}
+              <div style={{ fontWeight: 700, fontSize: 16 }}>{cat.title}</div>
+              <div style={{ fontWeight: 700, color: 'var(--orange)', fontSize: 14, marginTop: 2 }}>
+                {localPrice(cat.price_usd, lang, me)}
               </div>
-              <button
-                className="btn btn-primary"
-                style={{ padding: '6px 14px', width: 'auto', fontSize: 13 }}
-                onClick={() => buy(item)}
-              >
-                {T.buy}
-              </button>
             </div>
+            <button
+              className="btn btn-primary"
+              style={{ padding: '8px 16px', width: 'auto', fontSize: 14 }}
+              onClick={() => buy(cat)}
+            >
+              {T.buy}
+            </button>
           </div>
         ))
       )}

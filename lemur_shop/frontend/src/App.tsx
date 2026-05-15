@@ -42,7 +42,7 @@ export default function App() {
   return (
     <>
       <div style={{ flex: 1 }}>
-        {tab === 'shop'    && <Shop    lang={lang} me={me} />}
+        {tab === 'shop'    && <Shop    lang={lang} me={me} onGoToBalance={() => setTab('balance')} />}
         {tab === 'profile' && <Profile me={me} lang={lang} onChangeLang={l => { setLang(l); api.me().then(setMe).catch(() => {}) }} />}
         {tab === 'balance' && <Balance me={me} lang={lang} />}
       </div>
