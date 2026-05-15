@@ -4,7 +4,7 @@ import { getT, type Lang } from '../i18n'
 
 interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void }
 
-type View = 'list' | 'buying' | 'success' | 'error'
+type View = 'menu' | 'list' | 'buying' | 'success' | 'error'
 
 function localPrice(usd: number, lang: Lang, me: Me | null): string {
   const base = `$${usd.toFixed(2)}`
@@ -14,9 +14,15 @@ function localPrice(usd: number, lang: Lang, me: Me | null): string {
   return base
 }
 
+const TG_ICON = (
+  <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.16 13.67l-2.965-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.993.889z"/>
+  </svg>
+)
+
 export default function Shop({ lang, me, onGoToBalance }: Props) {
   const T = getT(lang)
-  const [view, setView]     = useState<View>('list')
+  const [view, setView]     = useState<View>('menu')
   const [cats, setCats]     = useState<Category[]>([])
   const [result, setResult] = useState<BuyResult | null>(null)
   const [errMsg, setErr]    = useState('')
@@ -50,9 +56,79 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
     })
   }
 
-  if (view === 'list') return (
+  // ─── Головне меню магазину ─────────────────────────────────────────────────
+  if (view === 'menu') return (
     <div className="page">
       <h1>{T.shop}</h1>
+
+      {/* TG Акаунти — активний */}
+      <div
+        className="card"
+        style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}
+        onClick={() => setView('list')}
+      >
+        <div style={{
+          width: 48, height: 48, borderRadius: 12,
+          background: 'linear-gradient(135deg, #2AABEE, #229ED9)',
+          color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          {TG_ICON}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>{T.tg_accounts}</div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{T.tg_accounts_desc}</div>
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: 20 }}>›</div>
+      </div>
+
+      {/* Telegram Stars — заглушка */}
+      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14, opacity: 0.5 }}>
+        <div style={{
+          width: 48, height: 48, borderRadius: 12,
+          background: 'linear-gradient(135deg, #FFD700, #FFA500)',
+          color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0, fontSize: 26,
+        }}>
+          ⭐
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>{T.tg_stars}</div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{T.tg_stars_desc}</div>
+        </div>
+        <span className="badge badge-orange" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{T.in_dev}</span>
+      </div>
+
+      {/* Накрутка — заглушка */}
+      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14, opacity: 0.5 }}>
+        <div style={{
+          width: 48, height: 48, borderRadius: 12,
+          background: 'linear-gradient(135deg, #7A9E5F, #5a7a42)',
+          color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0, fontSize: 26,
+        }}>
+          👥
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>{T.tg_boost}</div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{T.tg_boost_desc}</div>
+        </div>
+        <span className="badge badge-orange" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{T.in_dev}</span>
+      </div>
+    </div>
+  )
+
+  // ─── Список країн ──────────────────────────────────────────────────────────
+  if (view === 'list') return (
+    <div className="page">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <button
+          onClick={() => setView('menu')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--orange)', fontSize: 22 }}
+        >‹</button>
+        <h1 style={{ margin: 0 }}>{T.tg_accounts}</h1>
+      </div>
+
       {cats.length === 0 ? (
         <>
           <div className="card"><div className="skeleton" style={{ height: 60 }} /></div>
@@ -81,6 +157,7 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
     </div>
   )
 
+  // ─── Купую ─────────────────────────────────────────────────────────────────
   if (view === 'buying') return (
     <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16 }}>
       <div style={{ fontSize: 48 }}>🦎</div>
@@ -88,6 +165,7 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
     </div>
   )
 
+  // ─── Успіх ─────────────────────────────────────────────────────────────────
   if (view === 'success' && result) return (
     <div className="page">
       <div className="card" style={{ textAlign: 'center', marginBottom: 12 }}>
@@ -130,12 +208,13 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
         <p style={{ marginTop: 10, color: 'var(--brown)', fontSize: 12 }}>{T.warning}</p>
       </div>
 
-      <button className="btn btn-secondary" onClick={() => { setResult(null); setView('list') }}>
+      <button className="btn btn-secondary" onClick={() => { setResult(null); setView('menu') }}>
         {T.back}
       </button>
     </div>
   )
 
+  // ─── Помилка ───────────────────────────────────────────────────────────────
   if (view === 'error') return (
     <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16 }}>
       <div style={{ fontSize: 48 }}>❌</div>

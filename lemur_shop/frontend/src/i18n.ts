@@ -33,6 +33,13 @@ const UA = {
   history:     'Останні замовлення',
   order_id:    'Замовлення',
   usa_accounts:'🇺🇸 USA акаунти',
+  tg_accounts: 'TG Акаунти',
+  tg_accounts_desc: 'Готові акаунти Telegram різних країн',
+  tg_stars:    'Telegram Зірки',
+  tg_stars_desc: 'Купити зірки для себе або подарунок',
+  tg_boost:    'Накрутка в TG',
+  tg_boost_desc: 'Підписники, перегляди, реакції',
+  in_dev:      'В розробці',
 }
 
 const RU: typeof UA = {
@@ -70,6 +77,13 @@ const RU: typeof UA = {
   history:     'Последние заказы',
   order_id:    'Заказ',
   usa_accounts:'🇺🇸 USA аккаунты',
+  tg_accounts: 'TG Аккаунты',
+  tg_accounts_desc: 'Готовые аккаунты Telegram разных стран',
+  tg_stars:    'Telegram Звёзды',
+  tg_stars_desc: 'Купить звёзды себе или в подарок',
+  tg_boost:    'Накрутка в TG',
+  tg_boost_desc: 'Подписчики, просмотры, реакции',
+  in_dev:      'В разработке',
 }
 
 const EN: typeof UA = {
@@ -107,6 +121,13 @@ const EN: typeof UA = {
   history:     'Recent orders',
   order_id:    'Order',
   usa_accounts:'🇺🇸 USA accounts',
+  tg_accounts: 'TG Accounts',
+  tg_accounts_desc: 'Ready-to-use Telegram accounts from various countries',
+  tg_stars:    'Telegram Stars',
+  tg_stars_desc: 'Buy stars for yourself or as a gift',
+  tg_boost:    'TG Boost',
+  tg_boost_desc: 'Subscribers, views, reactions',
+  in_dev:      'In development',
 }
 
 export type Lang = 'ua' | 'ru' | 'en'
