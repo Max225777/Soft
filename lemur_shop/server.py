@@ -38,7 +38,19 @@ STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 _bot: Bot | None = None
 _dp: Dispatcher | None = None
 _polling_task: asyncio.Task | None = None
+_keepalive_task: asyncio.Task | None = None
 
+
+async def _keepalive(url: str) -> None:
+    """Пінгує власний /health кожні 10 хв, щоб Render не вимикав сервіс."""
+    async with httpx.AsyncClient(timeout=10) as client:
+        while True:
+            await asyncio.sleep(600)
+            try:
+                await client.get(url)
+                log.debug("keepalive ping ok")
+            except Exception as e:
+                log.debug("keepalive ping failed: %s", e)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -80,9 +92,18 @@ async def lifespan(app: FastAPI):
             _dp.start_polling(_bot, allowed_updates=_dp.resolve_used_update_types())
         )
 
+    if webapp_url.startswith("https://"):
+        _keepalive_task = asyncio.create_task(_keepalive(webapp_url + "/health"))
+
     log.info("🦎 Лемур бот запущено (%s)", "webhook" if use_webhook else "polling")
     yield
 
+    if _keepalive_task:
+        _keepalive_task.cancel()
+        try:
+            await _keepalive_task
+        except asyncio.CancelledError:
+            pass
     if _polling_task:
         _polling_task.cancel()
         try:
