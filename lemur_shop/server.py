@@ -42,15 +42,16 @@ _keepalive_task: asyncio.Task | None = None
 
 
 async def _keepalive(url: str) -> None:
-    """Пінгує власний /health кожні 10 хв, щоб Render не вимикав сервіс."""
+    """Пінгує власний /health кожні 5 хв, перший пінг через 60с після старту."""
     async with httpx.AsyncClient(timeout=10) as client:
+        await asyncio.sleep(60)
         while True:
-            await asyncio.sleep(600)
             try:
                 await client.get(url)
-                log.debug("keepalive ping ok")
+                log.info("keepalive ping ok")
             except Exception as e:
-                log.debug("keepalive ping failed: %s", e)
+                log.warning("keepalive ping failed: %s", e)
+            await asyncio.sleep(300)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
