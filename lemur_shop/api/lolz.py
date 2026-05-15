@@ -30,8 +30,8 @@ class LolzClient:
             raise LolzApiError(r.status_code, r.text[:200])
         return r.json()
 
-    async def _post(self, path: str, json: dict | None = None) -> dict[str, Any]:
-        async with httpx.AsyncClient(headers=self._headers, timeout=15) as c:
+    async def _post(self, path: str, json: dict | None = None, timeout: int = 60) -> dict[str, Any]:
+        async with httpx.AsyncClient(headers=self._headers, timeout=timeout) as c:
             r = await c.post(f"{self._base}/{path.lstrip('/')}", json=json or {})
         if r.status_code >= 400:
             raise LolzApiError(r.status_code, r.text[:200])

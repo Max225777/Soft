@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import httpx
+
 from lemur_shop.api.lolz import LolzApiError, lolz
 
 # Конфіг категорій: country code, назва, прапор, ЦІНА В МАГАЗИНІ
@@ -43,7 +45,11 @@ def extract_credentials(item: dict) -> tuple[str, str] | None:
 
 
 async def auto_buy(item_id: int, price: float) -> tuple[str, str]:
-    item = await lolz.fast_buy(item_id, price)
+    try:
+        item = await lolz.fast_buy(item_id, price)
+    except httpx.ReadTimeout:
+        # Lolz обробив запит але не встиг відповісти — пробуємо отримати дані
+        item = await lolz.get_item(item_id)
     creds = extract_credentials(item)
     if creds:
         return creds

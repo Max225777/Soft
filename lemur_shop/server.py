@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import httpx
 import json
 import logging
 import os
@@ -223,7 +224,7 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
 
     try:
         phone, code = await auto_buy_category(body.category)
-    except (LolzApiError, ValueError) as e:
+    except (LolzApiError, ValueError, httpx.TimeoutException) as e:
         raise HTTPException(status_code=502, detail=str(e))
 
     async with AsyncSessionLocal() as s:
