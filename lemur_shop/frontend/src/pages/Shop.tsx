@@ -215,26 +215,25 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
 
       <div className="card">
         <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{T.your_code}</div>
-        {code && !code.startsWith('❌') ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button
+          className="btn btn-primary"
+          style={{ fontSize: 15, marginBottom: code ? 12 : 0 }}
+          disabled={gettingCode}
+          onClick={getCode}
+        >
+          {gettingCode ? T.getting_code : T.get_code}
+        </button>
+        {code && !code.startsWith('❌') && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
             <code style={{ flex: 1, fontSize: 28, fontWeight: 700, letterSpacing: 6 }}>{code}</code>
             <button className="btn btn-secondary" style={{ width: 'auto', padding: '7px 12px' }}
               onClick={() => copy(code, 'code')}>
               {copied === 'code' ? T.copied : T.copy}
             </button>
           </div>
-        ) : (
-          <>
-            {code && <p style={{ color: 'var(--red, #e53)', fontSize: 13, margin: '0 0 8px' }}>{code}</p>}
-            <button
-              className="btn btn-primary"
-              style={{ fontSize: 15 }}
-              disabled={gettingCode}
-              onClick={getCode}
-            >
-              {gettingCode ? T.getting_code : T.get_code}
-            </button>
-          </>
+        )}
+        {code && code.startsWith('❌') && (
+          <p style={{ color: '#e53', fontSize: 13, margin: '8px 0 0' }}>{code}</p>
         )}
       </div>
 

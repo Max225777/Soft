@@ -168,26 +168,25 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
                   {/* Код */}
                   <div>
                     <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>🔑 {T.your_code}</div>
-                    {orderCode && !orderCode.startsWith('❌') ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button
+                      className="btn btn-primary"
+                      style={{ fontSize: 14, marginBottom: orderCode ? 10 : 0 }}
+                      disabled={isGetting}
+                      onClick={() => getCode(o.id)}
+                    >
+                      {isGetting ? T.getting_code : T.get_code}
+                    </button>
+                    {orderCode && !orderCode.startsWith('❌') && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
                         <code style={{ flex: 1, fontSize: 22, fontWeight: 700, letterSpacing: 4 }}>{orderCode}</code>
                         <button className="btn btn-secondary" style={{ width: 'auto', padding: '5px 10px', fontSize: 12 }}
                           onClick={() => copy(orderCode, `code-${o.id}`)}>
                           {copied === `code-${o.id}` ? T.copied : T.copy}
                         </button>
                       </div>
-                    ) : (
-                      <>
-                        {orderCode && <p style={{ color: '#e53', fontSize: 12, margin: '0 0 6px' }}>{orderCode}</p>}
-                        <button
-                          className="btn btn-primary"
-                          style={{ fontSize: 14 }}
-                          disabled={isGetting}
-                          onClick={() => getCode(o.id)}
-                        >
-                          {isGetting ? T.getting_code : T.get_code}
-                        </button>
-                      </>
+                    )}
+                    {orderCode && orderCode.startsWith('❌') && (
+                      <p style={{ color: '#e53', fontSize: 12, margin: '8px 0 0' }}>{orderCode}</p>
                     )}
                   </div>
                 </div>
