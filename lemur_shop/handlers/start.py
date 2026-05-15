@@ -21,22 +21,22 @@ _CHARS = string.ascii_uppercase + string.digits
 WELCOME = {
     "ru": (
         "🦎 <b>Лемур</b>\n\n"
-        "Цифровой магазин TG-аккаунтов.\n\n"
-        "Нажмите кнопку ниже, чтобы открыть магазин."
+        "Добро пожаловать в наш магазин.\n\n"
+        "Нажмите кнопку ниже, чтобы открыть каталог."
     ),
     "ua": (
         "🦎 <b>Лемур</b>\n\n"
-        "Цифровий магазин TG-акаунтів.\n\n"
-        "Натисніть кнопку нижче, щоб відкрити магазин."
+        "Ласкаво просимо до нашого магазину.\n\n"
+        "Натисніть кнопку нижче, щоб відкрити каталог."
     ),
     "en": (
         "🦎 <b>Lemur</b>\n\n"
-        "Digital shop for TG accounts.\n\n"
-        "Press the button below to open the shop."
+        "Welcome to our shop.\n\n"
+        "Press the button below to open the catalogue."
     ),
 }
 
-BTN_LABEL = {"ru": "🛍 Открыть магазин", "ua": "🛍 Відкрити магазин", "en": "🛍 Open shop"}
+BTN_LABEL = {"ru": "🛍 Открыть каталог", "ua": "🛍 Відкрити каталог", "en": "🛍 Open catalogue"}
 
 
 def _open_keyboard(lang: str) -> InlineKeyboardMarkup:
