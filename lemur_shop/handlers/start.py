@@ -128,10 +128,10 @@ async def cmd_start(message: Message) -> None:
                     referred_by_id=referrer.id if referrer else None,
                 )
                 s.add(user)
+                lang = "ru"
             else:
                 user.username = message.from_user.username
-
-    lang = user.lang if user.lang in WELCOME else "ru"
+                lang = user.lang if user.lang in WELCOME else "ru"
 
     if await _is_subscribed(message.bot, message.from_user.id):
         await message.answer(WELCOME[lang], reply_markup=_open_keyboard(lang), parse_mode="HTML")
@@ -143,7 +143,7 @@ async def cmd_start(message: Message) -> None:
 async def cb_check_sub(call: CallbackQuery) -> None:
     async with AsyncSessionLocal() as s:
         user = await s.get(User, call.from_user.id)
-    lang = (user.lang if user and user.lang in WELCOME else "ru")
+        lang = (user.lang if user and user.lang in WELCOME else "ru")
 
     if await _is_subscribed(call.bot, call.from_user.id):
         await call.message.edit_text(
