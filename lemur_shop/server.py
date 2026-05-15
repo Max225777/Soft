@@ -111,8 +111,6 @@ async def lifespan(app: FastAPI):
             await _polling_task
         except asyncio.CancelledError:
             pass
-    if use_webhook:
-        await _bot.delete_webhook()
     await _bot.session.close()
 
 
