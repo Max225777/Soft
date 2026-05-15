@@ -75,7 +75,7 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
   // ─── Головне меню магазину ─────────────────────────────────────────────────
   if (view === 'menu') return (
     <div className="page">
-      <h1 style={{ marginBottom: 20 }}>{T.shop}</h1>
+      <h1 style={{ marginBottom: 18 }}>{T.shop}</h1>
 
       <div
         className="card"
