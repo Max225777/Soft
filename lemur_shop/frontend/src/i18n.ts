@@ -42,7 +42,16 @@ const UA = {
   tg_boost:    'Накрутка в TG',
   tg_boost_desc: 'Підписники, перегляди, реакції',
   in_dev:      'В розробці',
-  received_at: '🕐 Отримано',
+  received_at:    '🕐 Отримано',
+  confirm_buy:    'Підтвердити покупку',
+  confirm_desc:   'Ви впевнені, що хочете купити?',
+  original_price: 'Ціна',
+  your_discount:  'Ваша знижка',
+  final_price:    'До сплати',
+  confirm:        'Підтвердити',
+  cancel:         'Скасувати',
+  level_info:     'За кожен витрачений долар ваш рівень зростає — ми нараховуємо знижку від 1% до 5% на всі покупки',
+  to_next_lvl_usd: (n: string, icon: string, name: string) => `До ${icon} ${name}: ще $${n}`,
 }
 
 const RU: typeof UA = {
@@ -89,7 +98,16 @@ const RU: typeof UA = {
   tg_boost:    'Накрутка в TG',
   tg_boost_desc: 'Подписчики, просмотры, реакции',
   in_dev:      'В разработке',
-  received_at: '🕐 Получено',
+  received_at:    '🕐 Получено',
+  confirm_buy:    'Подтвердить покупку',
+  confirm_desc:   'Вы уверены, что хотите купить?',
+  original_price: 'Цена',
+  your_discount:  'Ваша скидка',
+  final_price:    'К оплате',
+  confirm:        'Подтвердить',
+  cancel:         'Отмена',
+  level_info:     'За каждый потраченный доллар ваш уровень растёт — мы начисляем скидку от 1% до 5% на все покупки',
+  to_next_lvl_usd: (n: string, icon: string, name: string) => `До ${icon} ${name}: ещё $${n}`,
 }
 
 const EN: typeof UA = {
@@ -136,7 +154,16 @@ const EN: typeof UA = {
   tg_boost:    'TG Boost',
   tg_boost_desc: 'Subscribers, views, reactions',
   in_dev:      'In development',
-  received_at: '🕐 Received',
+  received_at:    '🕐 Received',
+  confirm_buy:    'Confirm purchase',
+  confirm_desc:   'Are you sure you want to buy?',
+  original_price: 'Price',
+  your_discount:  'Your discount',
+  final_price:    'Total',
+  confirm:        'Confirm',
+  cancel:         'Cancel',
+  level_info:     'Every dollar you spend raises your level — we give you a 1–5% discount on all purchases',
+  to_next_lvl_usd: (n: string, icon: string, name: string) => `${icon} ${name}: $${n} more`,
 }
 
 export type Lang = 'ua' | 'ru' | 'en'

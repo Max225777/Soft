@@ -184,26 +184,38 @@ class SetLangRequest(BaseModel):
 
 # ─── API Routes ───────────────────────────────────────────────────────────────
 
+def _level_discount_pct(total_spent_usd: float) -> int:
+    if total_spent_usd >= 100: return 5
+    if total_spent_usd >= 50:  return 4
+    if total_spent_usd >= 15:  return 3
+    if total_spent_usd >= 5:   return 2
+    return 1
+
+
 @app.get("/api/me")
 async def api_me(user: User = Depends(get_current_user)):
     uah = await get_rate("UAH")
     rub = await get_rate("RUB")
     async with AsyncSessionLocal() as s:
         orders_count = await s.scalar(select(func.count()).where(Order.user_id == user.id))
+        total_spent = await s.scalar(
+            select(func.sum(Order.price_usd)).where(Order.user_id == user.id, Order.status == "delivered")
+        ) or Decimal(0)
     lang = user.lang
     usd = float(user.balance_usd)
     return {
-        "id":           user.id,
-        "name":         user.full_name or user.username or str(user.id),
-        "username":     user.username,
-        "lang":         lang,
-        "balance_usd":  usd,
-        "balance_uah":  round(usd * uah, 0),
-        "balance_rub":  round(usd * rub, 0),
-        "rate_uah":     uah,
-        "rate_rub":     rub,
-        "orders_count": orders_count,
-        "is_admin":     user.id in settings.ADMIN_IDS,
+        "id":              user.id,
+        "name":            user.full_name or user.username or str(user.id),
+        "username":        user.username,
+        "lang":            lang,
+        "balance_usd":     usd,
+        "balance_uah":     round(usd * uah, 0),
+        "balance_rub":     round(usd * rub, 0),
+        "rate_uah":        uah,
+        "rate_rub":        rub,
+        "orders_count":    orders_count,
+        "total_spent_usd": float(total_spent),
+        "is_admin":        user.id in settings.ADMIN_IDS,
     }
 
 
@@ -238,7 +250,14 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
     if not cat_info:
         raise HTTPException(status_code=400, detail="Unknown category")
 
-    shop_price = Decimal(str(cat_info["price_usd"]))
+    base_price = Decimal(str(cat_info["price_usd"]))
+
+    async with AsyncSessionLocal() as s:
+        total_spent = await s.scalar(
+            select(func.sum(Order.price_usd)).where(Order.user_id == user.id, Order.status == "delivered")
+        ) or Decimal(0)
+    discount_pct = _level_discount_pct(float(total_spent))
+    shop_price = (base_price * Decimal(str(100 - discount_pct)) / Decimal("100")).quantize(Decimal("0.01"))
 
     if user.balance_usd < shop_price:
         raise HTTPException(status_code=402, detail="insufficient_balance")

@@ -1,17 +1,22 @@
 import { useState, useEffect } from 'react'
 import { api, type Category, type BuyResult, type Me } from '../api'
 import { getT, type Lang } from '../i18n'
+import { getLevel, getLevelIdx, LEVELS } from './Profile'
 
 interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void }
 
 type View = 'menu' | 'list' | 'buying' | 'success' | 'error'
 
 function localPrice(usd: number, lang: Lang, me: Me | null): JSX.Element {
-  const usdSpan = <span style={{ fontWeight: 400 }}>(${usd.toFixed(2)})</span>
+  const usdSpan = <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(${usd.toFixed(2)})</span>
   if (!me) return <span style={{ fontWeight: 700 }}>${usd.toFixed(2)}</span>
   if (lang === 'ua' && me.rate_uah) return <><span style={{ fontWeight: 700 }}>{Math.round(usd * me.rate_uah)}₴</span> {usdSpan}</>
   if (lang === 'ru' && me.rate_rub) return <><span style={{ fontWeight: 700 }}>{Math.round(usd * me.rate_rub)}₽</span> {usdSpan}</>
   return <span style={{ fontWeight: 700 }}>${usd.toFixed(2)}</span>
+}
+
+function discountedPrice(base: number, pct: number) {
+  return Math.round(base * (100 - pct) * 100) / 10000
 }
 
 const TG_ICON = (
@@ -20,21 +25,139 @@ const TG_ICON = (
   </svg>
 )
 
+interface ConfirmProps {
+  cat: Category; me: Me | null; lang: Lang
+  onConfirm(): void; onCancel(): void
+}
+
+function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
+  const T = getT(lang)
+  const spent = me?.total_spent_usd ?? 0
+  const lvl = getLevel(spent)
+  const lvlIdx = getLevelIdx(spent)
+  const discount = lvl.discount
+  const finalUsd = discountedPrice(cat.price_usd, discount)
+
+  function fmtPrice(usd: number) {
+    if (!me) return `$${usd.toFixed(2)}`
+    if (lang === 'ua' && me.rate_uah) return `${Math.round(usd * me.rate_uah)}₴ ($${usd.toFixed(2)})`
+    if (lang === 'ru' && me.rate_rub) return `${Math.round(usd * me.rate_rub)}₽ ($${usd.toFixed(2)})`
+    return `$${usd.toFixed(2)}`
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 200,
+      background: 'rgba(0,0,0,.75)',
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+      backdropFilter: 'blur(6px)',
+    }} onClick={onCancel}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 480,
+          background: 'linear-gradient(160deg, #1E1428 0%, #141018 100%)',
+          border: '1px solid rgba(255,107,43,.25)',
+          borderRadius: '24px 24px 0 0',
+          padding: '20px 20px 32px',
+        }}
+      >
+        <div style={{ width: 40, height: 4, borderRadius: 4, background: 'rgba(255,255,255,.15)', margin: '0 auto 20px' }} />
+
+        <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 4 }}>{T.confirm_buy}</div>
+        <div className="muted" style={{ fontSize: 13, marginBottom: 18 }}>{T.confirm_desc}</div>
+
+        {/* Product */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 14,
+          background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)',
+          borderRadius: 14, padding: '14px 16px', marginBottom: 16,
+        }}>
+          <div style={{ fontSize: 38, lineHeight: 1 }}>{cat.flag}</div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{cat.title}</div>
+            <div className="muted" style={{ fontSize: 12 }}>Telegram account</div>
+          </div>
+        </div>
+
+        {/* Price breakdown */}
+        <div style={{
+          background: 'rgba(0,0,0,.25)', borderRadius: 14,
+          border: '1px solid var(--border)', padding: '14px 16px', marginBottom: 16,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span className="muted" style={{ fontSize: 13 }}>{T.original_price}</span>
+            <span style={{ fontWeight: 600, fontSize: 14, textDecoration: 'line-through', color: 'var(--muted)' }}>
+              {fmtPrice(cat.price_usd)}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="muted" style={{ fontSize: 13 }}>{T.your_discount}</span>
+              <span style={{
+                fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                background: `${lvl.color}20`, color: lvl.color, border: `1px solid ${lvl.color}35`,
+              }}>
+                {lvl.icon} −{discount}%
+              </span>
+            </div>
+            <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--green)' }}>−{fmtPrice(cat.price_usd - finalUsd)}</span>
+          </div>
+
+          <div style={{ height: 1, background: 'var(--border)', marginBottom: 12 }} />
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: 700, fontSize: 15 }}>{T.final_price}</span>
+            <span style={{ fontWeight: 800, fontSize: 22, color: 'var(--orange)' }}>
+              {fmtPrice(finalUsd)}
+            </span>
+          </div>
+        </div>
+
+        {/* Level progress dots */}
+        <div style={{ display: 'flex', gap: 5, marginBottom: 20 }}>
+          {LEVELS.map((l, i) => (
+            <div key={i} style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{
+                height: 3, borderRadius: 3, marginBottom: 4,
+                background: i <= lvlIdx ? l.color : 'rgba(255,255,255,.08)',
+                boxShadow: i <= lvlIdx ? `0 0 6px ${l.glow}` : 'none',
+              }} />
+              <div style={{ fontSize: 14 }}>{l.icon}</div>
+              <div style={{ fontSize: 9, color: i === lvlIdx ? l.color : 'var(--muted)', fontWeight: 700, marginTop: 2 }}>
+                −{l.discount}%
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onCancel}>{T.cancel}</button>
+          <button className="btn btn-primary" style={{ flex: 2 }} onClick={onConfirm}>{T.confirm}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Shop({ lang, me, onGoToBalance }: Props) {
   const T = getT(lang)
-  const [view, setView]     = useState<View>('menu')
-  const [cats, setCats]     = useState<Category[]>([])
-  const [result, setResult] = useState<BuyResult | null>(null)
-  const [errMsg, setErr]    = useState('')
-  const [code, setCode]     = useState('')
+  const [view, setView]       = useState<View>('menu')
+  const [cats, setCats]       = useState<Category[]>([])
+  const [result, setResult]   = useState<BuyResult | null>(null)
+  const [errMsg, setErr]      = useState('')
+  const [code, setCode]       = useState('')
   const [gettingCode, setGettingCode] = useState(false)
-  const [copied, setCopied] = useState<'phone' | 'code' | ''>('')
+  const [copied, setCopied]   = useState<'phone' | 'code' | ''>('')
+  const [confirmCat, setConfirmCat] = useState<Category | null>(null)
 
   useEffect(() => {
     api.categories().catch(() => []).then(setCats)
   }, [])
 
   async function buy(cat: Category) {
+    setConfirmCat(null)
     setView('buying')
     setCode('')
     try {
@@ -72,7 +195,7 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
     })
   }
 
-  // ─── Головне меню магазину ─────────────────────────────────────────────────
+  // ─── Головне меню ─────────────────────────────────────────────────────────
   if (view === 'menu') return (
     <div className="page">
       <h1 style={{ marginBottom: 18 }}>{T.shop}</h1>
@@ -112,46 +235,65 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
     </div>
   )
 
-  // ─── Список країн ──────────────────────────────────────────────────────────
+  // ─── Список ───────────────────────────────────────────────────────────────
   if (view === 'list') return (
-    <div className="page">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        <button
-          onClick={() => setView('menu')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--orange)', fontSize: 26, lineHeight: 1 }}
-        >‹</button>
-        <h1 style={{ margin: 0 }}>{T.tg_accounts}</h1>
-      </div>
-
-      {cats.length === 0 ? (
-        <>
-          <div className="card"><div className="skeleton" style={{ height: 80 }} /></div>
-          <div className="card"><div className="skeleton" style={{ height: 80 }} /></div>
-        </>
-      ) : (
-        cats.map(cat => (
-          <div key={cat.category} className="card" style={{ padding: '20px 16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-              <div style={{ fontSize: 44, flexShrink: 0, lineHeight: 1 }}>{cat.flag}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 800, fontSize: 17 }}>{cat.title}</div>
-                <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>Telegram account</div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div className="price-pill" style={{ flex: 1, justifyContent: 'center', fontSize: 15, padding: '9px 12px' }}>
-                {localPrice(cat.price_usd, lang, me)}
-              </div>
-              <button
-                className="btn btn-primary"
-                style={{ width: 'auto', padding: '10px 22px', fontSize: 15 }}
-                onClick={() => buy(cat)}
-              >{T.buy}</button>
-            </div>
-          </div>
-        ))
+    <>
+      {confirmCat && (
+        <ConfirmModal
+          cat={confirmCat} me={me} lang={lang}
+          onConfirm={() => buy(confirmCat)}
+          onCancel={() => setConfirmCat(null)}
+        />
       )}
-    </div>
+      <div className="page">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <button
+            onClick={() => setView('menu')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--orange)', fontSize: 26, lineHeight: 1 }}
+          >‹</button>
+          <h1 style={{ margin: 0 }}>{T.tg_accounts}</h1>
+        </div>
+
+        {cats.length === 0 ? (
+          <>
+            <div className="card"><div className="skeleton" style={{ height: 80 }} /></div>
+            <div className="card"><div className="skeleton" style={{ height: 80 }} /></div>
+          </>
+        ) : (
+          cats.map(cat => {
+            const spent = me?.total_spent_usd ?? 0
+            const discount = getLevel(spent).discount
+            const finalUsd = discountedPrice(cat.price_usd, discount)
+            return (
+              <div key={cat.category} className="card" style={{ padding: '20px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+                  <div style={{ fontSize: 44, flexShrink: 0, lineHeight: 1 }}>{cat.flag}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 800, fontSize: 17 }}>{cat.title}</div>
+                    <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>Telegram account</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="price-pill" style={{ flex: 1, justifyContent: 'center', flexDirection: 'column', fontSize: 15, padding: '9px 12px', gap: 2 }}>
+                    <span>{localPrice(finalUsd, lang, me)}</span>
+                    {discount > 0 && (
+                      <span style={{ fontSize: 11, color: 'var(--muted)', textDecoration: 'line-through' }}>
+                        ${cat.price_usd.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    className="btn btn-primary"
+                    style={{ width: 'auto', padding: '10px 22px', fontSize: 15 }}
+                    onClick={() => setConfirmCat(cat)}
+                  >{T.buy}</button>
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+    </>
   )
 
   // ─── Купую ─────────────────────────────────────────────────────────────────
@@ -192,7 +334,7 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
         </div>
       </div>
 
-      <div className="card" style={{ background: 'var(--sand)' }}>
+      <div className="card">
         <div style={{ fontWeight: 600, marginBottom: 8 }}>📋 {T.instruction}</div>
         <ol style={{ paddingLeft: 18, lineHeight: 2, margin: 0 }}>
           <li>{T.step1}</li>
@@ -200,7 +342,7 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
           <li>{T.step3}</li>
           <li>{T.step4}</li>
         </ol>
-        <p style={{ marginTop: 10, color: 'var(--brown)', fontSize: 12 }}>{T.warning}</p>
+        <p style={{ marginTop: 10, fontSize: 12, color: 'var(--text2)' }}>{T.warning}</p>
       </div>
 
       <div className="card">

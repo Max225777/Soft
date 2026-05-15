@@ -31,7 +31,7 @@ export interface Me {
   lang: 'ua' | 'ru' | 'en'
   balance_usd: number; balance_uah: number; balance_rub: number
   rate_uah: number; rate_rub: number
-  orders_count: number; is_admin: boolean
+  orders_count: number; total_spent_usd: number; is_admin: boolean
 }
 export interface Category { category: string; flag: string; title: string; price_usd: number }
 export interface BuyResult { order_id: number; phone: string; created_at: string }

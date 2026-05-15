@@ -11,17 +11,17 @@ const LANG_LABELS: Record<string, string> = {
 }
 const LANG_KEY = 'lemur_lang'
 
-const LEVELS = [
-  { min: 0,   max: 4,        icon: '🌿', name: { ua: 'Новачок',     ru: 'Новичок',   en: 'Newbie'      }, discount: 1, color: '#52B788', glow: 'rgba(82,183,136,.45)' },
-  { min: 5,   max: 14,       icon: '⚡', name: { ua: 'Активний',    ru: 'Активный',  en: 'Active'      }, discount: 2, color: '#4DA6E8', glow: 'rgba(77,166,232,.45)' },
-  { min: 15,  max: 49,       icon: '🔥', name: { ua: 'Досвідчений', ru: 'Опытный',   en: 'Experienced' }, discount: 3, color: '#FF7B30', glow: 'rgba(255,123,48,.45)' },
-  { min: 50,  max: 249,      icon: '💎', name: { ua: 'Преміум',     ru: 'Премиум',   en: 'Premium'     }, discount: 4, color: '#B77FFF', glow: 'rgba(183,127,255,.45)' },
-  { min: 250, max: Infinity, icon: '👑', name: { ua: 'Легенда',     ru: 'Легенда',   en: 'Legend'      }, discount: 5, color: '#FFB830', glow: 'rgba(255,184,48,.50)' },
+export const LEVELS = [
+  { min: 0,   max: 4.99,     icon: '🌿', name: { ua: 'Новачок',     ru: 'Новичок',   en: 'Newbie'      }, discount: 1, color: '#52B788', glow: 'rgba(82,183,136,.45)' },
+  { min: 5,   max: 14.99,    icon: '⚡', name: { ua: 'Активний',    ru: 'Активный',  en: 'Active'      }, discount: 2, color: '#4DA6E8', glow: 'rgba(77,166,232,.45)' },
+  { min: 15,  max: 49.99,    icon: '🔥', name: { ua: 'Досвідчений', ru: 'Опытний',   en: 'Experienced' }, discount: 3, color: '#FF7B30', glow: 'rgba(255,123,48,.45)' },
+  { min: 50,  max: 99.99,    icon: '💎', name: { ua: 'Преміум',     ru: 'Премиум',   en: 'Premium'     }, discount: 4, color: '#B77FFF', glow: 'rgba(183,127,255,.45)' },
+  { min: 100, max: Infinity, icon: '👑', name: { ua: 'Легенда',     ru: 'Легенда',   en: 'Legend'      }, discount: 5, color: '#FFB830', glow: 'rgba(255,184,48,.50)' },
 ]
 
-function getLevel(n: number) { return LEVELS.find(l => n >= l.min && n <= l.max) ?? LEVELS[0] }
-
-function getLevelIdx(n: number) { return LEVELS.findIndex(l => n >= l.min && n <= l.max) }
+export function getLevel(n: number) { return LEVELS.find(l => n >= l.min && n <= l.max) ?? LEVELS[0] }
+export function getLevelIdx(n: number) { return LEVELS.findIndex(l => n >= l.min && n <= l.max) }
+export function getLevelDiscount(spentUsd: number): number { return getLevel(spentUsd).discount }
 
 function getProgress(n: number) {
   const lvl = getLevel(n)
@@ -33,7 +33,7 @@ function getProgress(n: number) {
 function needForNext(n: number) {
   const lvl = getLevel(n)
   if (lvl.max === Infinity) return null
-  return lvl.max + 1 - n
+  return lvl.max - n
 }
 
 const DISCOUNT_LABEL: Record<Lang, (d: number) => string> = {
@@ -89,10 +89,11 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
     ? `${Math.round(usd * me.rate_rub)}₽`
     : ''
 
-  const lvl = getLevel(me.orders_count)
-  const lvlIdx = getLevelIdx(me.orders_count)
-  const progress = getProgress(me.orders_count)
-  const toNext = needForNext(me.orders_count)
+  const spent = me.total_spent_usd ?? 0
+  const lvl = getLevel(spent)
+  const lvlIdx = getLevelIdx(spent)
+  const progress = getProgress(spent)
+  const toNext = needForNext(spent)
   const nextLvl = LEVELS[lvlIdx + 1]
 
   return (
@@ -133,8 +134,10 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
             {me.username && <div className="muted" style={{ fontSize: 13, marginTop: 1 }}>@{me.username}</div>}
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--orange)' }}>{me.orders_count}</div>
-            <div className="muted" style={{ fontSize: 11 }}>покупок</div>
+            <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--orange)' }}>${spent.toFixed(2)}</div>
+            <div className="muted" style={{ fontSize: 11 }}>
+              {lang === 'ua' ? 'витрачено' : lang === 'ru' ? 'потрачено' : 'spent'}
+            </div>
           </div>
         </div>
 
@@ -188,7 +191,7 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
 
           {/* Progress bar */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span className="muted" style={{ fontSize: 11 }}>{me.orders_count} / {lvl.max === Infinity ? '∞' : lvl.max + 1}</span>
+            <span className="muted" style={{ fontSize: 11 }}>${spent.toFixed(2)} / {lvl.max === Infinity ? '∞' : `$${lvl.max}`}</span>
             <span style={{ fontSize: 11, color: lvl.color, fontWeight: 700 }}>{Math.round(progress)}%</span>
           </div>
           <div style={{ height: 12, background: 'rgba(255,255,255,.06)', borderRadius: 8, overflow: 'hidden', marginBottom: 10 }}>
@@ -228,11 +231,15 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
 
           {toNext !== null && nextLvl && (
             <div className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 10 }}>
-              {lang === 'ua' ? `До ${nextLvl.icon} ${nextLvl.name.ua}: ще ${toNext} покупок` :
-               lang === 'ru' ? `До ${nextLvl.icon} ${nextLvl.name.ru}: ещё ${toNext} покупок` :
-               `${toNext} more to ${nextLvl.icon} ${nextLvl.name.en}`}
+              {T.to_next_lvl_usd(toNext.toFixed(2), nextLvl.icon, nextLvl.name[lang])}
             </div>
           )}
+
+          <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(255,184,48,.06)', border: '1px solid rgba(255,184,48,.15)' }}>
+            <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>
+              💡 {T.level_info}
+            </div>
+          </div>
         </div>
       </div>
 
