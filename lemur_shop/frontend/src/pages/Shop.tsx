@@ -387,9 +387,6 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
           </>
         ) : (
           cats.map(cat => {
-            const spent = me?.total_spent_usd ?? 0
-            const discount = getLevel(spent).discount
-            const finalUsd = discountedPrice(cat.price_usd, discount)
             return (
               <div key={cat.category} className="card" style={{ padding: '20px 16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
@@ -400,13 +397,8 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div className="price-pill" style={{ flex: 1, justifyContent: 'center', flexDirection: 'column', fontSize: 15, padding: '9px 12px', gap: 2 }}>
-                    <span>{localPrice(finalUsd, lang, me)}</span>
-                    {discount > 0 && (
-                      <span style={{ fontSize: 11, color: 'var(--muted)', textDecoration: 'line-through' }}>
-                        ${cat.price_usd.toFixed(2)}
-                      </span>
-                    )}
+                  <div className="price-pill" style={{ flex: 1, justifyContent: 'center', fontSize: 15, padding: '9px 12px' }}>
+                    {localPrice(cat.price_usd, lang, me)}
                   </div>
                   <button
                     className="btn btn-primary"
