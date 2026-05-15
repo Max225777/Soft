@@ -18,5 +18,8 @@ class Settings(BaseSettings):
 
     WEBAPP_URL: str = ""   # https://your-domain.com — URL задеплоєного Mini App
 
+    CHANNEL_USERNAME: str = "@LEMUR_SHOP"   # канал для перевірки підписки
+    SUPPORT_USERNAME: str = "@LEMUR_MENEHER"
+
 
 settings = Settings()

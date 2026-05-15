@@ -251,8 +251,52 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
         </div>
       </div>
 
+      {/* ── Socials ── */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 0 }}>
+        <a href="https://t.me/LEMUR_SHOP" target="_blank" rel="noreferrer" style={{ flex: 1, textDecoration: 'none' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(42,171,238,.12), rgba(17,120,184,.06))',
+            border: '1px solid rgba(42,171,238,.22)',
+            borderRadius: 14, padding: '14px 14px',
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+              background: 'linear-gradient(135deg, #2AABEE, #1178B8)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+            }}>📢</div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: '#2AABEE' }}>@LEMUR_SHOP</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>
+                {lang === 'ua' ? 'Наш канал' : lang === 'ru' ? 'Наш канал' : 'Our channel'}
+              </div>
+            </div>
+          </div>
+        </a>
+        <a href="https://t.me/LEMUR_MENEHER" target="_blank" rel="noreferrer" style={{ flex: 1, textDecoration: 'none' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(76,175,114,.1), rgba(76,175,114,.04))',
+            border: '1px solid rgba(76,175,114,.22)',
+            borderRadius: 14, padding: '14px 14px',
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+              background: 'linear-gradient(135deg, #4CAF72, #2e7a4e)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+            }}>💬</div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: '#4CAF72' }}>@LEMUR_MENEHER</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>
+                {lang === 'ua' ? 'Підтримка' : lang === 'ru' ? 'Поддержка' : 'Support'}
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+
       {/* ── Language ── */}
-      <div className="card">
+      <div className="card" style={{ marginTop: 10 }}>
         <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>{T.change_lang}</div>
         <div style={{ display: 'flex', gap: 8 }}>
           {(['ru', 'ua', 'en'] as Lang[]).map(l => (

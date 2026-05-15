@@ -24,6 +24,7 @@ export const api = {
   buy:        (category: string) => req<BuyResult>('/buy', { method: 'POST', body: JSON.stringify({ category }) }),
   orders:     () => req<Order[]>('/orders'),
   getCode:    (orderId: number) => req<{ code: string }>(`/get-code/${orderId}`, { method: 'POST' }),
+  checkSub:   () => req<{ subscribed: boolean }>('/check-sub'),
 }
 
 export interface Me {

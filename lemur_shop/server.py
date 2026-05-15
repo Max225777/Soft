@@ -305,6 +305,21 @@ async def api_get_code(order_id: int, user: User = Depends(get_current_user)):
     return {"code": code}
 
 
+@app.get("/api/check-sub")
+async def api_check_sub(user: User = Depends(get_current_user)):
+    if not _bot or not settings.CHANNEL_USERNAME:
+        return {"subscribed": True}
+    try:
+        member = await _bot.get_chat_member(
+            chat_id=settings.CHANNEL_USERNAME, user_id=user.id
+        )
+        subscribed = member.status not in ("left", "kicked")
+    except Exception as e:
+        log.warning("check-sub error: %s", e)
+        subscribed = True
+    return {"subscribed": subscribed}
+
+
 @app.get("/api/orders")
 async def api_orders(user: User = Depends(get_current_user)):
     async with AsyncSessionLocal() as s:
