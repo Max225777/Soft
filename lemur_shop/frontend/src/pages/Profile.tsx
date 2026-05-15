@@ -273,7 +273,7 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
             </div>
           </div>
         </a>
-        <a href="https://t.me/LEMUR_MENEHER" target="_blank" rel="noreferrer" style={{ flex: 1, textDecoration: 'none', minWidth: 0 }}>
+        <a href="https://t.me/LEMUR_MANEGER" target="_blank" rel="noreferrer" style={{ flex: 1, textDecoration: 'none', minWidth: 0 }}>
           <div style={{
             background: 'linear-gradient(135deg, rgba(76,175,114,.1), rgba(76,175,114,.04))',
             border: '1px solid rgba(76,175,114,.22)',
@@ -286,7 +286,7 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15,
             }}>💬</div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: '#4CAF72', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@LEMUR_MENEHER</div>
+              <div style={{ fontWeight: 700, fontSize: 12, color: '#4CAF72', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@LEMUR_MANEGER</div>
               <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 1 }}>
                 {lang === 'ua' ? 'Підтримка' : lang === 'ru' ? 'Поддержка' : 'Support'}
               </div>
