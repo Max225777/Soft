@@ -18,6 +18,15 @@ def _is_admin(user_id: int) -> bool:
     return user_id in settings.ADMIN_IDS
 
 
+async def _find_user(session, query: str) -> User | None:
+    """Знаходить юзера за ID або @username."""
+    q = query.lstrip("@")
+    if q.isdigit():
+        return await session.get(User, int(q))
+    result = await session.execute(select(User).where(User.username == q).limit(1))
+    return result.scalar_one_or_none()
+
+
 @router.message(Command("topup"))
 async def cmd_topup(message: Message) -> None:
     if not _is_admin(message.from_user.id):
@@ -29,7 +38,6 @@ async def cmd_topup(message: Message) -> None:
         return
 
     try:
-        target_id = int(parts[1])
         amount = Decimal(parts[2])
         if amount <= 0:
             raise ValueError
@@ -39,16 +47,16 @@ async def cmd_topup(message: Message) -> None:
 
     async with AsyncSessionLocal() as s:
         async with s.begin():
-            user = await s.get(User, target_id)
+            user = await _find_user(s, parts[1])
             if not user:
-                await message.answer(f"❌ Користувача {target_id} не знайдено.")
+                await message.answer(f"❌ Користувача «{parts[1]}» не знайдено.")
                 return
             user.balance_usd = user.balance_usd + amount
 
-    name = user.username or str(target_id)
+    name = user.username or str(user.id)
     await message.answer(
         f"✅ Баланс поповнено\n\n"
-        f"👤 @{name} (ID: {target_id})\n"
+        f"👤 @{name} (ID: {user.id})\n"
         f"➕ +${amount:.2f}\n"
         f"💰 Новий баланс: ${float(user.balance_usd):.2f}"
     )
@@ -64,22 +72,16 @@ async def cmd_balance(message: Message) -> None:
         await message.answer("Використання: /balance <user_id>")
         return
 
-    try:
-        target_id = int(parts[1])
-    except ValueError:
-        await message.answer("❌ Невірний user_id")
-        return
-
     async with AsyncSessionLocal() as s:
-        user = await s.get(User, target_id)
+        user = await _find_user(s, parts[1])
         if not user:
-            await message.answer(f"❌ Користувача {target_id} не знайдено.")
+            await message.answer(f"❌ Користувача «{parts[1]}» не знайдено.")
             return
-        orders_count = await s.scalar(select(func.count(Order.id)).where(Order.user_id == target_id))
+        orders_count = await s.scalar(select(func.count(Order.id)).where(Order.user_id == user.id))
 
-    name = user.username or str(target_id)
+    name = user.username or str(user.id)
     await message.answer(
-        f"👤 @{name} (ID: {target_id})\n"
+        f"👤 @{name} (ID: {user.id})\n"
         f"💰 Баланс: ${float(user.balance_usd):.2f}\n"
         f"📦 Замовлень: {orders_count}"
     )
