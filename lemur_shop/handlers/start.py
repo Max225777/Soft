@@ -5,6 +5,7 @@ import secrets
 import string
 
 from aiogram import Bot, F, Router
+from aiogram.enums import ChatMemberStatus
 from aiogram.filters import CommandStart
 from aiogram.types import (
     CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, WebAppInfo,
@@ -94,12 +95,17 @@ async def _is_subscribed(bot: Bot, user_id: int) -> bool:
         member = await bot.get_chat_member(
             chat_id=settings.CHANNEL_USERNAME, user_id=user_id
         )
-        subscribed = member.status not in ("left", "kicked")
-        log.info("Sub check user=%s status=%s -> %s", user_id, member.status, subscribed)
+        log.info("Sub check user=%s status=%r type=%s", user_id, member.status, type(member).__name__)
+        subscribed = member.status in (
+            ChatMemberStatus.CREATOR,
+            ChatMemberStatus.ADMINISTRATOR,
+            ChatMemberStatus.MEMBER,
+            ChatMemberStatus.RESTRICTED,
+        )
         return subscribed
     except Exception as e:
-        log.warning("Sub check failed for user=%s: %s — blocking", user_id, e)
-        return False
+        log.warning("Sub check failed for user=%s: %s — letting through", user_id, e)
+        return True
 
 
 async def _make_code(session) -> str:

@@ -310,13 +310,20 @@ async def api_check_sub(user: User = Depends(get_current_user)):
     if not _bot or not settings.CHANNEL_USERNAME:
         return {"subscribed": True}
     try:
+        from aiogram.enums import ChatMemberStatus
         member = await _bot.get_chat_member(
             chat_id=settings.CHANNEL_USERNAME, user_id=user.id
         )
-        subscribed = member.status not in ("left", "kicked")
+        log.info("check-sub user=%s status=%r type=%s", user.id, member.status, type(member).__name__)
+        subscribed = member.status in (
+            ChatMemberStatus.CREATOR,
+            ChatMemberStatus.ADMINISTRATOR,
+            ChatMemberStatus.MEMBER,
+            ChatMemberStatus.RESTRICTED,
+        )
     except Exception as e:
-        log.warning("check-sub error for user=%s: %s — blocking", user.id, e)
-        subscribed = False
+        log.warning("check-sub error for user=%s: %s — letting through", user.id, e)
+        subscribed = True
     return {"subscribed": subscribed}
 
 
