@@ -54,9 +54,9 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
 
   const usd = me.balance_usd
   const balanceLocal = lang === 'ua' && me.rate_uah
-    ? ` (~${Math.round(usd * me.rate_uah)}₴)`
+    ? `(~${Math.round(usd * me.rate_uah)}₴)`
     : lang === 'ru' && me.rate_rub
-    ? ` (~${Math.round(usd * me.rate_rub)}₽)`
+    ? `(~${Math.round(usd * me.rate_rub)}₽)`
     : ''
 
   return (
@@ -64,8 +64,9 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
       {/* Balance */}
       <div className="card" style={{ textAlign: 'center', marginBottom: 12 }}>
         <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>{T.balance}</div>
-        <div style={{ fontWeight: 700, fontSize: 28, color: 'var(--orange)' }}>
-          ${usd.toFixed(2)}{balanceLocal}
+        <div style={{ fontSize: 28, color: 'var(--orange)' }}>
+          <span style={{ fontWeight: 700 }}>${usd.toFixed(2)}</span>
+          {balanceLocal && <span style={{ fontWeight: 400, fontSize: 18, marginLeft: 6 }}>{balanceLocal}</span>}
         </div>
       </div>
 

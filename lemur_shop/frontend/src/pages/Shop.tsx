@@ -6,11 +6,11 @@ interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void }
 
 type View = 'menu' | 'list' | 'buying' | 'success' | 'error'
 
-function localPrice(usd: number, lang: Lang, me: Me | null): string {
-  const base = `$${usd.toFixed(2)}`
+function localPrice(usd: number, lang: Lang, me: Me | null): JSX.Element {
+  const base = <span style={{ fontWeight: 700 }}>${usd.toFixed(2)}</span>
   if (!me) return base
-  if (lang === 'ua' && me.rate_uah) return `${base} (~${Math.round(usd * me.rate_uah)}₴)`
-  if (lang === 'ru' && me.rate_rub) return `${base} (~${Math.round(usd * me.rate_rub)}₽)`
+  if (lang === 'ua' && me.rate_uah) return <>{base} <span style={{ fontWeight: 400 }}>(~{Math.round(usd * me.rate_uah)}₴)</span></>
+  if (lang === 'ru' && me.rate_rub) return <>{base} <span style={{ fontWeight: 400 }}>(~{Math.round(usd * me.rate_rub)}₽)</span></>
   return base
 }
 
@@ -149,7 +149,7 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
             <div style={{ fontSize: 32, flexShrink: 0 }}>{cat.flag}</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, fontSize: 16 }}>{cat.title}</div>
-              <div style={{ fontWeight: 700, color: 'var(--orange)', fontSize: 14, marginTop: 2 }}>
+              <div style={{ color: 'var(--orange)', fontSize: 14, marginTop: 2 }}>
                 {localPrice(cat.price_usd, lang, me)}
               </div>
             </div>
