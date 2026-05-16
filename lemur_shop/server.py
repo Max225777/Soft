@@ -69,12 +69,11 @@ async def lifespan(app: FastAPI):
     _bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     _dp = Dispatcher(storage=MemoryStorage())
 
-    from lemur_shop.handlers import admin, payments, profile, shop, start
+    from lemur_shop.handlers import admin, profile, shop, start
     _dp.include_router(start.router)
     _dp.include_router(shop.router)
     _dp.include_router(profile.router)
     _dp.include_router(admin.router)
-    _dp.include_router(payments.router)
 
     webapp_url = settings.WEBAPP_URL.rstrip("/") if settings.WEBAPP_URL else ""
     use_webhook = False
@@ -183,8 +182,6 @@ class BuyRequest(BaseModel):
 class SetLangRequest(BaseModel):
     lang: str
 
-class StarsInvoiceRequest(BaseModel):
-    amount_usd: float
 
 
 # ─── API Routes ───────────────────────────────────────────────────────────────
@@ -235,29 +232,6 @@ async def api_set_lang(body: SetLangRequest, user: User = Depends(get_current_us
                 u.lang = body.lang
     return {"ok": True}
 
-
-@app.post("/api/stars/invoice")
-async def api_stars_invoice(body: StarsInvoiceRequest, user: User = Depends(get_current_user)):
-    if not _bot:
-        raise HTTPException(status_code=503, detail="Bot not ready")
-    amount_usd = round(body.amount_usd, 2)
-    if amount_usd < 0.5 or amount_usd > 500:
-        raise HTTPException(status_code=400, detail="Invalid amount")
-    stars = int(round(amount_usd * settings.STARS_PER_USD))
-    from aiogram.types import LabeledPrice
-    link = await _bot.create_invoice_link(
-        title="Поповнення балансу",
-        description=f"Зарахування ${amount_usd:.2f} на рахунок Лемур",
-        payload=f"stars_topup:{user.id}:{amount_usd}",
-        currency="XTR",
-        prices=[LabeledPrice(label="Зірки", amount=stars)],
-    )
-    return {"invoice_url": link, "stars": stars, "amount_usd": amount_usd}
-
-
-@app.get("/api/stars/rate")
-async def api_stars_rate(user: User = Depends(get_current_user)):
-    return {"stars_per_usd": settings.STARS_PER_USD}
 
 
 @app.get("/api/categories")
