@@ -9,16 +9,13 @@ log = logging.getLogger(__name__)
 
 # Конфіг категорій: country code, назва, прапор, ЦІНА В МАГАЗИНІ
 CATEGORIES: dict[str, dict] = {
-    "us": {"country": "US", "title": "USA",       "flag": "🇺🇸", "price_usd": 1.50, "max_lolz_usd": 1.40},
-    "ua": {"country": "UA", "title": "Ukraine",   "flag": "🇺🇦", "price_usd": 3.00, "max_lolz_usd": 2.50},
-    "kz": {"country": "KZ", "title": "Kazakhstan","flag": "🇰🇿", "price_usd": 3.00, "max_lolz_usd": 2.50},
+    "us": {"country": "US", "title": "USA",        "flag": "🇺🇸", "price_usd": 1.50, "pmax_tiers": [1.40]},
+    "ua": {"country": "UA", "title": "Ukraine",    "flag": "🇺🇦", "price_usd": 3.00, "pmax_tiers": [2.50]},
+    "kz": {"country": "KZ", "title": "Kazakhstan", "flag": "🇰🇿", "price_usd": 3.00, "pmax_tiers": [1.30, 1.70, 2.40]},
 }
 
 
-async def search_accounts(category: str, limit: int = 8) -> list[dict]:
-    cat = CATEGORIES.get(category)
-    country = cat["country"] if cat else category.upper()
-    pmax = cat["max_lolz_usd"] if cat else 1.40
+async def _search_with_pmax(country: str, pmax: float, limit: int = 10) -> list[dict]:
     try:
         return await lolz.search_telegram(country=country, pmax=pmax, count=limit)
     except LolzApiError:
@@ -51,10 +48,24 @@ async def auto_buy(item_id: int, price: float) -> str:
 
 
 async def auto_buy_category(category: str) -> tuple[str, int, float]:
-    """Шукає найдешевший акаунт у категорії, купує і повертає (phone, lolz_item_id, lolz_price_paid)."""
-    items = await search_accounts(category, limit=10)
+    """Шукає акаунт по тирам pmax, купує перший знайдений."""
+    cat = CATEGORIES.get(category)
+    if not cat:
+        raise LolzApiError("Unknown category")
+    country = cat["country"]
+    tiers: list[float] = cat.get("pmax_tiers", [2.50])
+
+    items: list[dict] = []
+    for pmax in tiers:
+        items = await _search_with_pmax(country, pmax)
+        if items:
+            log.info("Found %d accounts for %s at pmax=%.2f", len(items), category, pmax)
+            break
+        log.info("No accounts for %s at pmax=%.2f, trying next tier", category, pmax)
+
     if not items:
         raise LolzApiError("No accounts available in this category")
+
     items_sorted = sorted(items, key=lambda x: float(x.get("price") or x.get("price_usd") or 999))
     item = items_sorted[0]
     item_id = int(item.get("item_id") or item.get("id"))
