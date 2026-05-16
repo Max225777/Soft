@@ -22,6 +22,19 @@ async def _search_with_pmax(country: str, pmax: float, limit: int = 10) -> list[
         return []
 
 
+async def search_accounts(category: str, limit: int = 8) -> list[dict]:
+    """Шукає акаунти по тирах pmax, повертає перший непустий результат."""
+    cat = CATEGORIES.get(category)
+    if not cat:
+        return []
+    country = cat["country"]
+    for pmax in cat.get("pmax_tiers", [2.50]):
+        items = await _search_with_pmax(country, pmax, limit)
+        if items:
+            return items
+    return []
+
+
 async def auto_buy(item_id: int, price: float) -> str:
     """Купує акаунт і повертає телефон."""
     try:
