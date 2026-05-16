@@ -25,6 +25,7 @@ export const api = {
   orders:       () => req<Order[]>('/orders'),
   getCode:      (orderId: number) => req<{ code: string }>(`/get-code/${orderId}`, { method: 'POST' }),
   checkSub:     () => req<{ subscribed: boolean }>('/check-sub'),
+  fkCreate:     (amount_usd: number, currency: string) => req<{ url: string; order_id: number }>('/fk/create', { method: 'POST', body: JSON.stringify({ amount_usd, currency }) }),
   starsRate:    () => req<{ stars_per_usd: number }>('/stars/rate'),
   starsInvoice: (amount_usd: number) => req<{ invoice_url: string; stars: number; amount_usd: number }>('/stars/invoice', { method: 'POST', body: JSON.stringify({ amount_usd }) }),
 }

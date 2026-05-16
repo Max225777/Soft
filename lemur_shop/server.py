@@ -391,6 +391,124 @@ async def api_referral(user: User = Depends(get_current_user)):
     }
 
 
+# ─── FreеKassa ────────────────────────────────────────────────────────────────
+
+def _fk_sign(*parts: str, secret: str) -> str:
+    return hashlib.md5(":".join([*parts, secret]).encode()).hexdigest()
+
+
+class FKCreateRequest(BaseModel):
+    amount_usd: float
+    currency: str = "USD"
+
+
+@app.post("/api/fk/create")
+async def api_fk_create(body: FKCreateRequest, user: User = Depends(get_current_user)):
+    if not settings.FREEKASSA_MERCHANT_ID:
+        raise HTTPException(status_code=503, detail="Payments not configured")
+    amount = round(body.amount_usd, 2)
+    if amount < 0.5 or amount > 1000:
+        raise HTTPException(status_code=400, detail="Invalid amount")
+    currency = body.currency if body.currency in ("USD", "UAH", "RUB", "KZT") else "USD"
+
+    from lemur_shop.db.models import FKOrder
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            order = FKOrder(user_id=user.id, amount_usd=Decimal(str(amount)), currency=currency)
+            s.add(order)
+            await s.flush()
+            order_id = order.id
+
+    sign = _fk_sign(settings.FREEKASSA_MERCHANT_ID, str(amount), str(order_id), secret=settings.FREEKASSA_SECRET1)
+    url = (
+        f"https://pay.freekassa.ru/?m={settings.FREEKASSA_MERCHANT_ID}"
+        f"&oa={amount}&currency={currency}&o={order_id}&s={sign}&lang=ru"
+    )
+    return {"url": url, "order_id": order_id}
+
+
+@app.get("/api/freekassa/notify")
+async def fk_notify(
+    MERCHANT_ID: str = "",
+    AMOUNT: str = "",
+    MERCHANT_ORDER_ID: str = "",
+    P_EMAIL: str = "",
+    P_PHONE: str = "",
+    CUR_ID: str = "",
+    SIGN: str = "",
+    payer_account: str = "",
+    payment_id: str = "",
+):
+    expected = _fk_sign(settings.FREEKASSA_MERCHANT_ID, AMOUNT, MERCHANT_ORDER_ID, secret=settings.FREEKASSA_SECRET2)
+    if SIGN != expected:
+        log.warning("FK notify bad sign order=%s", MERCHANT_ORDER_ID)
+        return Response(content="NO", media_type="text/plain")
+
+    from lemur_shop.db.models import FKOrder
+    try:
+        fk_order_id = int(MERCHANT_ORDER_ID)
+        amount_usd = Decimal(AMOUNT)
+    except Exception:
+        return Response(content="NO", media_type="text/plain")
+
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            fk_order = await s.get(FKOrder, fk_order_id)
+            if not fk_order or fk_order.status == "paid":
+                return Response(content="YES", media_type="text/plain")
+            fk_order.status = "paid"
+            fk_order.fk_payment_id = payment_id or payer_account
+
+            user = await s.get(User, fk_order.user_id)
+            if user:
+                user.balance_usd = user.balance_usd + amount_usd
+                s.add(TopUp(user_id=user.id, amount_usd=amount_usd, admin_id=0))
+
+    log.info("FK paid: order=%s user=%s amount=%s", fk_order_id, fk_order.user_id, amount_usd)
+
+    if _bot and settings.ADMIN_IDS and user:
+        uname = f"@{user.username}" if user.username else f"ID:{user.id}"
+        txt = (
+            f"💳 <b>Поповнення через FreеKassa!</b>\n\n"
+            f"👤 {uname} (<code>{user.id}</code>)\n"
+            f"💰 Зараховано: <b>${float(amount_usd):.2f}</b>\n"
+            f"🆔 Замовлення FK: {fk_order_id}"
+        )
+        for admin_id in settings.ADMIN_IDS:
+            try:
+                await _bot.send_message(admin_id, txt, parse_mode="HTML")
+            except Exception:
+                pass
+
+        try:
+            await _bot.send_message(
+                user.id,
+                f"✅ Баланс поповнено на <b>${float(amount_usd):.2f}</b>!\n"
+                f"💰 Поточний баланс: <b>${float(user.balance_usd):.2f}</b>",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
+
+    return Response(content="YES", media_type="text/plain")
+
+
+@app.get("/api/freekassa/success")
+async def fk_success():
+    index = os.path.join(STATIC_DIR, "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
+    return JSONResponse({"ok": True, "status": "paid"})
+
+
+@app.get("/api/freekassa/fail")
+async def fk_fail():
+    index = os.path.join(STATIC_DIR, "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
+    return JSONResponse({"ok": False, "status": "failed"})
+
+
 # ─── SPA fallback ─────────────────────────────────────────────────────────────
 
 @app.get("/{path:path}")

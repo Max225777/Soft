@@ -20,7 +20,12 @@ class Settings(BaseSettings):
 
     CHANNEL_USERNAME: str = "@LEMUR_SHOP"
     SUPPORT_USERNAME: str = "@LEMUR_MANEGER"
-    STARS_PER_USD: int = 120  # скільки Stars = $1 кредиту на балансі
+    STARS_PER_USD: int = 120
+
+    FREEKASSA_MERCHANT_ID: str = ""
+    FREEKASSA_SECRET1: str = ""
+    FREEKASSA_SECRET2: str = ""
+    FREEKASSA_API_KEY: str = ""  # скільки Stars = $1 кредиту на балансі
 
 
 settings = Settings()

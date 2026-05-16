@@ -8,6 +8,7 @@ from lemur_shop.db.session import engine
 _MIGRATIONS = [
     "ALTER TABLE orders ADD COLUMN IF NOT EXISTS cost_usd NUMERIC(10,2)",
     "ALTER TABLE orders ADD COLUMN IF NOT EXISTS category VARCHAR(32)",
+    "ALTER TABLE topups ADD COLUMN IF NOT EXISTS method VARCHAR(16) DEFAULT 'admin'",
 ]
 
 
