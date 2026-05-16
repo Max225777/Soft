@@ -58,12 +58,24 @@ class Order(Base):
     product_id: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     lolz_item_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     price_usd: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    category: Mapped[str | None] = mapped_column(String(32), nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="pending")
     delivered_data: Mapped[str | None] = mapped_column(Text, nullable=True)
     resend_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
     user: Mapped["User"] = relationship(back_populates="orders")
+
+
+class TopUp(Base):
+    __tablename__ = "topups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
+    amount_usd: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    admin_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
 
 class ReferralPayout(Base):

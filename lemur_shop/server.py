@@ -25,7 +25,7 @@ from sqlalchemy import func, select
 from lemur_shop.api.lolz import LolzApiError
 from lemur_shop.config import settings
 from lemur_shop.db.init import create_tables
-from lemur_shop.db.models import Order, ReferralPayout, User
+from lemur_shop.db.models import Order, ReferralPayout, TopUp, User
 from lemur_shop.db.session import AsyncSessionLocal
 from decimal import Decimal
 
@@ -262,9 +262,11 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
         raise HTTPException(status_code=402, detail="insufficient_balance")
 
     try:
-        phone, lolz_item_id = await auto_buy_category(body.category)
+        phone, lolz_item_id, lolz_price = await auto_buy_category(body.category)
     except (LolzApiError, ValueError, httpx.TimeoutException) as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+    lolz_cost = Decimal(str(round(lolz_price, 2)))
 
     async with AsyncSessionLocal() as s:
         async with s.begin():
@@ -275,6 +277,8 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
                 product_id=0,
                 lolz_item_id=lolz_item_id,
                 price_usd=shop_price,
+                cost_usd=lolz_cost,
+                category=body.category,
                 status="delivered",
                 delivered_data=phone,
                 resend_count=0,
@@ -283,6 +287,32 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
             await s.flush()
             order_id = order.id
             created_at = order.created_at
+
+    # Нотифікація адміну
+    if _bot and settings.ADMIN_IDS:
+        from lemur_shop.services.lolz_shop import CATEGORIES as _CATS
+        cat_info = _CATS.get(body.category, {})
+        profit = shop_price - lolz_cost
+        uname = f"@{user.username}" if user.username else f"ID:{user.id}"
+        flag = cat_info.get("flag", "")
+        title = cat_info.get("title", body.category.upper())
+        txt = (
+            f"🛒 <b>Нова покупка!</b>\n\n"
+            f"👤 {uname} (<code>{user.id}</code>)\n"
+            f"📦 {flag} Telegram {title}\n"
+            f"💳 Ціна: <b>${float(shop_price):.2f}</b>"
+            + (f" (знижка {discount_pct}%)" if discount_pct else "") +
+            f"\n💸 Витрати (Lolz): ${float(lolz_cost):.2f}\n"
+            f"💰 Прибуток: <b>${float(profit):.2f}</b>\n\n"
+            f"📱 Номер: <code>{phone}</code>\n"
+            f"🆔 Lolz ID: <code>{lolz_item_id}</code>"
+        )
+        for admin_id in settings.ADMIN_IDS:
+            try:
+                await _bot.send_message(admin_id, txt, parse_mode="HTML")
+            except Exception as e:
+                log.warning("Admin notify failed for %s: %s", admin_id, e)
+
     return {"order_id": order_id, "phone": phone, "created_at": created_at.isoformat()}
 
 

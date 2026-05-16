@@ -9,21 +9,17 @@ log = logging.getLogger(__name__)
 
 # Конфіг категорій: country code, назва, прапор, ЦІНА В МАГАЗИНІ
 CATEGORIES: dict[str, dict] = {
-    "us": {"country": "US", "title": "USA",       "flag": "🇺🇸", "price_usd": 1.50},
-    # Додавати нові країни тут:
-    # "ru": {"country": "RU", "title": "Россия",   "flag": "🇷🇺", "price_usd": 0.80},
-    # "ua": {"country": "UA", "title": "Україна",  "flag": "🇺🇦", "price_usd": 0.80},
-    # "kz": {"country": "KZ", "title": "Казахстан","flag": "🇰🇿", "price_usd": 0.80},
+    "us": {"country": "US", "title": "USA",     "flag": "🇺🇸", "price_usd": 1.50, "max_lolz_usd": 1.40},
+    "ua": {"country": "UA", "title": "Ukraine", "flag": "🇺🇦", "price_usd": 3.00, "max_lolz_usd": 2.50},
 }
-
-MAX_LOLZ_PRICE_USD = 1.40  # максимум, який платимо Lolz за один акаунт
 
 
 async def search_accounts(category: str, limit: int = 8) -> list[dict]:
     cat = CATEGORIES.get(category)
     country = cat["country"] if cat else category.upper()
+    pmax = cat["max_lolz_usd"] if cat else 1.40
     try:
-        return await lolz.search_telegram(country=country, pmax=MAX_LOLZ_PRICE_USD, count=limit)
+        return await lolz.search_telegram(country=country, pmax=pmax, count=limit)
     except LolzApiError:
         return []
 
@@ -53,8 +49,8 @@ async def auto_buy(item_id: int, price: float) -> str:
     return phone
 
 
-async def auto_buy_category(category: str) -> tuple[str, int]:
-    """Шукає найдешевший акаунт у категорії, купує і повертає (phone, lolz_item_id)."""
+async def auto_buy_category(category: str) -> tuple[str, int, float]:
+    """Шукає найдешевший акаунт у категорії, купує і повертає (phone, lolz_item_id, lolz_price_paid)."""
     items = await search_accounts(category, limit=10)
     if not items:
         raise LolzApiError("No accounts available in this category")
@@ -63,4 +59,4 @@ async def auto_buy_category(category: str) -> tuple[str, int]:
     item_id = int(item.get("item_id") or item.get("id"))
     lolz_price = float(item.get("price") or item.get("price_usd") or 0)
     phone = await auto_buy(item_id, lolz_price)
-    return phone, item_id
+    return phone, item_id, lolz_price
