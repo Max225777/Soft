@@ -11,6 +11,8 @@ MAX_RESENDS = 5
 # Додавай нові країни тут коли отримаєш посилання
 ACTIVE_CATEGORIES = [
     ("cat:us", "cat_us"),
+    ("cat:ua", "cat_ua"),
+    ("cat:kz", "cat_kz"),
 ]
 
 
