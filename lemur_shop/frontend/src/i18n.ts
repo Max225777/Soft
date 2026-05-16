@@ -59,6 +59,14 @@ const UA = {
   cancel:         'Скасувати',
   level_info:     'За кожну вашу покупку рівень зростає — ми нараховуємо знижку до 5% на всі наступні покупки',
   to_next_lvl_usd: (n: string, icon: string, name: string) => `До ${icon} ${name}: ще $${n}`,
+  stars_topup:     '⭐ Поповнити зірками',
+  stars_amount:    'Сума поповнення',
+  stars_preview:   (stars: number, usd: string) => `${stars} ⭐ = ${usd}`,
+  stars_pay:       (stars: number) => `Сплатити ${stars} ⭐`,
+  stars_processing:'⏳ Обробляємо...',
+  stars_success:   '✅ Баланс поповнено!',
+  stars_failed:    '❌ Оплата скасована',
+  topup_methods:   'Спосіб поповнення',
 }
 
 const RU: typeof UA = {
@@ -122,6 +130,14 @@ const RU: typeof UA = {
   cancel:         'Отмена',
   level_info:     'За каждую вашу покупку уровень растёт — мы начисляем скидку до 5% на все последующие покупки',
   to_next_lvl_usd: (n: string, icon: string, name: string) => `До ${icon} ${name}: ещё $${n}`,
+  stars_topup:     '⭐ Пополнить звёздами',
+  stars_amount:    'Сумма пополнения',
+  stars_preview:   (stars: number, usd: string) => `${stars} ⭐ = ${usd}`,
+  stars_pay:       (stars: number) => `Оплатить ${stars} ⭐`,
+  stars_processing:'⏳ Обрабатываем...',
+  stars_success:   '✅ Баланс пополнен!',
+  stars_failed:    '❌ Оплата отменена',
+  topup_methods:   'Способ пополнения',
 }
 
 const EN: typeof UA = {
@@ -185,6 +201,14 @@ const EN: typeof UA = {
   cancel:         'Cancel',
   level_info:     'Every purchase raises your level — we give you up to 5% discount on all future purchases',
   to_next_lvl_usd: (n: string, icon: string, name: string) => `${icon} ${name}: $${n} more`,
+  stars_topup:     '⭐ Top up with Stars',
+  stars_amount:    'Top-up amount',
+  stars_preview:   (stars: number, usd: string) => `${stars} ⭐ = ${usd}`,
+  stars_pay:       (stars: number) => `Pay ${stars} ⭐`,
+  stars_processing:'⏳ Processing...',
+  stars_success:   '✅ Balance topped up!',
+  stars_failed:    '❌ Payment cancelled',
+  topup_methods:   'Top-up method',
 }
 
 export type Lang = 'ua' | 'ru' | 'en'

@@ -18,8 +18,9 @@ class Settings(BaseSettings):
 
     WEBAPP_URL: str = ""   # https://your-domain.com — URL задеплоєного Mini App
 
-    CHANNEL_USERNAME: str = "@LEMUR_SHOP"   # канал для перевірки підписки
+    CHANNEL_USERNAME: str = "@LEMUR_SHOP"
     SUPPORT_USERNAME: str = "@LEMUR_MANEGER"
+    STARS_PER_USD: int = 120  # скільки Stars = $1 кредиту на балансі
 
 
 settings = Settings()

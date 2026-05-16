@@ -18,13 +18,15 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  me:         () => req<Me>('/me'),
-  setLang:    (lang: string) => req<{ ok: boolean }>('/set-lang', { method: 'POST', body: JSON.stringify({ lang }) }),
-  categories: () => req<Category[]>('/categories'),
-  buy:        (category: string) => req<BuyResult>('/buy', { method: 'POST', body: JSON.stringify({ category }) }),
-  orders:     () => req<Order[]>('/orders'),
-  getCode:    (orderId: number) => req<{ code: string }>(`/get-code/${orderId}`, { method: 'POST' }),
-  checkSub:   () => req<{ subscribed: boolean }>('/check-sub'),
+  me:           () => req<Me>('/me'),
+  setLang:      (lang: string) => req<{ ok: boolean }>('/set-lang', { method: 'POST', body: JSON.stringify({ lang }) }),
+  categories:   () => req<Category[]>('/categories'),
+  buy:          (category: string) => req<BuyResult>('/buy', { method: 'POST', body: JSON.stringify({ category }) }),
+  orders:       () => req<Order[]>('/orders'),
+  getCode:      (orderId: number) => req<{ code: string }>(`/get-code/${orderId}`, { method: 'POST' }),
+  checkSub:     () => req<{ subscribed: boolean }>('/check-sub'),
+  starsRate:    () => req<{ stars_per_usd: number }>('/stars/rate'),
+  starsInvoice: (amount_usd: number) => req<{ invoice_url: string; stars: number; amount_usd: number }>('/stars/invoice', { method: 'POST', body: JSON.stringify({ amount_usd }) }),
 }
 
 export interface Me {
@@ -42,5 +44,14 @@ export interface Order {
 }
 
 declare global {
-  interface Window { Telegram?: { WebApp: { initData: string; expand(): void; close(): void } } }
+  interface Window {
+    Telegram?: {
+      WebApp: {
+        initData: string
+        expand(): void
+        close(): void
+        openInvoice(url: string, callback: (status: string) => void): void
+      }
+    }
+  }
 }
