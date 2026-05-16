@@ -45,7 +45,7 @@ const DISCOUNT_LABEL: Record<Lang, (d: number) => string> = {
 function fmtLocal(usd: number, me: Me, lang: Lang): string {
   if (lang === 'ua' && me.rate_uah) return `${Math.round(usd * me.rate_uah)}₴`
   if (lang === 'ru' && me.rate_rub) return `${Math.round(usd * me.rate_rub)}₽`
-  return `$${usd.toFixed(2)}`
+  return usd.toFixed(2)
 }
 
 export default function Profile({ me, lang, onChangeLang }: Props) {

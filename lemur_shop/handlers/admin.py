@@ -154,6 +154,44 @@ async def cmd_stats(message: Message) -> None:
     await message.answer("\n".join(lines), parse_mode="HTML")
 
 
+@router.message(Command("ban"))
+async def cmd_ban(message: Message) -> None:
+    if not _is_admin(message.from_user.id):
+        return
+    parts = (message.text or "").split()
+    if len(parts) != 2:
+        await message.answer("Використання: /ban <user_id або @username>")
+        return
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            user = await _find_user(s, parts[1])
+            if not user:
+                await message.answer(f"❌ Користувача «{parts[1]}» не знайдено.")
+                return
+            user.is_banned = True
+    name = user.username or str(user.id)
+    await message.answer(f"🚫 @{name} (<code>{user.id}</code>) заблоковано.", parse_mode="HTML")
+
+
+@router.message(Command("unban"))
+async def cmd_unban(message: Message) -> None:
+    if not _is_admin(message.from_user.id):
+        return
+    parts = (message.text or "").split()
+    if len(parts) != 2:
+        await message.answer("Використання: /unban <user_id або @username>")
+        return
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            user = await _find_user(s, parts[1])
+            if not user:
+                await message.answer(f"❌ Користувача «{parts[1]}» не знайдено.")
+                return
+            user.is_banned = False
+    name = user.username or str(user.id)
+    await message.answer(f"✅ @{name} (<code>{user.id}</code>) розблоковано.", parse_mode="HTML")
+
+
 @router.message(Command("myid"))
 async def cmd_myid(message: Message) -> None:
     await message.answer(f"Ваш ID: <code>{message.from_user.id}</code>", parse_mode="HTML")

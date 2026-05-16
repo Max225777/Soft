@@ -150,6 +150,8 @@ async def get_current_user(x_init_data: str = Header(...)) -> User:
         user = await s.get(User, tg_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found. Start bot first.")
+    if user.is_banned:
+        raise HTTPException(status_code=403, detail="banned")
     return user
 
 
