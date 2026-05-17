@@ -44,7 +44,8 @@ BTN_LABEL = {"ru": "🛍 Открыть каталог", "ua": "🛍 Відкр�
 def _open_keyboard(lang: str) -> InlineKeyboardMarkup:
     label = BTN_LABEL.get(lang, BTN_LABEL["ru"])
     if settings.WEBAPP_URL:
-        btn = InlineKeyboardButton(text=label, web_app=WebAppInfo(url=settings.WEBAPP_URL))
+        url = settings.WEBAPP_URL.rstrip('/') + '?v=3'
+        btn = InlineKeyboardButton(text=label, web_app=WebAppInfo(url=url))
     else:
         btn = InlineKeyboardButton(text=label, callback_data="menu:shop")
     return InlineKeyboardMarkup(inline_keyboard=[[btn]])
