@@ -509,6 +509,110 @@ async def fk_fail():
     return JSONResponse({"ok": False, "status": "failed"})
 
 
+# ─── CryptoBot ────────────────────────────────────────────────────────────────
+
+CRYPTOBOT_API = "https://pay.crypt.bot/api"
+
+
+async def _cryptobot(method: str, **params) -> dict:
+    headers = {"Crypto-Pay-API-Token": settings.CRYPTOBOT_TOKEN}
+    async with httpx.AsyncClient(timeout=15) as c:
+        r = await c.post(f"{CRYPTOBOT_API}/{method}", json=params, headers=headers)
+    data = r.json()
+    if not data.get("ok"):
+        raise HTTPException(status_code=502, detail=data.get("error", {}).get("name", "CryptoBot error"))
+    return data["result"]
+
+
+class CryptoCreateRequest(BaseModel):
+    amount_usd: float
+
+
+@app.post("/api/crypto/create")
+async def api_crypto_create(body: CryptoCreateRequest, user: User = Depends(get_current_user)):
+    if not settings.CRYPTOBOT_TOKEN:
+        raise HTTPException(status_code=503, detail="CryptoBot not configured")
+    amount = round(body.amount_usd, 2)
+    if amount < 0.5 or amount > 1000:
+        raise HTTPException(status_code=400, detail="Invalid amount")
+
+    result = await _cryptobot(
+        "createInvoice",
+        asset="USDT",
+        amount=str(amount),
+        payload=f"cryptotopup:{user.id}:{amount}",
+        description=f"Поповнення балансу Lemur Shop ${amount:.2f}",
+        allow_comments=False,
+        allow_anonymous=True,
+        expires_in=3600,
+    )
+    return {"url": result["bot_invoice_url"], "invoice_id": result["invoice_id"]}
+
+
+@app.post("/api/crypto/notify")
+async def crypto_notify(request: Request):
+    body = await request.body()
+    signature = request.headers.get("crypto-pay-api-signature", "")
+    secret = hashlib.sha256(settings.CRYPTOBOT_TOKEN.encode()).digest()
+    expected = hmac.new(secret, body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, signature):
+        log.warning("CryptoBot bad signature")
+        return Response(status_code=400)
+
+    data = await request.json()
+    if data.get("update_type") != "invoice_paid":
+        return Response(content="ok")
+
+    invoice = data.get("payload", {})
+    raw_payload = invoice.get("payload", "")
+    status = invoice.get("status", "")
+    if status != "paid" or not raw_payload.startswith("cryptotopup:"):
+        return Response(content="ok")
+
+    try:
+        _, user_id_str, amount_str = raw_payload.split(":")
+        user_id = int(user_id_str)
+        amount_usd = Decimal(amount_str)
+    except Exception as e:
+        log.error("CryptoBot bad payload %r: %s", raw_payload, e)
+        return Response(content="ok")
+
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            user = await s.get(User, user_id)
+            if not user:
+                return Response(content="ok")
+            user.balance_usd = user.balance_usd + amount_usd
+            s.add(TopUp(user_id=user_id, amount_usd=amount_usd, admin_id=0))
+
+    log.info("CryptoBot paid: user=%s amount=%s", user_id, amount_usd)
+
+    if _bot:
+        if settings.ADMIN_IDS:
+            uname = f"@{user.username}" if user.username else f"ID:{user_id}"
+            txt = (
+                f"💎 <b>Поповнення через CryptoBot!</b>\n\n"
+                f"👤 {uname} (<code>{user_id}</code>)\n"
+                f"💰 Зараховано: <b>${float(amount_usd):.2f} USDT</b>"
+            )
+            for admin_id in settings.ADMIN_IDS:
+                try:
+                    await _bot.send_message(admin_id, txt, parse_mode="HTML")
+                except Exception:
+                    pass
+        try:
+            await _bot.send_message(
+                user_id,
+                f"✅ Баланс поповнено на <b>${float(amount_usd):.2f}</b>!\n"
+                f"💰 Поточний баланс: <b>${float(user.balance_usd):.2f}</b>",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
+
+    return Response(content="ok")
+
+
 # ─── SPA fallback ─────────────────────────────────────────────────────────────
 
 @app.get("/{path:path}")

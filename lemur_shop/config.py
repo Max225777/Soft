@@ -25,7 +25,9 @@ class Settings(BaseSettings):
     FREEKASSA_MERCHANT_ID: str = ""
     FREEKASSA_SECRET1: str = ""
     FREEKASSA_SECRET2: str = ""
-    FREEKASSA_API_KEY: str = ""  # скільки Stars = $1 кредиту на балансі
+    FREEKASSA_API_KEY: str = ""
+
+    CRYPTOBOT_TOKEN: str = ""  # скільки Stars = $1 кредиту на балансі
 
 
 settings = Settings()
