@@ -98,7 +98,7 @@ export default function Balance({ me, lang }: Props) {
 
   return (
     <div className="page">
-      <h1 style={{ marginBottom: 16 }}>{T.balance}</h1>
+      <h1 style={{ marginBottom: 16 }}>{T.balance} <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 400 }}>v2</span></h1>
 
       {/* Balance hero */}
       <div style={{
