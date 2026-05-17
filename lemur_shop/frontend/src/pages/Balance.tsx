@@ -5,7 +5,7 @@ import { getLevel } from './Profile'
 
 interface Props { me: Me | null; lang: Lang }
 
-const PRESETS_USD = [1, 2, 5, 10, 20, 50]
+const PRESETS_USD = [1, 2, 5, 10, 25, 50]
 const FK_CURRENCIES = [
   { code: 'USD', label: '🇺🇸 USD' },
   { code: 'UAH', label: '🇺🇦 UAH' },
