@@ -393,8 +393,9 @@ async def api_referral(user: User = Depends(get_current_user)):
 
 # ─── FreеKassa ────────────────────────────────────────────────────────────────
 
-def _fk_sign(*parts: str, secret: str) -> str:
-    return hashlib.md5(":".join([*parts, secret]).encode()).hexdigest()
+def _fk_sign(merchant_id: str, amount: str, secret: str, currency: str, order_id: str) -> str:
+    raw = f"{merchant_id}:{amount}:{secret}:{currency}:{order_id}"
+    return hashlib.md5(raw.encode()).hexdigest()
 
 
 class FKCreateRequest(BaseModel):
@@ -419,10 +420,11 @@ async def api_fk_create(body: FKCreateRequest, user: User = Depends(get_current_
             await s.flush()
             order_id = order.id
 
-    sign = _fk_sign(settings.FREEKASSA_MERCHANT_ID, str(amount), str(order_id), secret=settings.FREEKASSA_SECRET1)
+    amount_str = f"{amount:.2f}"
+    sign = _fk_sign(settings.FREEKASSA_MERCHANT_ID, amount_str, settings.FREEKASSA_SECRET1, currency, str(order_id))
     url = (
         f"https://pay.freekassa.net/?m={settings.FREEKASSA_MERCHANT_ID}"
-        f"&oa={amount}&currency={currency}&o={order_id}&s={sign}&lang=ru"
+        f"&oa={amount_str}&currency={currency}&o={order_id}&s={sign}&lang=ru"
     )
     return {"url": url, "order_id": order_id}
 
@@ -439,7 +441,7 @@ async def fk_notify(
     payer_account: str = "",
     payment_id: str = "",
 ):
-    expected = _fk_sign(settings.FREEKASSA_MERCHANT_ID, AMOUNT, MERCHANT_ORDER_ID, secret=settings.FREEKASSA_SECRET2)
+    expected = hashlib.md5(f"{settings.FREEKASSA_MERCHANT_ID}:{AMOUNT}:{settings.FREEKASSA_SECRET2}:{MERCHANT_ORDER_ID}".encode()).hexdigest()
     if SIGN != expected:
         log.warning("FK notify bad sign order=%s", MERCHANT_ORDER_ID)
         return Response(content="NO", media_type="text/plain")
