@@ -13,23 +13,56 @@ const FK_CURRENCIES = [
   { code: 'KZT', label: '🇰🇿 KZT' },
 ]
 
-type Method = 'fk' | 'crypto'
+function AmountSelector({ amountUsd, setAmountUsd, lang }: {
+  amountUsd: number; setAmountUsd: (v: number) => void; lang: string
+}) {
+  const [custom, setCustom] = useState('')
+  const [sel, setSel] = useState<number | null>(null)
+  const L = lang === 'ua' ? 'Сума ($)' : lang === 'ru' ? 'Сумма ($)' : 'Amount ($)'
+  return (
+    <>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
+        {PRESETS_USD.map(u => {
+          const active = sel === u && !custom
+          return (
+            <button key={u} onClick={() => { setSel(u); setCustom(''); setAmountUsd(u) }} style={{
+              background: active ? 'rgba(255,107,43,.15)' : 'var(--card2)',
+              border: `1px solid ${active ? 'rgba(255,107,43,.4)' : 'var(--border)'}`,
+              borderRadius: 12, padding: '11px 4px', cursor: 'pointer',
+              fontWeight: 800, fontSize: 15, color: active ? 'var(--orange)' : 'var(--text)',
+            }}>${u}</button>
+          )
+        })}
+      </div>
+      <input
+        type="number" min="0.5" step="0.5" placeholder={L}
+        value={custom}
+        onChange={e => { setCustom(e.target.value); setSel(null); setAmountUsd(parseFloat(e.target.value) || 0) }}
+        style={{
+          width: '100%', background: 'var(--card2)', border: '1px solid var(--border)',
+          borderRadius: 12, padding: '11px 14px', color: 'var(--text)',
+          fontSize: 15, outline: 'none', boxSizing: 'border-box',
+        }}
+      />
+    </>
+  )
+}
 
 export default function Balance({ me, lang }: Props) {
   const T = getT(lang)
-  const [method, setMethod] = useState<Method>('fk')
-  const [selectedUsd, setSelectedUsd] = useState<number | null>(null)
-  const [customUsd, setCustomUsd] = useState('')
-  const [currency, setCurrency] = useState('USD')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [fkCurrency, setFkCurrency] = useState('USD')
+  const [fkAmount, setFkAmount] = useState(0)
+  const [cryptoAmount, setCryptoAmount] = useState(0)
+  const [fkLoading, setFkLoading] = useState(false)
+  const [cryptoLoading, setCryptoLoading] = useState(false)
+  const [fkError, setFkError] = useState<string | null>(null)
+  const [cryptoError, setCryptoError] = useState<string | null>(null)
 
   if (!me) return <div className="page"><p className="muted">{T.loading}</p></div>
 
   const usd = me.balance_usd
   const spent = me.total_spent_usd ?? 0
   const lvl = getLevel(spent)
-
   const hasLocal = (lang === 'ua' && me.rate_uah) || (lang === 'ru' && me.rate_rub)
   const mainBalance = lang === 'ua' && me.rate_uah
     ? `${Math.round(usd * me.rate_uah)}₴`
@@ -37,32 +70,31 @@ export default function Balance({ me, lang }: Props) {
     ? `${Math.round(usd * me.rate_rub)}₽`
     : `$${usd.toFixed(2)}`
 
-  const amountUsd = selectedUsd ?? (parseFloat(customUsd) || 0)
+  const L = {
+    ua: { pay: 'Перейти до оплати', after: 'Баланс зараховується автоматично' },
+    ru: { pay: 'Перейти к оплате', after: 'Баланс зачисляется автоматически' },
+    en: { pay: 'Proceed to payment', after: 'Balance credited automatically' },
+  }[lang]
 
-  async function handlePay() {
-    if (amountUsd < 0.5) return
-    setLoading(true)
-    setError(null)
+  async function payFK() {
+    if (fkAmount < 0.5) return
+    setFkLoading(true); setFkError(null)
     try {
-      if (method === 'fk') {
-        const { url } = await api.fkCreate(amountUsd, currency)
-        window.open(url, '_blank')
-      } else {
-        const { url } = await api.cryptoCreate(amountUsd)
-        window.open(url, '_blank')
-      }
-    } catch (e: any) {
-      setError(e.message ?? 'Error')
-    } finally {
-      setLoading(false)
-    }
+      const { url } = await api.fkCreate(fkAmount, fkCurrency)
+      window.open(url, '_blank')
+    } catch (e: any) { setFkError(e.message ?? 'Error') }
+    finally { setFkLoading(false) }
   }
 
-  const L = {
-    ua: { pay: 'Перейти до оплати', amount: 'Сума ($)', after: 'Баланс зараховується автоматично після оплати' },
-    ru: { pay: 'Перейти к оплате', amount: 'Сумма ($)', after: 'Баланс зачисляется автоматически после оплаты' },
-    en: { pay: 'Proceed to payment', amount: 'Amount ($)', after: 'Balance is credited automatically after payment' },
-  }[lang]
+  async function payCrypto() {
+    if (cryptoAmount < 0.5) return
+    setCryptoLoading(true); setCryptoError(null)
+    try {
+      const { url } = await api.cryptoCreate(cryptoAmount)
+      window.open(url, '_blank')
+    } catch (e: any) { setCryptoError(e.message ?? 'Error') }
+    finally { setCryptoLoading(false) }
+  }
 
   return (
     <div className="page">
@@ -76,9 +108,8 @@ export default function Balance({ me, lang }: Props) {
         position: 'relative', overflow: 'hidden',
       }}>
         <div style={{
-          position: 'absolute', top: -40, right: -40, width: 180, height: 180,
-          borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,107,43,.12) 0%, transparent 70%)',
-          pointerEvents: 'none',
+          position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(255,107,43,.12) 0%, transparent 70%)', pointerEvents: 'none',
         }} />
         <div style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: 1, marginBottom: 8 }}>
           {T.balance.toUpperCase()}
@@ -99,109 +130,79 @@ export default function Balance({ me, lang }: Props) {
           <span style={{ fontSize: 16 }}>{lvl.icon}</span>
           <span style={{ fontWeight: 700, fontSize: 13, color: lvl.color }}>{lvl.name[lang]}</span>
           {lvl.discount > 0 && (
-            <span style={{
-              fontSize: 11, fontWeight: 700, padding: '1px 7px', borderRadius: 20,
-              background: `${lvl.color}25`, color: lvl.color,
-            }}>−{lvl.discount}%</span>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '1px 7px', borderRadius: 20, background: `${lvl.color}25`, color: lvl.color }}>
+              −{lvl.discount}%
+            </span>
           )}
         </div>
       </div>
 
-      {/* Top-up card */}
+      {/* FreеKassa */}
       <div style={{
         background: 'var(--card)', border: '1px solid var(--border)',
-        borderRadius: 20, padding: '20px 16px', marginBottom: 10,
+        borderRadius: 20, padding: '18px 16px', marginBottom: 10,
       }}>
-        {/* Method switcher */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
-          {([['fk', '💳', 'Visa / MC'], ['crypto', '💎', 'USDT']] as const).map(([m, icon, label]) => (
-            <button key={m} onClick={() => { setMethod(m); setError(null) }} style={{
-              flex: 1, padding: '12px 8px', borderRadius: 14, cursor: 'pointer',
-              background: method === m ? 'rgba(255,107,43,.15)' : 'var(--card2)',
-              border: `1px solid ${method === m ? 'rgba(255,107,43,.45)' : 'var(--border)'}`,
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-            }}>
-              <span style={{ fontSize: 22 }}>{icon}</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: method === m ? 'var(--orange)' : 'var(--text2)' }}>
-                {label}
-              </span>
-            </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <span style={{ fontSize: 26 }}>💳</span>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>
+              {lang === 'ua' ? 'Оплата карткою' : lang === 'ru' ? 'Оплата картой' : 'Card payment'}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>Visa / Mastercard · UA · RU · KZ</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+          {FK_CURRENCIES.map(c => (
+            <button key={c.code} onClick={() => setFkCurrency(c.code)} style={{
+              background: fkCurrency === c.code ? 'rgba(255,107,43,.15)' : 'var(--card2)',
+              border: `1px solid ${fkCurrency === c.code ? 'rgba(255,107,43,.4)' : 'var(--border)'}`,
+              borderRadius: 10, padding: '5px 11px', cursor: 'pointer',
+              fontSize: 12, fontWeight: 700,
+              color: fkCurrency === c.code ? 'var(--orange)' : 'var(--text2)',
+            }}>{c.label}</button>
           ))}
         </div>
 
-        {/* FK: currency selector */}
-        {method === 'fk' && (
-          <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-            {FK_CURRENCIES.map(c => (
-              <button key={c.code} onClick={() => setCurrency(c.code)} style={{
-                background: currency === c.code ? 'rgba(255,107,43,.15)' : 'var(--card2)',
-                border: `1px solid ${currency === c.code ? 'rgba(255,107,43,.4)' : 'var(--border)'}`,
-                borderRadius: 10, padding: '6px 12px', cursor: 'pointer',
-                fontSize: 12, fontWeight: 700,
-                color: currency === c.code ? 'var(--orange)' : 'var(--text2)',
-              }}>{c.label}</button>
-            ))}
-          </div>
-        )}
-
-        {/* Crypto: USDT note */}
-        {method === 'crypto' && (
-          <div style={{
-            background: 'rgba(38,161,123,.1)', border: '1px solid rgba(38,161,123,.25)',
-            borderRadius: 12, padding: '10px 14px', marginBottom: 12,
-            fontSize: 13, color: '#26A17B', fontWeight: 600,
-          }}>
-            💎 USDT (TON) · @CryptoBot
-          </div>
-        )}
-
-        {/* Presets */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
-          {PRESETS_USD.map(u => {
-            const active = selectedUsd === u && !customUsd
-            return (
-              <button key={u} onClick={() => { setSelectedUsd(u); setCustomUsd(''); setError(null) }} style={{
-                background: active ? 'rgba(255,107,43,.15)' : 'var(--card2)',
-                border: `1px solid ${active ? 'rgba(255,107,43,.4)' : 'var(--border)'}`,
-                borderRadius: 12, padding: '11px 4px', cursor: 'pointer',
-                fontWeight: 800, fontSize: 15,
-                color: active ? 'var(--orange)' : 'var(--text)',
-              }}>${u}</button>
-            )
-          })}
+        <div style={{ marginBottom: 12 }}>
+          <AmountSelector amountUsd={fkAmount} setAmountUsd={setFkAmount} lang={lang} />
         </div>
 
-        {/* Custom */}
-        <input
-          type="number" min="0.5" step="0.5" placeholder={L.amount}
-          value={customUsd}
-          onChange={e => { setCustomUsd(e.target.value); setSelectedUsd(null); setError(null) }}
-          style={{
-            width: '100%', background: 'var(--card2)', border: '1px solid var(--border)',
-            borderRadius: 12, padding: '12px 14px', color: 'var(--text)',
-            fontSize: 15, outline: 'none', boxSizing: 'border-box', marginBottom: 12,
-          }}
-        />
+        <button className="btn btn-primary" disabled={fkAmount < 0.5 || fkLoading} onClick={payFK}>
+          {fkLoading ? '⏳...' : `${L.pay} $${fkAmount > 0 ? fkAmount.toFixed(2) : '0.00'}`}
+        </button>
+        {fkError && <div style={{ marginTop: 8, fontSize: 13, color: 'var(--red)' }}>{fkError}</div>}
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{L.after}</div>
+      </div>
+
+      {/* CryptoBot */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(38,161,123,.08), rgba(38,161,123,.03))',
+        border: '1px solid rgba(38,161,123,.22)',
+        borderRadius: 20, padding: '18px 16px', marginBottom: 10,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <span style={{ fontSize: 26 }}>💎</span>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 15, color: '#26A17B' }}>USDT</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>@CryptoBot · TON Network</div>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <AmountSelector amountUsd={cryptoAmount} setAmountUsd={setCryptoAmount} lang={lang} />
+        </div>
 
         <button
           className="btn btn-primary"
-          disabled={amountUsd < 0.5 || loading}
-          onClick={handlePay}
+          disabled={cryptoAmount < 0.5 || cryptoLoading}
+          onClick={payCrypto}
+          style={{ background: 'linear-gradient(135deg, #26A17B, #1a7a5e)' }}
         >
-          {loading ? '⏳...' : `${L.pay} $${amountUsd > 0 ? amountUsd.toFixed(2) : '0.00'}`}
+          {cryptoLoading ? '⏳...' : `${L.pay} $${cryptoAmount > 0 ? cryptoAmount.toFixed(2) : '0.00'} USDT`}
         </button>
-
-        {error && (
-          <div style={{
-            marginTop: 10, padding: '10px 14px', borderRadius: 10, fontSize: 13,
-            background: 'rgba(224,80,80,.12)', color: 'var(--red)',
-            border: '1px solid rgba(224,80,80,.25)',
-          }}>{error}</div>
-        )}
-
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 10, textAlign: 'center' }}>
-          {L.after}
-        </div>
+        {cryptoError && <div style={{ marginTop: 8, fontSize: 13, color: 'var(--red)' }}>{cryptoError}</div>}
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{L.after}</div>
       </div>
     </div>
   )
