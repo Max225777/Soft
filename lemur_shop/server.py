@@ -393,8 +393,8 @@ async def api_referral(user: User = Depends(get_current_user)):
 
 # ─── FreеKassa ────────────────────────────────────────────────────────────────
 
-def _fk_sign(merchant_id: str, amount: str, secret: str, currency: str, order_id: str) -> str:
-    raw = f"{merchant_id}:{amount}:{secret}:{currency}:{order_id}"
+def _fk_sign(merchant_id: str, amount: str, secret: str, order_id: str) -> str:
+    raw = f"{merchant_id}:{amount}:{secret}:{order_id}"
     return hashlib.md5(raw.encode()).hexdigest()
 
 
@@ -421,7 +421,7 @@ async def api_fk_create(body: FKCreateRequest, user: User = Depends(get_current_
             order_id = order.id
 
     amount_str = f"{amount:.2f}"
-    sign = _fk_sign(settings.FREEKASSA_MERCHANT_ID, amount_str, settings.FREEKASSA_SECRET1, currency, str(order_id))
+    sign = _fk_sign(settings.FREEKASSA_MERCHANT_ID, amount_str, settings.FREEKASSA_SECRET1, str(order_id))
     url = (
         f"https://pay.freekassa.net/?m={settings.FREEKASSA_MERCHANT_ID}"
         f"&oa={amount_str}&currency={currency}&o={order_id}&s={sign}&lang=ru"
