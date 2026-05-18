@@ -50,7 +50,6 @@ function AmountSelector({ amountUsd, setAmountUsd, lang }: {
 
 export default function Balance({ me, lang }: Props) {
   const T = getT(lang)
-  const [fkCurrency, setFkCurrency] = useState('USD')
   const [fkAmount, setFkAmount] = useState(0)
   const [cryptoAmount, setCryptoAmount] = useState(0)
   const [fkLoading, setFkLoading] = useState(false)
@@ -80,7 +79,7 @@ export default function Balance({ me, lang }: Props) {
     if (fkAmount < 0.5) return
     setFkLoading(true); setFkError(null)
     try {
-      const { url } = await api.fkCreate(fkAmount, fkCurrency)
+      const { url } = await api.fkCreate(fkAmount, 'USD')
       window.open(url, '_blank')
     } catch (e: any) { setFkError(e.message ?? 'Error') }
     finally { setFkLoading(false) }
@@ -150,18 +149,6 @@ export default function Balance({ me, lang }: Props) {
             </div>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>Visa / Mastercard · UA · RU · KZ</div>
           </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-          {FK_CURRENCIES.map(c => (
-            <button key={c.code} onClick={() => setFkCurrency(c.code)} style={{
-              background: fkCurrency === c.code ? 'rgba(255,107,43,.15)' : 'var(--card2)',
-              border: `1px solid ${fkCurrency === c.code ? 'rgba(255,107,43,.4)' : 'var(--border)'}`,
-              borderRadius: 10, padding: '5px 11px', cursor: 'pointer',
-              fontSize: 12, fontWeight: 700,
-              color: fkCurrency === c.code ? 'var(--orange)' : 'var(--text2)',
-            }}>{c.label}</button>
-          ))}
         </div>
 
         <div style={{ marginBottom: 12 }}>
