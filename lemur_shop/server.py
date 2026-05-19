@@ -426,7 +426,7 @@ async def api_fk_create(body: FKCreateRequest, user: User = Depends(get_current_
     amount_str = str(amount_rub)
     sign = _fk_sign(settings.FREEKASSA_MERCHANT_ID, amount_str, settings.FREEKASSA_SECRET1, "RUB", str(order_id))
     url = (
-        f"https://pay.freekassa.net/?m={settings.FREEKASSA_MERCHANT_ID}"
+        f"https://pay.fk.money/?m={settings.FREEKASSA_MERCHANT_ID}"
         f"&oa={amount_str}&currency=RUB&o={order_id}&s={sign}&lang=ru"
     )
     return {"url": url, "order_id": order_id}
