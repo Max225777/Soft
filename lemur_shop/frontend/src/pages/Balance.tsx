@@ -80,7 +80,8 @@ export default function Balance({ me, lang }: Props) {
     setFkLoading(true); setFkError(null)
     try {
       const { url } = await api.fkCreate(fkAmount, 'USD')
-      window.location.href = url
+      if (window.Telegram?.WebApp) window.Telegram.WebApp.openLink(url)
+      else window.open(url, '_blank')
     } catch (e: any) { setFkError(e.message ?? 'Error') }
     finally { setFkLoading(false) }
   }
