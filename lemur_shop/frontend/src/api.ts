@@ -52,6 +52,7 @@ declare global {
         initData: string
         expand(): void
         close(): void
+        openLink(url: string): void
         openInvoice(url: string, callback: (status: string) => void): void
       }
     }

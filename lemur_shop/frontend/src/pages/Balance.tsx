@@ -80,7 +80,7 @@ export default function Balance({ me, lang }: Props) {
     setFkLoading(true); setFkError(null)
     try {
       const { url } = await api.fkCreate(fkAmount, 'USD')
-      window.open(url, '_blank')
+      window.Telegram?.WebApp?.openLink(url) ?? window.open(url, '_blank')
     } catch (e: any) { setFkError(e.message ?? 'Error') }
     finally { setFkLoading(false) }
   }
@@ -90,7 +90,7 @@ export default function Balance({ me, lang }: Props) {
     setCryptoLoading(true); setCryptoError(null)
     try {
       const { url } = await api.cryptoCreate(cryptoAmount)
-      window.open(url, '_blank')
+      window.Telegram?.WebApp?.openLink(url) ?? window.open(url, '_blank')
     } catch (e: any) { setCryptoError(e.message ?? 'Error') }
     finally { setCryptoLoading(false) }
   }
