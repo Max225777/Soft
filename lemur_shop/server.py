@@ -500,18 +500,14 @@ async def fk_notify(
 
 @app.get("/api/freekassa/success")
 async def fk_success():
-    index = os.path.join(STATIC_DIR, "index.html")
-    if os.path.exists(index):
-        return FileResponse(index)
-    return JSONResponse({"ok": True, "status": "paid"})
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/?v=3&paid=1", status_code=302)
 
 
 @app.get("/api/freekassa/fail")
 async def fk_fail():
-    index = os.path.join(STATIC_DIR, "index.html")
-    if os.path.exists(index):
-        return FileResponse(index)
-    return JSONResponse({"ok": False, "status": "failed"})
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/?v=3&paid=0", status_code=302)
 
 
 # ─── CryptoBot ────────────────────────────────────────────────────────────────
