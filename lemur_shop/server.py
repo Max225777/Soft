@@ -407,24 +407,27 @@ class FKCreateRequest(BaseModel):
 async def api_fk_create(body: FKCreateRequest, user: User = Depends(get_current_user)):
     if not settings.FREEKASSA_MERCHANT_ID:
         raise HTTPException(status_code=503, detail="Payments not configured")
-    amount = round(body.amount_usd, 2)
-    if amount < 0.5 or amount > 1000:
+    amount_usd = round(body.amount_usd, 2)
+    if amount_usd < 0.5 or amount_usd > 1000:
         raise HTTPException(status_code=400, detail="Invalid amount")
-    currency = body.currency if body.currency in ("USD", "UAH", "RUB", "KZT") else "USD"
+
+    rub_rate = await get_rate("RUB")
+    amount_rub = round(amount_usd * rub_rate)
+    currency = "RUB"
 
     from lemur_shop.db.models import FKOrder
     async with AsyncSessionLocal() as s:
         async with s.begin():
-            order = FKOrder(user_id=user.id, amount_usd=Decimal(str(amount)), currency=currency)
+            order = FKOrder(user_id=user.id, amount_usd=Decimal(str(amount_usd)), currency=currency)
             s.add(order)
             await s.flush()
             order_id = order.id
 
-    amount_str = f"{amount:.2f}"
-    sign = _fk_sign(settings.FREEKASSA_MERCHANT_ID, amount_str, settings.FREEKASSA_SECRET1, "USD", str(order_id))
+    amount_str = str(amount_rub)
+    sign = _fk_sign(settings.FREEKASSA_MERCHANT_ID, amount_str, settings.FREEKASSA_SECRET1, "RUB", str(order_id))
     url = (
         f"https://pay.freekassa.net/?m={settings.FREEKASSA_MERCHANT_ID}"
-        f"&oa={amount_str}&currency=USD&o={order_id}&s={sign}"
+        f"&oa={amount_str}&currency=RUB&o={order_id}&s={sign}"
     )
     return {"url": url, "order_id": order_id}
 
