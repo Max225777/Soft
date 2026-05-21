@@ -149,9 +149,14 @@ export default function Balance({ me, lang }: Props) {
             <div style={{ fontWeight: 800, fontSize: 15 }}>
               {lang === 'ua' ? 'Оплата карткою' : lang === 'ru' ? 'Оплата картой' : 'Card payment'}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>Visa / Mastercard · UA · RU · KZ</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>Visa / Mastercard · 🇷🇺 RU</div>
           </div>
         </div>
+        {lang === 'ua' && (
+          <div style={{ fontSize: 12, color: 'var(--muted)', background: 'var(--card2)', borderRadius: 10, padding: '8px 12px', marginBottom: 12 }}>
+            ⚠️ Доступно тільки для RU карток. Для UA — використовуй USDT нижче.
+          </div>
+        )}
 
         <div style={{ marginBottom: 12 }}>
           <AmountSelector amountUsd={fkAmount} setAmountUsd={setFkAmount} lang={lang} />
