@@ -5,15 +5,14 @@ import { getLevel } from './Profile'
 
 interface Props { me: Me | null; lang: Lang }
 
-const PRESETS_USD = [1, 2, 5, 10, 25, 50]
+const PRESETS_RUB = [100, 500, 1000, 2500, 5000, 10000]
 
-function AmountSelector({ amount, setAmount, symbol, step, placeholder }: {
+function AmountSelector({ amount, setAmount, symbol, step, placeholder, presets }: {
   amount: number; setAmount: (v: number) => void
-  symbol: string; step: number; placeholder: string
+  symbol: string; step: number; placeholder: string; presets: number[]
 }) {
   const [custom, setCustom] = useState('')
   const [sel, setSel] = useState<number | null>(null)
-  const presets = PRESETS_USD.map(u => Math.round(u * step))
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
@@ -71,7 +70,7 @@ export default function Balance({ me, lang }: Props) {
   }[lang]
 
   const rubRate = me.rate_rub || 90
-  const minRub = Math.round(rubRate * 0.5)
+  const minRub = 100
 
   async function payFK() {
     if (fkAmountRub < minRub) return
@@ -79,8 +78,7 @@ export default function Balance({ me, lang }: Props) {
     try {
       const amountUsd = fkAmountRub / rubRate
       const { url } = await api.fkCreate(amountUsd, 'USD')
-      if (window.Telegram?.WebApp) window.Telegram.WebApp.openLink(url)
-      else window.open(url, '_blank')
+      window.location.href = url
     } catch (e: any) { setFkError(e.message ?? 'Error') }
     finally { setFkLoading(false) }
   }
@@ -143,25 +141,18 @@ export default function Balance({ me, lang }: Props) {
         borderRadius: 20, padding: '18px 16px', marginBottom: 10,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <span style={{ fontSize: 26 }}>💳</span>
+          <span style={{ fontSize: 26 }}>🏦</span>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 15 }}>
-              {lang === 'ua' ? 'Оплата карткою' : lang === 'ru' ? 'Оплата картой' : 'Card payment'}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>Visa / Mastercard · 🇷🇺 RU</div>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>СБП / Ру банки</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>🇷🇺 Тільки для RU</div>
           </div>
         </div>
-        {lang === 'ua' && (
-          <div style={{ fontSize: 12, color: 'var(--muted)', background: 'var(--card2)', borderRadius: 10, padding: '8px 12px', marginBottom: 12 }}>
-            ⚠️ Доступно тільки для RU карток. Для UA — використовуй USDT нижче.
-          </div>
-        )}
 
         <div style={{ marginBottom: 12 }}>
           <AmountSelector
             amount={fkAmountRub} setAmount={setFkAmountRub}
-            symbol="₽" step={rubRate}
-            placeholder={lang === 'ru' ? 'Сумма (₽)' : 'Amount (₽)'}
+            symbol="₽" step={100} presets={PRESETS_RUB}
+            placeholder={lang === 'ru' ? 'Сумма (₽)' : 'Сума (₽)'}
           />
         </div>
 
@@ -189,7 +180,7 @@ export default function Balance({ me, lang }: Props) {
         <div style={{ marginBottom: 12 }}>
           <AmountSelector
             amount={cryptoAmount} setAmount={setCryptoAmount}
-            symbol="$" step={1}
+            symbol="$" step={1} presets={[1, 2, 5, 10, 25, 50]}
             placeholder={lang === 'ua' ? 'Сума ($)' : lang === 'ru' ? 'Сумма ($)' : 'Amount ($)'}
           />
         </div>
