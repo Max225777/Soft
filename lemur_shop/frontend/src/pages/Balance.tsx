@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { api, type Me } from '../api'
 import { getT, type Lang } from '../i18n'
 import { getLevel } from './Profile'
+import LegalFooter from '../components/LegalFooter'
 
 interface Props { me: Me | null; lang: Lang }
 
@@ -249,6 +250,7 @@ export default function Balance({ me, lang }: Props) {
           </ExpandPanel>
         )}
       </div>
+      <LegalFooter />
     </div>
   )
 }

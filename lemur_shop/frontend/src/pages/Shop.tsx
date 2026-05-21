@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { api, type Category, type BuyResult, type Me } from '../api'
 import { getT, type Lang } from '../i18n'
 import { getLevel, getLevelIdx, LEVELS } from './Profile'
+import LegalFooter from '../components/LegalFooter'
 
 interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void }
 
@@ -317,7 +318,8 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
           </div>
           <span className="badge badge-orange" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{T.in_dev}</span>
         </div>
-      </div>
+      <LegalFooter />
+    </div>
     )
   }
 

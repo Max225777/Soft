@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api, type Me, type Order } from '../api'
 import { getT, type Lang } from '../i18n'
+import LegalFooter from '../components/LegalFooter'
 
 interface Props { me: Me | null; lang: Lang; onChangeLang: (l: Lang) => void }
 
@@ -411,6 +412,7 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
           <span style={{ color: 'var(--gold)', fontWeight: 700 }}>⚙️ Admin</span>
         </div>
       )}
+      <LegalFooter />
     </div>
   )
 }
