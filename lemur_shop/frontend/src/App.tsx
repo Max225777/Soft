@@ -71,6 +71,11 @@ export default function App() {
         {tab === 'profile' && <Profile key="profile" me={me} lang={lang} onChangeLang={l => { setLang(l); api.me().then(setMe).catch(() => {}) }} />}
         {tab === 'balance' && <Balance key="balance" me={me} lang={lang} />}
       </div>
+      <div style={{ textAlign: 'center', padding: '6px 0 2px', display: 'flex', justifyContent: 'center', gap: 12 }}>
+        <a href="/offer.html" target="_blank" style={{ fontSize: 10, color: 'var(--muted)', textDecoration: 'none' }}>Оферта</a>
+        <a href="/privacy.html" target="_blank" style={{ fontSize: 10, color: 'var(--muted)', textDecoration: 'none' }}>Конфіденційність</a>
+        <a href="/returns.html" target="_blank" style={{ fontSize: 10, color: 'var(--muted)', textDecoration: 'none' }}>Повернення</a>
+      </div>
       <BottomNav active={tab} onChange={setTab} lang={lang} />
     </>
   )
