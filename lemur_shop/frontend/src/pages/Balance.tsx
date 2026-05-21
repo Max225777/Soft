@@ -182,10 +182,16 @@ export default function Balance({ me, lang }: Props) {
               onChange={e => { setCustomRub(e.target.value); setFkAmount(parseFloat(e.target.value) || 0) }}
               style={{ ...inputStyle, marginBottom: 10 }}
             />
+            {fkAmount > 0 && fkAmount < 100 && (
+              <div style={{ marginBottom: 8, fontSize: 12, color: 'var(--red)' }}>
+                {lang === 'ru' ? 'Минимальная сумма пополнения: ₽100' : 'Мінімальна сума поповнення: ₽100'}
+              </div>
+            )}
             {fkError && <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--red)' }}>{fkError}</div>}
             <button className="btn btn-primary" disabled={fkAmount < 100 || fkLoading}
+              style={fkAmount < 100 ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
               onClick={() => payFK(fkAmount)}>
-              {fkLoading ? '⏳...' : `${payLabel} ₽${fkAmount || 0}`}
+              {fkLoading ? '⏳...' : fkAmount >= 100 ? `${payLabel} ₽${fkAmount}` : `${payLabel} (мін. ₽100)`}
             </button>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{afterLabel}</div>
           </ExpandPanel>
