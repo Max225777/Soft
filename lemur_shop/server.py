@@ -654,6 +654,9 @@ async def crypto_notify(request: Request):
 
 @app.get("/{path:path}")
 async def spa_fallback(path: str):
+    static_file = os.path.join(STATIC_DIR, path)
+    if os.path.isfile(static_file):
+        return FileResponse(static_file)
     index = os.path.join(STATIC_DIR, "index.html")
     if os.path.exists(index):
         return FileResponse(index, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
