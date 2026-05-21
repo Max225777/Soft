@@ -42,8 +42,8 @@ function UsdAmountSelector({ amount, setAmount, lang }: {
   )
 }
 
-function FKModal({ amountRub, rubRate, lang, onConfirm, onCancel, loading, error }: {
-  amountRub: number; rubRate: number; lang: Lang
+function FKModal({ amountRub, lang, onConfirm, onCancel, loading, error }: {
+  amountRub: number; lang: Lang
   onConfirm(): void; onCancel(): void; loading: boolean; error: string | null
 }) {
   const payLabel = lang === 'ru' ? 'Оплатить' : lang === 'ua' ? 'Оплатити' : 'Pay'
@@ -76,22 +76,11 @@ function FKModal({ amountRub, rubRate, lang, onConfirm, onCancel, loading, error
         <div style={{
           background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)',
           borderRadius: 14, padding: '16px', marginBottom: 20,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
-          <div>
-            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 4 }}>
-              {lang === 'ru' ? 'Сумма оплаты' : 'Сума оплати'}
-            </div>
-            <div style={{ fontWeight: 800, fontSize: 28, color: 'var(--orange)' }}>₽{amountRub}</div>
+          <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 4 }}>
+            {lang === 'ru' ? 'Сумма оплаты' : 'Сума оплати'}
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 4 }}>
-              {lang === 'ru' ? 'Зачислится' : 'Зарахується'}
-            </div>
-            <div style={{ fontWeight: 700, fontSize: 18 }}>
-              ~${(amountRub * 0.88 / rubRate).toFixed(2)}
-            </div>
-          </div>
+          <div style={{ fontWeight: 800, fontSize: 32, color: 'var(--orange)' }}>₽{amountRub}</div>
         </div>
 
         {error && <div style={{ marginBottom: 12, fontSize: 13, color: 'var(--red)' }}>{error}</div>}
@@ -280,7 +269,6 @@ export default function Balance({ me, lang }: Props) {
       {fkModal !== null && (
         <FKModal
           amountRub={fkModal}
-          rubRate={rubRate}
           lang={lang}
           loading={fkLoading}
           error={fkError}
