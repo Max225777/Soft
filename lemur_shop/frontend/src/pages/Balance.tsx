@@ -8,7 +8,9 @@ interface Props { me: Me | null; lang: Lang }
 
 const PRESETS_RUB = [100, 250, 500, 1000]
 const PRESETS_USD = [1, 2, 5, 10, 25, 50]
-const PRESETS_STARS_USD = [1, 2, 5, 10, 25]
+// Пресети в Stars (мінімум 1 зірка)
+const PRESETS_STARS = [1, 5, 10, 50, 100]
+const STARS_PER_USD = 141
 
 const SLIDE_STYLE = `
   @keyframes expand-down {
@@ -307,25 +309,28 @@ export default function Balance({ me, lang }: Props) {
         {open === 'stars' && (
           <ExpandPanel>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginBottom: 10 }}>
-              {PRESETS_STARS_USD.map(p => (
-                <button key={p} onClick={() => { setStarsAmount(p); setCustomStars('') }}
-                  style={presetBtn(starsAmount === p && !customStars)}>
-                  ${p}
-                </button>
-              ))}
+              {PRESETS_STARS.map(s => {
+                const usd = +(s / STARS_PER_USD).toFixed(4)
+                return (
+                  <button key={s} onClick={() => { setStarsAmount(usd); setCustomStars('') }}
+                    style={presetBtn(starsAmount === usd && !customStars)}>
+                    ⭐{s}
+                  </button>
+                )
+              })}
             </div>
             <input
-              type="number" min="0.5" step="0.5"
+              type="number" min="0.01" step="0.01"
               placeholder={lang === 'ru' ? 'Сумма ($)' : lang === 'ua' ? 'Сума ($)' : 'Amount ($)'}
               value={customStars}
               onChange={e => { setCustomStars(e.target.value); setStarsAmount(parseFloat(e.target.value) || 0) }}
               style={{ ...inputStyle, marginBottom: 10 }}
             />
             {starsError && <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--red)' }}>{starsError}</div>}
-            <button className="btn btn-primary" disabled={starsAmount < 0.5 || starsLoading}
+            <button className="btn btn-primary" disabled={starsAmount <= 0 || starsLoading}
               onClick={() => payStars(starsAmount)}
               style={{ background: 'linear-gradient(135deg, #FFB830, #e09000)' }}>
-              {starsLoading ? '⏳...' : `${payLabel} $${starsAmount > 0 ? starsAmount.toFixed(2) : '0.00'} ⭐`}
+              {starsLoading ? '⏳...' : starsAmount > 0 ? `${payLabel} $${starsAmount.toFixed(2)} ⭐` : payLabel}
             </button>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>
               {lang === 'ru' ? 'Оплата через Telegram Stars' : lang === 'ua' ? 'Оплата через Telegram Stars' : 'Pay via Telegram Stars'}
