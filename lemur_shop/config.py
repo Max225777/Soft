@@ -20,14 +20,15 @@ class Settings(BaseSettings):
 
     CHANNEL_USERNAME: str = "@LEMUR_SHOP"
     SUPPORT_USERNAME: str = "@LEMUR_MANEGER"
-    STARS_PER_USD: int = 120
+    # Telegram бере 15% комісії при виведенні Stars → 120 / 0.85 ≈ 141
+    STARS_PER_USD: int = 141
 
     FREEKASSA_MERCHANT_ID: str = ""
     FREEKASSA_SECRET1: str = ""
     FREEKASSA_SECRET2: str = ""
     FREEKASSA_API_KEY: str = ""
 
-    CRYPTOBOT_TOKEN: str = ""  # скільки Stars = $1 кредиту на балансі
+    CRYPTOBOT_TOKEN: str = ""
 
 
 settings = Settings()
