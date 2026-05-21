@@ -55,7 +55,7 @@ async def _keepalive(url: str) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _bot, _dp, _polling_task
+    global _bot, _dp, _polling_task, _BOT_USERNAME
 
     if not settings.BOT_TOKEN:
         log.error("BOT_TOKEN не задано")
@@ -68,6 +68,11 @@ async def lifespan(app: FastAPI):
 
     _bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     _dp = Dispatcher(storage=MemoryStorage())
+    try:
+        bot_info = await _bot.get_me()
+        _BOT_USERNAME = bot_info.username
+    except Exception:
+        pass
 
     from lemur_shop.handlers import admin, profile, shop, start
     _dp.include_router(start.router)
@@ -452,7 +457,6 @@ async def fk_notify(
     from lemur_shop.db.models import FKOrder
     try:
         fk_order_id = int(MERCHANT_ORDER_ID)
-        amount_usd = Decimal(AMOUNT)
     except Exception:
         return Response(content="NO", media_type="text/plain")
 
@@ -463,13 +467,14 @@ async def fk_notify(
                 return Response(content="YES", media_type="text/plain")
             fk_order.status = "paid"
             fk_order.fk_payment_id = payment_id or payer_account
+            amount_usd = fk_order.amount_usd
 
             user = await s.get(User, fk_order.user_id)
             if user:
                 user.balance_usd = user.balance_usd + amount_usd
                 s.add(TopUp(user_id=user.id, amount_usd=amount_usd, admin_id=0))
 
-    log.info("FK paid: order=%s user=%s amount=%s", fk_order_id, fk_order.user_id, amount_usd)
+    log.info("FK paid: order=%s user=%s amount_usd=%s", fk_order_id, fk_order.user_id, amount_usd)
 
     if _bot and settings.ADMIN_IDS and user:
         uname = f"@{user.username}" if user.username else f"ID:{user.id}"
@@ -498,16 +503,47 @@ async def fk_notify(
     return Response(content="YES", media_type="text/plain")
 
 
+_PAYMENT_PAGE = """<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+background:#0C0C10;font-family:sans-serif;color:#fff;text-align:center;padding:24px;box-sizing:border-box}}
+.icon{{font-size:64px;margin-bottom:16px}}
+h2{{margin:0 0 8px;font-size:22px}}
+p{{margin:0 0 28px;color:#888;font-size:14px}}
+a{{display:inline-block;background:linear-gradient(135deg,#FF6B2B,#e05520);color:#fff;
+text-decoration:none;border-radius:14px;padding:14px 32px;font-weight:700;font-size:15px}}
+</style></head><body>
+<div><div class="icon">{icon}</div>
+<h2>{title}</h2><p>{desc}</p>
+<a href="https://t.me/{bot}">Повернутись в Telegram</a>
+</div></body></html>"""
+
+_BOT_USERNAME: str | None = None
+
 @app.get("/api/freekassa/success")
 async def fk_success():
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/?v=3&paid=1", status_code=302)
+    from fastapi.responses import HTMLResponse
+    bot_name = _BOT_USERNAME or "LemurShopBot"
+    html = _PAYMENT_PAGE.format(
+        icon="✅", title="Оплата успішна!",
+        desc="Баланс поповнено. Поверніться в бот.",
+        bot=bot_name,
+    )
+    return HTMLResponse(html)
 
 
 @app.get("/api/freekassa/fail")
 async def fk_fail():
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/?v=3&paid=0", status_code=302)
+    from fastapi.responses import HTMLResponse
+    bot_name = _BOT_USERNAME or "LemurShopBot"
+    html = _PAYMENT_PAGE.format(
+        icon="❌", title="Оплата не пройшла",
+        desc="Спробуйте ще раз або оберіть інший спосіб оплати.",
+        bot=bot_name,
+    )
+    return HTMLResponse(html)
 
 
 # ─── CryptoBot ────────────────────────────────────────────────────────────────
