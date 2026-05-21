@@ -5,7 +5,7 @@ import { getLevel } from './Profile'
 
 interface Props { me: Me | null; lang: Lang }
 
-const PRESETS_RUB = [50, 100, 250, 500, 1000]
+const PRESETS_RUB = [100, 250, 500, 1000]
 const PRESETS_USD = [1, 2, 5, 10, 25, 50]
 
 function BottomSheet({ title, onClose, children }: {
@@ -62,7 +62,7 @@ export default function Balance({ me, lang }: Props) {
   const afterLabel = lang === 'ru' ? 'Баланс зачисляется автоматически' : lang === 'ua' ? 'Баланс зараховується автоматично' : 'Balance credited automatically'
 
   async function payFK(rub: number) {
-    if (rub < 1) return
+    if (rub < 100) return
     setFkLoading(true); setFkError(null)
     try {
       const { url } = await api.fkCreate(rub / rubRate, 'USD')
@@ -191,7 +191,7 @@ export default function Balance({ me, lang }: Props) {
       {/* FK bottom sheet */}
       {modal === 'fk' && (
         <BottomSheet title="🏦 СБП / Ру банки" onClose={() => setModal(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginBottom: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 10 }}>
             {PRESETS_RUB.map(p => (
               <button key={p} onClick={() => { setFkAmount(p); setCustomRub('') }}
                 style={presetBtn(fkAmount === p && !customRub)}>
@@ -200,14 +200,14 @@ export default function Balance({ me, lang }: Props) {
             ))}
           </div>
           <input
-            type="number" min="1" step="10"
+            type="number" min="100" step="50"
             placeholder={lang === 'ru' ? 'Своя сумма (₽)' : 'Своя сума (₽)'}
             value={customRub}
             onChange={e => { setCustomRub(e.target.value); setFkAmount(parseFloat(e.target.value) || 0) }}
             style={{ ...inputStyle, marginBottom: 12 }}
           />
           {fkError && <div style={{ marginBottom: 10, fontSize: 13, color: 'var(--red)' }}>{fkError}</div>}
-          <button className="btn btn-primary" disabled={fkAmount < 1 || fkLoading}
+          <button className="btn btn-primary" disabled={fkAmount < 100 || fkLoading}
             onClick={() => payFK(fkAmount)}>
             {fkLoading ? '⏳...' : `${payLabel} ₽${fkAmount || 0}`}
           </button>
