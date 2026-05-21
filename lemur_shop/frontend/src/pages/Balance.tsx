@@ -6,92 +6,29 @@ import { getLevel } from './Profile'
 interface Props { me: Me | null; lang: Lang }
 
 const PRESETS_RUB = [50, 100, 250, 500, 1000]
+const PRESETS_USD = [1, 2, 5, 10, 25, 50]
 
-function UsdAmountSelector({ amount, setAmount, lang }: {
-  amount: number; setAmount: (v: number) => void; lang: string
+function BottomSheet({ title, subtitle, onClose, children }: {
+  title: string; subtitle: string; onClose(): void; children: React.ReactNode
 }) {
-  const [custom, setCustom] = useState('')
-  const [sel, setSel] = useState<number | null>(null)
-  return (
-    <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
-        {[1, 2, 5, 10, 25, 50].map(p => {
-          const active = sel === p && !custom
-          return (
-            <button key={p} onClick={() => { setSel(p); setCustom(''); setAmount(p) }} style={{
-              background: active ? 'rgba(255,107,43,.15)' : 'var(--card2)',
-              border: `1px solid ${active ? 'rgba(255,107,43,.4)' : 'var(--border)'}`,
-              borderRadius: 12, padding: '11px 4px', cursor: 'pointer',
-              fontWeight: 800, fontSize: 15, color: active ? 'var(--orange)' : 'var(--text)',
-            }}>${p}</button>
-          )
-        })}
-      </div>
-      <input
-        type="number" min="0.5" step="0.5"
-        placeholder={lang === 'ua' ? 'Сума ($)' : lang === 'ru' ? 'Сумма ($)' : 'Amount ($)'}
-        value={custom}
-        onChange={e => { setCustom(e.target.value); setSel(null); setAmount(parseFloat(e.target.value) || 0) }}
-        style={{
-          width: '100%', background: 'var(--card2)', border: '1px solid var(--border)',
-          borderRadius: 12, padding: '11px 14px', color: 'var(--text)',
-          fontSize: 15, outline: 'none', boxSizing: 'border-box',
-        }}
-      />
-    </>
-  )
-}
-
-function FKModal({ amountRub, lang, onConfirm, onCancel, loading, error }: {
-  amountRub: number; lang: Lang
-  onConfirm(): void; onCancel(): void; loading: boolean; error: string | null
-}) {
-  const payLabel = lang === 'ru' ? 'Оплатить' : lang === 'ua' ? 'Оплатити' : 'Pay'
-  const cancelLabel = lang === 'ru' ? 'Отмена' : lang === 'ua' ? 'Скасувати' : 'Cancel'
-  const afterLabel = lang === 'ru' ? 'Баланс зачисляется автоматически' : lang === 'ua' ? 'Баланс зараховується автоматично' : 'Balance credited automatically'
-
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 200,
       background: 'rgba(0,0,0,.75)',
       display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
       backdropFilter: 'blur(6px)',
-    }} onClick={onCancel}>
+    }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{
         width: '100%', maxWidth: 480,
         background: 'linear-gradient(160deg, #1E1428 0%, #141018 100%)',
         border: '1px solid rgba(255,107,43,.25)',
         borderRadius: '24px 24px 0 0',
-        padding: '20px 20px 32px',
+        padding: '20px 20px 36px',
       }}>
         <div style={{ width: 40, height: 4, borderRadius: 4, background: 'rgba(255,255,255,.15)', margin: '0 auto 20px' }} />
-
-        <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 4 }}>
-          🏦 СБП / Ру банки
-        </div>
-        <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 18 }}>
-          {lang === 'ru' ? 'Пополнение через СБП · комиссия ~12%' : 'Поповнення через СБП · комісія ~12%'}
-        </div>
-
-        <div style={{
-          background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)',
-          borderRadius: 14, padding: '16px', marginBottom: 20,
-        }}>
-          <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 4 }}>
-            {lang === 'ru' ? 'Сумма оплаты' : 'Сума оплати'}
-          </div>
-          <div style={{ fontWeight: 800, fontSize: 32, color: 'var(--orange)' }}>₽{amountRub}</div>
-        </div>
-
-        {error && <div style={{ marginBottom: 12, fontSize: 13, color: 'var(--red)' }}>{error}</div>}
-
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onCancel}>{cancelLabel}</button>
-          <button className="btn btn-primary" style={{ flex: 2 }} disabled={loading} onClick={onConfirm}>
-            {loading ? '⏳...' : `${payLabel} ₽${amountRub}`}
-          </button>
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 12, textAlign: 'center' }}>{afterLabel}</div>
+        <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 2 }}>{title}</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 20 }}>{subtitle}</div>
+        {children}
       </div>
     </div>
   )
@@ -99,9 +36,11 @@ function FKModal({ amountRub, lang, onConfirm, onCancel, loading, error }: {
 
 export default function Balance({ me, lang }: Props) {
   const T = getT(lang)
-  const [fkModal, setFkModal] = useState<number | null>(null)
+  const [modal, setModal] = useState<'fk' | 'crypto' | null>(null)
+  const [fkAmountRub, setFkAmountRub] = useState(0)
   const [customRub, setCustomRub] = useState('')
   const [cryptoAmount, setCryptoAmount] = useState(0)
+  const [customUsd, setCustomUsd] = useState('')
   const [fkLoading, setFkLoading] = useState(false)
   const [cryptoLoading, setCryptoLoading] = useState(false)
   const [fkError, setFkError] = useState<string | null>(null)
@@ -118,30 +57,45 @@ export default function Balance({ me, lang }: Props) {
     : lang === 'ru' && me.rate_rub
     ? `${Math.round(usd * me.rate_rub)}₽`
     : `$${usd.toFixed(2)}`
-
   const rubRate = me.rate_rub || 90
 
-  async function payFK(amountRub: number) {
+  const payLabel = lang === 'ru' ? 'Оплатить' : lang === 'ua' ? 'Оплатити' : 'Pay'
+  const afterLabel = lang === 'ru' ? 'Баланс зачисляется автоматически' : lang === 'ua' ? 'Баланс зараховується автоматично' : 'Balance credited automatically'
+  const cryptoSubtitle = lang === 'ru' ? 'Криптовалюта' : lang === 'ua' ? 'Криптовалюта' : 'Cryptocurrency'
+
+  async function payFK(rub: number) {
+    if (rub < 50) return
     setFkLoading(true); setFkError(null)
     try {
-      const { url } = await api.fkCreate(amountRub / rubRate, 'USD')
+      const { url } = await api.fkCreate(rub / rubRate, 'USD')
       window.location.href = url
     } catch (e: any) { setFkError(e.message ?? 'Error') }
     finally { setFkLoading(false) }
   }
 
-  async function payCrypto() {
-    if (cryptoAmount < 0.5) return
+  async function payCrypto(amount: number) {
+    if (amount < 0.5) return
     setCryptoLoading(true); setCryptoError(null)
     try {
-      const { url } = await api.cryptoCreate(cryptoAmount)
+      const { url } = await api.cryptoCreate(amount)
       if (window.Telegram?.WebApp) window.Telegram.WebApp.openLink(url)
       else window.open(url, '_blank')
     } catch (e: any) { setCryptoError(e.message ?? 'Error') }
     finally { setCryptoLoading(false) }
   }
 
-  const afterLabel = lang === 'ru' ? 'Баланс зачисляется автоматически' : lang === 'ua' ? 'Баланс зараховується автоматично' : 'Balance credited automatically'
+  const inputStyle: React.CSSProperties = {
+    width: '100%', background: 'var(--card2)', border: '1px solid var(--border)',
+    borderRadius: 12, padding: '11px 14px', color: 'var(--text)',
+    fontSize: 15, outline: 'none', boxSizing: 'border-box',
+  }
+  const presetBtnStyle = (active: boolean): React.CSSProperties => ({
+    background: active ? 'rgba(255,107,43,.15)' : 'var(--card2)',
+    border: `1px solid ${active ? 'rgba(255,107,43,.4)' : 'var(--border)'}`,
+    borderRadius: 12, padding: '11px 4px', cursor: 'pointer',
+    fontWeight: 800, fontSize: 15,
+    color: active ? 'var(--orange)' : 'var(--text)',
+  })
 
   return (
     <div className="page">
@@ -151,7 +105,7 @@ export default function Balance({ me, lang }: Props) {
       <div style={{
         background: 'linear-gradient(135deg, #1E1428 0%, #1A1020 50%, #141018 100%)',
         border: '1px solid rgba(255,107,43,.22)',
-        borderRadius: 20, padding: '24px 20px', marginBottom: 10,
+        borderRadius: 20, padding: '24px 20px', marginBottom: 14,
         position: 'relative', overflow: 'hidden',
       }}>
         <div style={{
@@ -184,97 +138,110 @@ export default function Balance({ me, lang }: Props) {
         </div>
       </div>
 
-      {/* СБП / Ру банки */}
-      <div style={{
-        background: 'var(--card)', border: '1px solid var(--border)',
-        borderRadius: 20, padding: '18px 16px', marginBottom: 10,
+      {/* Payment method cards */}
+      <div style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: 1, marginBottom: 8, paddingLeft: 4 }}>
+        {lang === 'ru' ? 'СПОСОБЫ ПОПОЛНЕНИЯ' : lang === 'ua' ? 'СПОСОБИ ПОПОВНЕННЯ' : 'TOP UP METHODS'}
+      </div>
+
+      <button onClick={() => { setFkError(null); setModal('fk') }} style={{
+        width: '100%', background: 'var(--card)', border: '1px solid var(--border)',
+        borderRadius: 16, padding: '16px', marginBottom: 8, cursor: 'pointer',
+        display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <span style={{ fontSize: 26 }}>🏦</span>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 15 }}>СБП / Ру банки</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>🇷🇺 Тільки для RU · ~12% комісія</div>
+        <div style={{
+          width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+          background: 'rgba(255,107,43,.12)', border: '1px solid rgba(255,107,43,.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
+        }}>🏦</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 800, fontSize: 15 }}>СБП / Ру банки</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>🇷🇺 Тільки RU · ~12% комісія</div>
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: 18 }}>›</div>
+      </button>
+
+      <button onClick={() => { setCryptoError(null); setModal('crypto') }} style={{
+        width: '100%',
+        background: 'linear-gradient(135deg, rgba(38,161,123,.08), rgba(38,161,123,.03))',
+        border: '1px solid rgba(38,161,123,.22)',
+        borderRadius: 16, padding: '16px', marginBottom: 8, cursor: 'pointer',
+        display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left',
+      }}>
+        <div style={{
+          width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+          background: 'rgba(38,161,123,.15)', border: '1px solid rgba(38,161,123,.3)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
+        }}>💎</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 800, fontSize: 15, color: '#26A17B' }}>CryptoBot USDT</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+            {cryptoSubtitle} · @CryptoBot · TON
           </div>
         </div>
+        <div style={{ color: 'var(--muted)', fontSize: 18 }}>›</div>
+      </button>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 10 }}>
-          {PRESETS_RUB.map(rub => (
-            <button key={rub} onClick={() => { setFkError(null); setFkModal(rub) }} style={{
-              background: 'var(--card2)', border: '1px solid var(--border)',
-              borderRadius: 14, padding: '16px 8px', cursor: 'pointer',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-              transition: 'border-color .15s',
-            }}>
-              <span style={{ fontWeight: 800, fontSize: 22, color: 'var(--text)' }}>₽{rub}</span>
-              <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-                {lang === 'ru' ? 'Пополнить' : 'Поповнити'}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        <div style={{ display: 'flex', gap: 8 }}>
+      {/* FK bottom sheet */}
+      {modal === 'fk' && (
+        <BottomSheet
+          title="🏦 СБП / Ру банки"
+          subtitle={lang === 'ru' ? 'Оплата через СБП и банки · комиссия ~12%' : 'Оплата через СБП та банки · комісія ~12%'}
+          onClose={() => setModal(null)}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
+            {PRESETS_RUB.map(p => (
+              <button key={p} onClick={() => { setFkAmountRub(p); setCustomRub('') }}
+                style={presetBtnStyle(fkAmountRub === p && !customRub)}>
+                ₽{p}
+              </button>
+            ))}
+          </div>
           <input
             type="number" min="50" step="50"
             placeholder={lang === 'ru' ? 'Своя сумма (₽)' : 'Своя сума (₽)'}
             value={customRub}
-            onChange={e => setCustomRub(e.target.value)}
-            style={{
-              flex: 1, background: 'var(--card2)', border: '1px solid var(--border)',
-              borderRadius: 12, padding: '11px 14px', color: 'var(--text)',
-              fontSize: 15, outline: 'none',
-            }}
+            onChange={e => { setCustomRub(e.target.value); setFkAmountRub(parseFloat(e.target.value) || 0) }}
+            style={{ ...inputStyle, marginBottom: 12 }}
           />
-          <button
-            className="btn btn-primary"
-            disabled={!customRub || parseFloat(customRub) < 50}
-            onClick={() => { setFkError(null); setFkModal(parseFloat(customRub)) }}
-            style={{ flexShrink: 0, padding: '11px 16px', fontSize: 14 }}
-          >
-            {lang === 'ru' ? 'Далее' : 'Далі'} →
+          {fkError && <div style={{ marginBottom: 10, fontSize: 13, color: 'var(--red)' }}>{fkError}</div>}
+          <button className="btn btn-primary" disabled={fkAmountRub < 50 || fkLoading}
+            onClick={() => payFK(fkAmountRub)}>
+            {fkLoading ? '⏳...' : `${payLabel} ₽${fkAmountRub || 0}`}
           </button>
-        </div>
-      </div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 10, textAlign: 'center' }}>{afterLabel}</div>
+        </BottomSheet>
+      )}
 
-      {/* CryptoBot */}
-      <div style={{
-        background: 'linear-gradient(135deg, rgba(38,161,123,.08), rgba(38,161,123,.03))',
-        border: '1px solid rgba(38,161,123,.22)',
-        borderRadius: 20, padding: '18px 16px', marginBottom: 10,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <span style={{ fontSize: 26 }}>💎</span>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 15, color: '#26A17B' }}>USDT</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>@CryptoBot · TON Network</div>
-          </div>
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <UsdAmountSelector amount={cryptoAmount} setAmount={setCryptoAmount} lang={lang} />
-        </div>
-
-        <button
-          className="btn btn-primary"
-          disabled={cryptoAmount < 0.5 || cryptoLoading}
-          onClick={payCrypto}
-          style={{ background: 'linear-gradient(135deg, #26A17B, #1a7a5e)' }}
+      {/* Crypto bottom sheet */}
+      {modal === 'crypto' && (
+        <BottomSheet
+          title="💎 CryptoBot USDT"
+          subtitle={`${cryptoSubtitle} · @CryptoBot · TON Network`}
+          onClose={() => setModal(null)}
         >
-          {cryptoLoading ? '⏳...' : `${lang === 'ru' ? 'Оплатить' : lang === 'ua' ? 'Оплатити' : 'Pay'} $${cryptoAmount > 0 ? cryptoAmount.toFixed(2) : '0.00'} USDT`}
-        </button>
-        {cryptoError && <div style={{ marginTop: 8, fontSize: 13, color: 'var(--red)' }}>{cryptoError}</div>}
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{afterLabel}</div>
-      </div>
-
-      {fkModal !== null && (
-        <FKModal
-          amountRub={fkModal}
-          lang={lang}
-          loading={fkLoading}
-          error={fkError}
-          onCancel={() => { setFkModal(null); setFkError(null) }}
-          onConfirm={() => payFK(fkModal)}
-        />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
+            {PRESETS_USD.map(p => (
+              <button key={p} onClick={() => { setCryptoAmount(p); setCustomUsd('') }}
+                style={presetBtnStyle(cryptoAmount === p && !customUsd)}>
+                ${p}
+              </button>
+            ))}
+          </div>
+          <input
+            type="number" min="0.5" step="0.5"
+            placeholder={lang === 'ua' ? 'Сума ($)' : lang === 'ru' ? 'Сумма ($)' : 'Amount ($)'}
+            value={customUsd}
+            onChange={e => { setCustomUsd(e.target.value); setCryptoAmount(parseFloat(e.target.value) || 0) }}
+            style={{ ...inputStyle, marginBottom: 12 }}
+          />
+          {cryptoError && <div style={{ marginBottom: 10, fontSize: 13, color: 'var(--red)' }}>{cryptoError}</div>}
+          <button className="btn btn-primary" disabled={cryptoAmount < 0.5 || cryptoLoading}
+            onClick={() => payCrypto(cryptoAmount)}
+            style={{ background: 'linear-gradient(135deg, #26A17B, #1a7a5e)' }}>
+            {cryptoLoading ? '⏳...' : `${payLabel} $${cryptoAmount > 0 ? cryptoAmount.toFixed(2) : '0.00'} USDT`}
+          </button>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 10, textAlign: 'center' }}>{afterLabel}</div>
+        </BottomSheet>
       )}
     </div>
   )
