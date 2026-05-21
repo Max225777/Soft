@@ -86,7 +86,7 @@ export default function Balance({ me, lang }: Props) {
   }
 
   async function payStars(usd: number) {
-    if (usd < 0.5) return
+    if (usd <= 0) return
     setStarsLoading(true); setStarsError(null)
     try {
       const { invoice_url, stars } = await api.starsInvoice(usd)
@@ -298,7 +298,7 @@ export default function Balance({ me, lang }: Props) {
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 15, color: '#FFB830' }}>Telegram Stars</div>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-              {lang === 'ru' ? '⭐141 = $1 · комиссия учтена' : lang === 'ua' ? '⭐141 = $1 · комісія врахована' : '⭐141 = $1 · fee included'}
+              {lang === 'ru' ? '⭐141 = $1 · такой курс из-за комиссии ТГ' : lang === 'ua' ? '⭐141 = $1 · такий курс через комісію ТГ' : '⭐141 = $1 · rate due to TG commission'}
             </div>
           </div>
           <div style={{ color: 'var(--muted)', fontSize: 18, transition: 'transform .2s', transform: open === 'stars' ? 'rotate(90deg)' : '' }}>›</div>
