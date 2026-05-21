@@ -5,14 +5,14 @@ import { getLevel } from './Profile'
 
 interface Props { me: Me | null; lang: Lang }
 
-const PRESETS_RUB = [100, 500, 1000, 2500, 5000, 10000]
+const PRESETS_RUB = [50, 100, 250, 500, 1000]
 
-function AmountSelector({ amount, setAmount, symbol, step, placeholder, presets }: {
-  amount: number; setAmount: (v: number) => void
-  symbol: string; step: number; placeholder: string; presets: number[]
+function UsdAmountSelector({ amount, setAmount, lang }: {
+  amount: number; setAmount: (v: number) => void; lang: string
 }) {
   const [custom, setCustom] = useState('')
   const [sel, setSel] = useState<number | null>(null)
+  const presets = [1, 2, 5, 10, 25, 50]
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
@@ -24,12 +24,13 @@ function AmountSelector({ amount, setAmount, symbol, step, placeholder, presets 
               border: `1px solid ${active ? 'rgba(255,107,43,.4)' : 'var(--border)'}`,
               borderRadius: 12, padding: '11px 4px', cursor: 'pointer',
               fontWeight: 800, fontSize: 15, color: active ? 'var(--orange)' : 'var(--text)',
-            }}>{symbol}{p}</button>
+            }}>${p}</button>
           )
         })}
       </div>
       <input
-        type="number" min={step} step={step} placeholder={placeholder}
+        type="number" min="0.5" step="0.5"
+        placeholder={lang === 'ua' ? 'Сума ($)' : lang === 'ru' ? 'Сумма ($)' : 'Amount ($)'}
         value={custom}
         onChange={e => { setCustom(e.target.value); setSel(null); setAmount(parseFloat(e.target.value) || 0) }}
         style={{
@@ -135,30 +136,61 @@ export default function Balance({ me, lang }: Props) {
         </div>
       </div>
 
-      {/* FreеKassa */}
+      {/* СБП / Ру банки */}
       <div style={{
         background: 'var(--card)', border: '1px solid var(--border)',
         borderRadius: 20, padding: '18px 16px', marginBottom: 10,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <span style={{ fontSize: 26 }}>🏦</span>
           <div>
             <div style={{ fontWeight: 800, fontSize: 15 }}>СБП / Ру банки</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>🇷🇺 Тільки для RU</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>🇷🇺 Тільки для RU · комісія ~12%</div>
           </div>
         </div>
 
-        <div style={{ marginBottom: 12 }}>
-          <AmountSelector
-            amount={fkAmountRub} setAmount={setFkAmountRub}
-            symbol="₽" step={100} presets={PRESETS_RUB}
-            placeholder={lang === 'ru' ? 'Сумма (₽)' : 'Сума (₽)'}
-          />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 10, marginTop: 12 }}>
+          {PRESETS_RUB.map(rub => (
+            <button key={rub} disabled={fkLoading} onClick={async () => {
+              setFkAmountRub(rub)
+              setFkError(null)
+              setFkLoading(true)
+              try {
+                const { url } = await api.fkCreate(rub / rubRate, 'USD')
+                window.location.href = url
+              } catch (e: any) { setFkError(e.message ?? 'Error') }
+              finally { setFkLoading(false) }
+            }} style={{
+              background: 'var(--card2)', border: '1px solid var(--border)',
+              borderRadius: 14, padding: '14px 8px', cursor: 'pointer',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+            }}>
+              <span style={{ fontWeight: 800, fontSize: 18, color: 'var(--text)' }}>₽{rub}</span>
+              <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 500 }}>
+                {lang === 'ru' ? 'Пополнить' : lang === 'ua' ? 'Поповнити' : 'Top up'}
+              </span>
+            </button>
+          ))}
         </div>
 
-        <button className="btn btn-primary" disabled={fkAmountRub < minRub || fkLoading} onClick={payFK}>
-          {fkLoading ? '⏳...' : `${L.pay} ₽${fkAmountRub > 0 ? fkAmountRub : '0'}`}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            type="number" min="50" step="50"
+            placeholder={lang === 'ru' ? 'Своя сумма (₽)' : 'Своя сума (₽)'}
+            value={fkAmountRub || ''}
+            onChange={e => setFkAmountRub(parseFloat(e.target.value) || 0)}
+            style={{
+              flex: 1, background: 'var(--card2)', border: '1px solid var(--border)',
+              borderRadius: 12, padding: '11px 14px', color: 'var(--text)',
+              fontSize: 15, outline: 'none',
+            }}
+          />
+          <button className="btn btn-primary" disabled={fkAmountRub < 50 || fkLoading} onClick={payFK}
+            style={{ flexShrink: 0, padding: '11px 16px', fontSize: 14 }}>
+            {fkLoading ? '⏳' : (lang === 'ru' ? 'Оплатить' : 'Оплатити')}
+          </button>
+        </div>
+
         {fkError && <div style={{ marginTop: 8, fontSize: 13, color: 'var(--red)' }}>{fkError}</div>}
         <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{L.after}</div>
       </div>
@@ -178,11 +210,7 @@ export default function Balance({ me, lang }: Props) {
         </div>
 
         <div style={{ marginBottom: 12 }}>
-          <AmountSelector
-            amount={cryptoAmount} setAmount={setCryptoAmount}
-            symbol="$" step={1} presets={[1, 2, 5, 10, 25, 50]}
-            placeholder={lang === 'ua' ? 'Сума ($)' : lang === 'ru' ? 'Сумма ($)' : 'Amount ($)'}
-          />
+          <UsdAmountSelector amount={cryptoAmount} setAmount={setCryptoAmount} lang={lang} />
         </div>
 
         <button
