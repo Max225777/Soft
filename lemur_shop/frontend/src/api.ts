@@ -29,6 +29,7 @@ export const api = {
   cryptoCreate:   (amount_usd: number) => req<{ url: string; invoice_id: number }>('/crypto/create', { method: 'POST', body: JSON.stringify({ amount_usd }) }),
   starsRate:    () => req<{ stars_per_usd: number }>('/stars/rate'),
   starsInvoice: (amount_usd: number) => req<{ invoice_url: string; stars: number; amount_usd: number }>('/stars/invoice', { method: 'POST', body: JSON.stringify({ amount_usd }) }),
+  starsBuy:     (stars: number, amount_usd: number) => req<{ ok: boolean }>('/stars/buy', { method: 'POST', body: JSON.stringify({ stars, amount_usd }) }),
 }
 
 export interface Me {

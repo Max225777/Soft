@@ -6,7 +6,7 @@ import LegalFooter from '../components/LegalFooter'
 
 interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void }
 
-type View = 'menu' | 'list' | 'buying' | 'success' | 'error'
+type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars'
 
 function localPrice(usd: number, lang: Lang, me: Me | null): JSX.Element {
   const usdSpan = <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(${usd.toFixed(2)})</span>
@@ -291,17 +291,17 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
 
         <div style={{
           background: 'linear-gradient(135deg, #1a180a 0%, #1a1600 100%)',
-          border: '1px solid rgba(255,215,0,.12)',
+          border: '1px solid rgba(255,215,0,.25)',
           borderRadius: 16, padding: '20px 16px',
           display: 'flex', alignItems: 'center', gap: 16,
-          opacity: 0.5, marginBottom: 10,
-        }}>
+          cursor: 'pointer', marginBottom: 10,
+        }} onClick={() => setView('stars')}>
           <div className="cat-icon" style={{ background: 'linear-gradient(135deg, #FFD700, #E8950A)', color: '#fff', fontSize: 30 }}>⭐</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_stars}</div>
             <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{T.tg_stars_desc}</div>
           </div>
-          <span className="badge badge-orange" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{T.in_dev}</span>
+          <div style={{ color: '#FFD700', fontSize: 24, fontWeight: 300 }}>›</div>
         </div>
 
         <div style={{
@@ -505,5 +505,103 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
     </div>
   )
 
+  // ─── Зірки ────────────────────────────────────────────────────────────────
+  if (view === 'stars') return <StarsView me={me} lang={lang} onBack={() => setView('menu')} />
+
   return null
+}
+
+const STAR_PACKAGES = [
+  { stars: 50,   usd: 1.00 },
+  { stars: 100,  usd: 2.00 },
+  { stars: 250,  usd: 4.50 },
+  { stars: 500,  usd: 8.50 },
+  { stars: 1000, usd: 16.00 },
+]
+
+function StarsView({ me, lang, onBack }: { me: Me | null; lang: Lang; onBack(): void }) {
+  const T = getT(lang)
+  const [buying, setBuying] = useState<number | null>(null)
+  const [done, setDone] = useState<number | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const rate = me?.rate_uah || 40
+
+  async function buyStars(pkg: typeof STAR_PACKAGES[0]) {
+    setBuying(pkg.stars); setErr(null)
+    try {
+      await api.starsBuy(pkg.stars, pkg.usd)
+      setDone(pkg.stars)
+    } catch (e: any) { setErr(e.message ?? 'Error') }
+    finally { setBuying(null) }
+  }
+
+  return (
+    <div className="page">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+        <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer', padding: 0 }}>‹</button>
+        <h1 style={{ margin: 0 }}>⭐ {T.tg_stars}</h1>
+      </div>
+
+      {done && (
+        <div style={{ background: 'rgba(255,184,48,.1)', border: '1px solid rgba(255,184,48,.3)', borderRadius: 14, padding: '16px', marginBottom: 16, textAlign: 'center' }}>
+          <div style={{ fontSize: 32, marginBottom: 6 }}>✅</div>
+          <div style={{ fontWeight: 700 }}>
+            {lang === 'ru' ? `Заказ на ${done} ⭐ принят!` : lang === 'ua' ? `Замовлення на ${done} ⭐ прийнято!` : `Order for ${done} ⭐ accepted!`}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
+            {lang === 'ru' ? 'Звёзды будут отправлены в течение 10 минут' : lang === 'ua' ? 'Зірки будуть відправлені протягом 10 хвилин' : 'Stars will be delivered within 10 minutes'}
+          </div>
+        </div>
+      )}
+
+      {err && <div style={{ color: 'var(--red)', fontSize: 13, marginBottom: 12 }}>{err}</div>}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {STAR_PACKAGES.map(pkg => {
+          const uah = Math.round(pkg.usd * rate)
+          const perStar = Math.round(uah / pkg.stars * 10) / 10
+          return (
+            <div key={pkg.stars} style={{
+              background: 'linear-gradient(135deg, #1a180a 0%, #1a1600 100%)',
+              border: '1px solid rgba(255,215,0,.2)',
+              borderRadius: 14, padding: '14px 16px',
+              display: 'flex', alignItems: 'center', gap: 14,
+            }}>
+              <div style={{
+                width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+                background: 'rgba(255,215,0,.15)', border: '1px solid rgba(255,215,0,.3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 800, fontSize: 16, color: '#FFD700',
+              }}>
+                {pkg.stars >= 1000 ? `${pkg.stars/1000}K` : pkg.stars}⭐
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>{pkg.stars} Stars</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+                  {perStar} {lang === 'ru' ? 'грн/звезда' : lang === 'ua' ? 'грн/зірка' : '₴/star'}
+                </div>
+              </div>
+              <button
+                className="btn btn-primary"
+                style={{ width: 'auto', padding: '9px 14px', fontSize: 13, background: 'linear-gradient(135deg, #FFB830, #e09000)' }}
+                disabled={buying === pkg.stars || (me?.balance_usd ?? 0) < pkg.usd}
+                onClick={() => buyStars(pkg)}
+              >
+                {buying === pkg.stars ? '⏳' : me && me.rate_uah ? `${uah}₴` : `$${pkg.usd.toFixed(2)}`}
+              </button>
+            </div>
+          )
+        })}
+      </div>
+
+      <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 16, padding: '0 8px', lineHeight: 1.6 }}>
+        {lang === 'ru'
+          ? '⚡ Звёзды отправляются на ваш Telegram аккаунт в течение 10 минут'
+          : lang === 'ua'
+          ? '⚡ Зірки відправляються на ваш Telegram акаунт протягом 10 хвилин'
+          : '⚡ Stars are sent to your Telegram account within 10 minutes'}
+      </div>
+      <LegalFooter />
+    </div>
+  )
 }

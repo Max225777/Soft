@@ -14,7 +14,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import Update
+from aiogram.types import LabeledPrice, Update
 from fastapi import Depends, FastAPI, HTTPException, Header, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -79,6 +79,8 @@ async def lifespan(app: FastAPI):
     _dp.include_router(shop.router)
     _dp.include_router(profile.router)
     _dp.include_router(admin.router)
+    from lemur_shop.handlers import payments as _pay_handlers
+    _dp.include_router(_pay_handlers.router)
 
     webapp_url = settings.WEBAPP_URL.rstrip("/") if settings.WEBAPP_URL else ""
     use_webhook = False
@@ -648,6 +650,79 @@ async def crypto_notify(request: Request):
             pass
 
     return Response(content="ok")
+
+
+# ─── Telegram Stars ───────────────────────────────────────────────────────────
+
+@app.get("/api/stars/rate")
+async def api_stars_rate():
+    return {"stars_per_usd": settings.STARS_PER_USD}
+
+
+class StarsInvoiceRequest(BaseModel):
+    amount_usd: float
+
+class StarsBuyRequest(BaseModel):
+    stars: int
+    amount_usd: float
+
+
+@app.post("/api/stars/invoice")
+async def api_stars_invoice(body: StarsInvoiceRequest, user: User = Depends(get_current_user)):
+    if _bot is None:
+        raise HTTPException(status_code=503, detail="Bot not ready")
+    amount_usd = round(body.amount_usd, 2)
+    if amount_usd < 0.5 or amount_usd > 500:
+        raise HTTPException(status_code=400, detail="Invalid amount")
+    stars = max(1, round(amount_usd * settings.STARS_PER_USD))
+    link = await _bot.create_invoice_link(
+        title="Поповнення балансу Лемур",
+        description=f"Зарахування ${amount_usd:.2f} на баланс магазину",
+        payload=f"stars_topup:{user.id}:{amount_usd}",
+        currency="XTR",
+        prices=[LabeledPrice(label="Telegram Stars", amount=stars)],
+    )
+    return {"invoice_url": link, "stars": stars, "amount_usd": amount_usd}
+
+
+@app.post("/api/stars/buy")
+async def api_stars_buy(body: StarsBuyRequest, user: User = Depends(get_current_user)):
+    amount_usd = Decimal(str(round(body.amount_usd, 2)))
+    if body.stars < 1 or float(amount_usd) < 0.5:
+        raise HTTPException(status_code=400, detail="Invalid amount")
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            u = await s.get(User, user.id)
+            if not u or u.balance_usd < amount_usd:
+                raise HTTPException(status_code=400, detail="Insufficient balance")
+            u.balance_usd = u.balance_usd - amount_usd
+
+    if _bot and settings.ADMIN_IDS:
+        uname = f"@{user.username}" if user.username else f"ID:{user.id}"
+        txt = (
+            f"⭐ <b>Замовлення Stars!</b>\n\n"
+            f"👤 {uname} (<code>{user.id}</code>)\n"
+            f"⭐ Зірок: <b>{body.stars}</b>\n"
+            f"💰 Списано: <b>${float(amount_usd):.2f}</b>\n\n"
+            f"<i>Відправте зірки через Fragment або бот</i>"
+        )
+        for admin_id in settings.ADMIN_IDS:
+            try:
+                await _bot.send_message(admin_id, txt, parse_mode="HTML")
+            except Exception:
+                pass
+    try:
+        if _bot:
+            await _bot.send_message(
+                user.id,
+                f"⭐ Замовлення на <b>{body.stars} Stars</b> прийнято!\n"
+                f"💰 Списано: <b>${float(amount_usd):.2f}</b>\n\n"
+                f"Зірки будуть відправлені протягом 10 хвилин.",
+                parse_mode="HTML"
+            )
+    except Exception:
+        pass
+    return {"ok": True}
 
 
 # ─── SPA fallback ─────────────────────────────────────────────────────────────

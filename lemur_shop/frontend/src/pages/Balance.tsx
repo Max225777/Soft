@@ -8,6 +8,7 @@ interface Props { me: Me | null; lang: Lang }
 
 const PRESETS_RUB = [100, 250, 500, 1000]
 const PRESETS_USD = [1, 2, 5, 10, 25, 50]
+const PRESETS_STARS_USD = [1, 2, 5, 10, 25]
 
 const SLIDE_STYLE = `
   @keyframes expand-down {
@@ -33,15 +34,19 @@ function ExpandPanel({ children }: { children: React.ReactNode }) {
 
 export default function Balance({ me, lang }: Props) {
   const T = getT(lang)
-  const [open, setOpen] = useState<'fk' | 'crypto' | null>(null)
+  const [open, setOpen] = useState<'fk' | 'crypto' | 'stars' | null>(null)
   const [fkAmount, setFkAmount] = useState(0)
   const [customRub, setCustomRub] = useState('')
   const [cryptoAmount, setCryptoAmount] = useState(0)
   const [customUsd, setCustomUsd] = useState('')
+  const [starsAmount, setStarsAmount] = useState(0)
+  const [customStars, setCustomStars] = useState('')
   const [fkLoading, setFkLoading] = useState(false)
   const [cryptoLoading, setCryptoLoading] = useState(false)
+  const [starsLoading, setStarsLoading] = useState(false)
   const [fkError, setFkError] = useState<string | null>(null)
   const [cryptoError, setCryptoError] = useState<string | null>(null)
+  const [starsError, setStarsError] = useState<string | null>(null)
 
   if (!me) return <div className="page"><p className="muted">{T.loading}</p></div>
 
@@ -80,6 +85,27 @@ export default function Balance({ me, lang }: Props) {
     finally { setCryptoLoading(false) }
   }
 
+  async function payStars(usd: number) {
+    if (usd < 0.5) return
+    setStarsLoading(true); setStarsError(null)
+    try {
+      const { invoice_url, stars } = await api.starsInvoice(usd)
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.openInvoice(invoice_url, status => {
+          if (status === 'paid') {
+            setStarsError(null)
+            setOpen(null)
+          } else if (status === 'cancelled' || status === 'failed') {
+            setStarsError(T.stars_failed)
+          }
+        })
+      } else {
+        window.open(invoice_url, '_blank')
+      }
+    } catch (e: any) { setStarsError(e.message ?? 'Error') }
+    finally { setStarsLoading(false) }
+  }
+
   function toggleFK() {
     if (open === 'fk') { setOpen(null); return }
     setFkError(null); setFkAmount(0); setCustomRub(''); setOpen('fk')
@@ -87,6 +113,10 @@ export default function Balance({ me, lang }: Props) {
   function toggleCrypto() {
     if (open === 'crypto') { setOpen(null); return }
     setCryptoError(null); setCryptoAmount(0); setCustomUsd(''); setOpen('crypto')
+  }
+  function toggleStars() {
+    if (open === 'stars') { setOpen(null); return }
+    setStarsError(null); setStarsAmount(0); setCustomStars(''); setOpen('stars')
   }
 
   const inputStyle: React.CSSProperties = {
@@ -250,6 +280,60 @@ export default function Balance({ me, lang }: Props) {
           </ExpandPanel>
         )}
       </div>
+      {/* Stars card */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(255,184,48,.08), rgba(255,184,48,.03))',
+        border: '1px solid rgba(255,184,48,.22)',
+        borderRadius: 14, marginBottom: 8, overflow: 'hidden',
+      }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer' }}
+          onClick={toggleStars}
+        >
+          <div style={{
+            width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+            background: 'rgba(255,184,48,.15)', border: '1px solid rgba(255,184,48,.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+          }}>⭐</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#FFB830' }}>Telegram Stars</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+              {lang === 'ru' ? 'Оплата звёздами Telegram' : lang === 'ua' ? 'Оплата зірками Telegram' : 'Pay with Telegram Stars'}
+            </div>
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: 18, transition: 'transform .2s', transform: open === 'stars' ? 'rotate(90deg)' : '' }}>›</div>
+        </div>
+
+        {open === 'stars' && (
+          <ExpandPanel>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginBottom: 10 }}>
+              {PRESETS_STARS_USD.map(p => (
+                <button key={p} onClick={() => { setStarsAmount(p); setCustomStars('') }}
+                  style={presetBtn(starsAmount === p && !customStars)}>
+                  ${p}
+                </button>
+              ))}
+            </div>
+            <input
+              type="number" min="0.5" step="0.5"
+              placeholder={lang === 'ru' ? 'Сумма ($)' : lang === 'ua' ? 'Сума ($)' : 'Amount ($)'}
+              value={customStars}
+              onChange={e => { setCustomStars(e.target.value); setStarsAmount(parseFloat(e.target.value) || 0) }}
+              style={{ ...inputStyle, marginBottom: 10 }}
+            />
+            {starsError && <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--red)' }}>{starsError}</div>}
+            <button className="btn btn-primary" disabled={starsAmount < 0.5 || starsLoading}
+              onClick={() => payStars(starsAmount)}
+              style={{ background: 'linear-gradient(135deg, #FFB830, #e09000)' }}>
+              {starsLoading ? '⏳...' : `${payLabel} $${starsAmount > 0 ? starsAmount.toFixed(2) : '0.00'} ⭐`}
+            </button>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>
+              {lang === 'ru' ? 'Оплата через Telegram Stars' : lang === 'ua' ? 'Оплата через Telegram Stars' : 'Pay via Telegram Stars'}
+            </div>
+          </ExpandPanel>
+        )}
+      </div>
+
       <LegalFooter />
     </div>
   )
