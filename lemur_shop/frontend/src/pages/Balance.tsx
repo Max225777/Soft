@@ -17,13 +17,19 @@ function BottomSheet({ title, onClose, children }: {
       background: 'rgba(0,0,0,.75)',
       display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
       backdropFilter: 'blur(6px)',
+      animation: 'bs-fade-in .22s ease',
     }} onClick={onClose}>
+      <style>{`
+        @keyframes bs-fade-in { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes bs-slide-up { from { transform: translateY(100%) } to { transform: translateY(0) } }
+      `}</style>
       <div onClick={e => e.stopPropagation()} style={{
         width: '100%', maxWidth: 480,
         background: 'linear-gradient(160deg, #1E1428 0%, #141018 100%)',
         border: '1px solid rgba(255,107,43,.25)',
         borderRadius: '24px 24px 0 0',
         padding: '16px 16px 36px',
+        animation: 'bs-slide-up .3s cubic-bezier(.32,1,.6,1)',
       }}>
         <div style={{ width: 40, height: 4, borderRadius: 4, background: 'rgba(255,255,255,.15)', margin: '0 auto 16px' }} />
         <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 14 }}>{title}</div>
