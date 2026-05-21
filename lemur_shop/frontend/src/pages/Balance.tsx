@@ -6,38 +6,33 @@ import { getLevel } from './Profile'
 interface Props { me: Me | null; lang: Lang }
 
 const PRESETS_USD = [1, 2, 5, 10, 25, 50]
-const FK_CURRENCIES = [
-  { code: 'USD', label: '🇺🇸 USD' },
-  { code: 'UAH', label: '🇺🇦 UAH' },
-  { code: 'RUB', label: '🇷🇺 RUB' },
-  { code: 'KZT', label: '🇰🇿 KZT' },
-]
 
-function AmountSelector({ amountUsd, setAmountUsd, lang }: {
-  amountUsd: number; setAmountUsd: (v: number) => void; lang: string
+function AmountSelector({ amount, setAmount, symbol, step, placeholder }: {
+  amount: number; setAmount: (v: number) => void
+  symbol: string; step: number; placeholder: string
 }) {
   const [custom, setCustom] = useState('')
   const [sel, setSel] = useState<number | null>(null)
-  const L = lang === 'ua' ? 'Сума ($)' : lang === 'ru' ? 'Сумма ($)' : 'Amount ($)'
+  const presets = PRESETS_USD.map(u => Math.round(u * step))
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
-        {PRESETS_USD.map(u => {
-          const active = sel === u && !custom
+        {presets.map(p => {
+          const active = sel === p && !custom
           return (
-            <button key={u} onClick={() => { setSel(u); setCustom(''); setAmountUsd(u) }} style={{
+            <button key={p} onClick={() => { setSel(p); setCustom(''); setAmount(p) }} style={{
               background: active ? 'rgba(255,107,43,.15)' : 'var(--card2)',
               border: `1px solid ${active ? 'rgba(255,107,43,.4)' : 'var(--border)'}`,
               borderRadius: 12, padding: '11px 4px', cursor: 'pointer',
               fontWeight: 800, fontSize: 15, color: active ? 'var(--orange)' : 'var(--text)',
-            }}>${u}</button>
+            }}>{symbol}{p}</button>
           )
         })}
       </div>
       <input
-        type="number" min="0.5" step="0.5" placeholder={L}
+        type="number" min={step} step={step} placeholder={placeholder}
         value={custom}
-        onChange={e => { setCustom(e.target.value); setSel(null); setAmountUsd(parseFloat(e.target.value) || 0) }}
+        onChange={e => { setCustom(e.target.value); setSel(null); setAmount(parseFloat(e.target.value) || 0) }}
         style={{
           width: '100%', background: 'var(--card2)', border: '1px solid var(--border)',
           borderRadius: 12, padding: '11px 14px', color: 'var(--text)',
@@ -50,7 +45,7 @@ function AmountSelector({ amountUsd, setAmountUsd, lang }: {
 
 export default function Balance({ me, lang }: Props) {
   const T = getT(lang)
-  const [fkAmount, setFkAmount] = useState(0)
+  const [fkAmountRub, setFkAmountRub] = useState(0)
   const [cryptoAmount, setCryptoAmount] = useState(0)
   const [fkLoading, setFkLoading] = useState(false)
   const [cryptoLoading, setCryptoLoading] = useState(false)
@@ -75,11 +70,15 @@ export default function Balance({ me, lang }: Props) {
     en: { pay: 'Proceed to payment', after: 'Balance credited automatically' },
   }[lang]
 
+  const rubRate = me.rate_rub || 90
+  const minRub = Math.round(rubRate * 0.5)
+
   async function payFK() {
-    if (fkAmount < 0.5) return
+    if (fkAmountRub < minRub) return
     setFkLoading(true); setFkError(null)
     try {
-      const { url } = await api.fkCreate(fkAmount, 'USD')
+      const amountUsd = fkAmountRub / rubRate
+      const { url } = await api.fkCreate(amountUsd, 'USD')
       if (window.Telegram?.WebApp) window.Telegram.WebApp.openLink(url)
       else window.open(url, '_blank')
     } catch (e: any) { setFkError(e.message ?? 'Error') }
@@ -159,11 +158,15 @@ export default function Balance({ me, lang }: Props) {
         )}
 
         <div style={{ marginBottom: 12 }}>
-          <AmountSelector amountUsd={fkAmount} setAmountUsd={setFkAmount} lang={lang} />
+          <AmountSelector
+            amount={fkAmountRub} setAmount={setFkAmountRub}
+            symbol="₽" step={rubRate}
+            placeholder={lang === 'ru' ? 'Сумма (₽)' : 'Amount (₽)'}
+          />
         </div>
 
-        <button className="btn btn-primary" disabled={fkAmount < 0.5 || fkLoading} onClick={payFK}>
-          {fkLoading ? '⏳...' : `${L.pay} $${fkAmount > 0 ? fkAmount.toFixed(2) : '0.00'}`}
+        <button className="btn btn-primary" disabled={fkAmountRub < minRub || fkLoading} onClick={payFK}>
+          {fkLoading ? '⏳...' : `${L.pay} ₽${fkAmountRub > 0 ? fkAmountRub : '0'}`}
         </button>
         {fkError && <div style={{ marginTop: 8, fontSize: 13, color: 'var(--red)' }}>{fkError}</div>}
         <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{L.after}</div>
@@ -184,7 +187,11 @@ export default function Balance({ me, lang }: Props) {
         </div>
 
         <div style={{ marginBottom: 12 }}>
-          <AmountSelector amountUsd={cryptoAmount} setAmountUsd={setCryptoAmount} lang={lang} />
+          <AmountSelector
+            amount={cryptoAmount} setAmount={setCryptoAmount}
+            symbol="$" step={1}
+            placeholder={lang === 'ua' ? 'Сума ($)' : lang === 'ru' ? 'Сумма ($)' : 'Amount ($)'}
+          />
         </div>
 
         <button
