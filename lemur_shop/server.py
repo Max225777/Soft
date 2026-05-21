@@ -81,6 +81,8 @@ async def lifespan(app: FastAPI):
     _dp.include_router(admin.router)
     from lemur_shop.handlers import payments as _pay_handlers
     _dp.include_router(_pay_handlers.router)
+    from lemur_shop.handlers import topup as _topup_handlers
+    _dp.include_router(_topup_handlers.router)
 
     webapp_url = settings.WEBAPP_URL.rstrip("/") if settings.WEBAPP_URL else ""
     use_webhook = False
