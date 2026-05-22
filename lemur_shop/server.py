@@ -1228,6 +1228,7 @@ async def api_wheel_spin(body: WheelSpinRequest, user: User = Depends(get_curren
 
 
 
+@app.get("/{path:path}")
 async def spa_fallback(path: str):
     static_file = os.path.join(STATIC_DIR, path)
     if os.path.isfile(static_file):
