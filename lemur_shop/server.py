@@ -986,6 +986,7 @@ async def api_admin_reset_stats(admin: User = Depends(require_admin)):
 
 
 import uuid as _uuid
+import random as _random
 
 _game_sessions: dict[str, dict] = {}
 
@@ -998,6 +999,33 @@ class GameFinishRequest(BaseModel):
 
 # Multiplier tiers: (min_score, multiplier_x10) — x10 to avoid floats
 GAME_TIERS = [(2000, 50), (1000, 30), (500, 20), (200, 15)]  # descending
+
+# ---------------------------------------------------------------------------
+# House edge: ~75 % RTP (25 % margin).
+# At game start the server secretly draws a max achievable score for this
+# session.  The client plays a real game but effective_score = min(client, cap).
+# Distribution:
+#   65 % → cap 0–150   (below all tiers  → guaranteed loss)
+#   17.5 % → cap 200–480  (1.5 × tier)
+#   8.75 % → cap 500–950  (2 ×  tier)
+#   5.25 % → cap 1000–1900 (3 ×  tier)
+#   3.5  % → cap 2000–4500 (5 ×  tier)
+# Expected payout = 0.175×1.5 + 0.0875×2 + 0.0525×3 + 0.035×5 ≈ 0.75
+# ---------------------------------------------------------------------------
+def _house_cap() -> int:
+    r = _random.random()
+    if r < 0.65:
+        return _random.randint(0, 150)
+    r -= 0.65
+    if r < 0.175:
+        return _random.randint(200, 480)
+    r -= 0.175
+    if r < 0.0875:
+        return _random.randint(500, 950)
+    r -= 0.0875
+    if r < 0.0525:
+        return _random.randint(1000, 1900)
+    return _random.randint(2000, 4500)
 
 @app.get("/api/game/status")
 async def api_game_status(user: User = Depends(get_current_user)):
@@ -1046,6 +1074,7 @@ async def api_game_start(body: GameStartRequest, user: User = Depends(get_curren
         "is_free": is_free,
         "bet": actual_bet,
         "created_at": datetime.now(timezone.utc),
+        "cap": _house_cap(),  # server-predetermined max effective score
     }
     return {"token": token, "is_free": is_free, "bet": actual_bet}
 
@@ -1059,7 +1088,9 @@ async def api_game_finish(body: GameFinishRequest, user: User = Depends(get_curr
     if elapsed > 600:
         raise HTTPException(400, "Session expired")
 
-    score = max(0, min(int(body.score), 5000))
+    # Cap client score: anti-cheat (5000 hard limit) + house edge cap
+    raw_score = max(0, min(int(body.score), 5000))
+    score = min(raw_score, session["cap"])  # house determines max outcome
     bet = session["bet"]
 
     # Determine multiplier (x10 internally)
