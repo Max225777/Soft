@@ -218,15 +218,17 @@ async def api_me(user: User = Depends(get_current_user)):
             select(func.sum(Order.price_usd)).where(Order.user_id == user.id, Order.status == "delivered")
         ) or Decimal(0)
     lang = user.lang
-    usd = float(user.balance_usd)
+    stars = user.balance_stars
+    usd_display = round(stars * settings.STAR_DISPLAY_USD, 2)
     return {
         "id":              user.id,
         "name":            user.full_name or user.username or str(user.id),
         "username":        user.username,
         "lang":            lang,
-        "balance_usd":     usd,
-        "balance_uah":     round(usd * uah, 0),
-        "balance_rub":     round(usd * rub, 0),
+        "balance_stars":   stars,
+        "balance_usd":     usd_display,
+        "balance_uah":     round(usd_display * uah, 0),
+        "balance_rub":     round(usd_display * rub, 0),
         "rate_uah":        uah,
         "rate_rub":        rub,
         "orders_count":    orders_count,
@@ -252,10 +254,11 @@ async def api_set_lang(body: SetLangRequest, user: User = Depends(get_current_us
 async def api_categories(user: User = Depends(get_current_user)):
     return [
         {
-            "category":  cat,
-            "flag":      info["flag"],
-            "title":     info["title"],
-            "price_usd": info["price_usd"],
+            "category":    cat,
+            "flag":        info["flag"],
+            "title":       info["title"],
+            "price_usd":   info["price_usd"],
+            "price_stars": round(info["price_usd"] * settings.STARS_PER_PRODUCT_USD),
         }
         for cat, info in CATEGORIES.items()
     ]
@@ -267,16 +270,18 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
     if not cat_info:
         raise HTTPException(status_code=400, detail="Unknown category")
 
-    base_price = Decimal(str(cat_info["price_usd"]))
+    base_price_usd = cat_info["price_usd"]
+    base_price_stars = round(base_price_usd * settings.STARS_PER_PRODUCT_USD)
 
     async with AsyncSessionLocal() as s:
         total_spent = await s.scalar(
             select(func.sum(Order.price_usd)).where(Order.user_id == user.id, Order.status == "delivered")
         ) or Decimal(0)
     discount_pct = _level_discount_pct(float(total_spent))
-    shop_price = (base_price * Decimal(str(100 - discount_pct)) / Decimal("100")).quantize(Decimal("0.01"))
+    shop_price_stars = round(base_price_stars * (100 - discount_pct) / 100)
+    shop_price_usd = Decimal(str(round(shop_price_stars * settings.STAR_DISPLAY_USD, 2)))
 
-    if user.balance_usd < shop_price:
+    if user.balance_stars < shop_price_stars:
         raise HTTPException(status_code=402, detail="insufficient_balance")
 
     try:
@@ -289,12 +294,12 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
     async with AsyncSessionLocal() as s:
         async with s.begin():
             u = await s.get(User, user.id)
-            u.balance_usd = u.balance_usd - shop_price
+            u.balance_stars = u.balance_stars - shop_price_stars
             order = Order(
                 user_id=user.id,
                 product_id=0,
                 lolz_item_id=lolz_item_id,
-                price_usd=shop_price,
+                price_usd=shop_price_usd,
                 cost_usd=lolz_cost,
                 category=body.category,
                 status="delivered",
@@ -694,23 +699,23 @@ async def api_stars_invoice(body: StarsInvoiceRequest, user: User = Depends(get_
 
 @app.post("/api/stars/buy")
 async def api_stars_buy(body: StarsBuyRequest, user: User = Depends(get_current_user)):
-    amount_usd = Decimal(str(round(body.amount_usd, 2)))
-    if body.stars < 1 or float(amount_usd) < 0.5:
+    if body.stars < 1:
         raise HTTPException(status_code=400, detail="Invalid amount")
+    price_stars = round(body.amount_usd / settings.STAR_DISPLAY_USD)
     async with AsyncSessionLocal() as s:
         async with s.begin():
             u = await s.get(User, user.id)
-            if not u or u.balance_usd < amount_usd:
+            if not u or u.balance_stars < price_stars:
                 raise HTTPException(status_code=400, detail="Insufficient balance")
-            u.balance_usd = u.balance_usd - amount_usd
+            u.balance_stars = u.balance_stars - price_stars
 
     if _bot and settings.ADMIN_IDS:
         uname = f"@{user.username}" if user.username else f"ID:{user.id}"
         txt = (
             f"⭐ <b>Замовлення Stars!</b>\n\n"
             f"👤 {uname} (<code>{user.id}</code>)\n"
-            f"⭐ Зірок: <b>{body.stars}</b>\n"
-            f"💰 Списано: <b>${float(amount_usd):.2f}</b>\n\n"
+            f"⭐ Зірок до відправки: <b>{body.stars}</b>\n"
+            f"💫 Списано з балансу: <b>⭐{price_stars}</b>\n\n"
             f"<i>Відправте зірки через Fragment або бот</i>"
         )
         for admin_id in settings.ADMIN_IDS:

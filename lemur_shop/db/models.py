@@ -23,6 +23,7 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(128), default="")
     lang: Mapped[str] = mapped_column(String(4), default="ru")
     balance_usd: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0"))
+    balance_stars: Mapped[int] = mapped_column(Integer, default=0)
     referral_code: Mapped[str] = mapped_column(String(16), unique=True, nullable=False)
     referred_by_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True

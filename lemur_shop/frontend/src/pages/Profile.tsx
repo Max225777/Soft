@@ -89,12 +89,8 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
 
   if (!me) return <div className="page"><p className="muted">{T.loading}</p></div>
 
-  const usd = me.balance_usd
-  const balanceLocal = lang === 'ua' && me.rate_uah
-    ? `${Math.round(usd * me.rate_uah)}₴`
-    : lang === 'ru' && me.rate_rub
-    ? `${Math.round(usd * me.rate_rub)}₽`
-    : ''
+  const starsBalance = me.balance_stars
+  const usdDisplay = (starsBalance * 0.013).toFixed(2)
 
   const spent = me.total_spent_usd ?? 0
   const lvl = getLevel(spent)
@@ -141,7 +137,7 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
             {me.username && <div className="muted" style={{ fontSize: 13, marginTop: 1 }}>@{me.username}</div>}
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--orange)' }}>{fmtLocal(spent, me, lang)}</div>
+            <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--orange)' }}>⭐{Math.round(spent / 0.013)}</div>
             <div className="muted" style={{ fontSize: 11 }}>
               {lang === 'ua' ? 'витрачено' : lang === 'ru' ? 'потрачено' : 'spent'}
             </div>
@@ -154,13 +150,8 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
             {T.balance.toUpperCase()}
           </div>
           <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1 }}>
-            {balanceLocal
-              ? <>
-                  <span style={{ fontWeight: 800, fontSize: 38 }}>{balanceLocal}</span>
-                  <span style={{ fontWeight: 400, fontSize: 18, marginLeft: 10, color: 'var(--muted)' }}>${usd.toFixed(2)}</span>
-                </>
-              : <span style={{ fontWeight: 800, fontSize: 38 }}>${usd.toFixed(2)}</span>
-            }
+            <span style={{ fontWeight: 800, fontSize: 38 }}>⭐{starsBalance}</span>
+            <span style={{ fontWeight: 400, fontSize: 18, marginLeft: 10, color: 'var(--muted)' }}>(${usdDisplay})</span>
           </div>
         </div>
 
@@ -199,7 +190,7 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
           {/* Progress bar */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <span className="muted" style={{ fontSize: 11 }}>
-              {fmtLocal(spent, me, lang)} / {lvl.max === Infinity ? '∞' : fmtLocal(lvl.max, me, lang)}
+              ⭐{Math.round(spent / 0.013)} / {lvl.max === Infinity ? '∞' : `⭐${Math.round(lvl.max / 0.013)}`}
             </span>
             <span style={{ fontSize: 11, color: lvl.color, fontWeight: 700 }}>{Math.round(progress)}%</span>
           </div>
@@ -240,7 +231,7 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
 
           {toNext !== null && nextLvl && (
             <div className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 10 }}>
-              {T.to_next_lvl_usd(fmtLocal(toNext, me, lang), nextLvl.icon, nextLvl.name[lang])}
+              {T.to_next_lvl_usd(`⭐${Math.round(toNext / 0.013)}`, nextLvl.icon, nextLvl.name[lang])}
             </div>
           )}
 
@@ -353,7 +344,7 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
                     {new Date(o.created_at).toLocaleString(
                       lang === 'en' ? 'en-GB' : lang === 'ua' ? 'uk-UA' : 'ru-RU',
                       { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }
-                    )} · ${o.price_usd.toFixed(2)}
+                    )} · ⭐{Math.round(o.price_usd / 0.013)}
                   </div>
                 </div>
                 <div style={{ color: 'var(--muted)', fontSize: 18, transition: 'transform .2s', transform: isOpen ? 'rotate(180deg)' : '' }}>▾</div>

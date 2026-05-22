@@ -8,12 +8,13 @@ interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void }
 
 type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars'
 
-function localPrice(usd: number, lang: Lang, me: Me | null): JSX.Element {
-  const usdSpan = <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(${usd.toFixed(2)})</span>
-  if (!me) return <span style={{ fontWeight: 700 }}>${usd.toFixed(2)}</span>
-  if (lang === 'ua' && me.rate_uah) return <><span style={{ fontWeight: 700 }}>{Math.round(usd * me.rate_uah)}₴</span> {usdSpan}</>
-  if (lang === 'ru' && me.rate_rub) return <><span style={{ fontWeight: 700 }}>{Math.round(usd * me.rate_rub)}₽</span> {usdSpan}</>
-  return <span style={{ fontWeight: 700 }}>${usd.toFixed(2)}</span>
+function localPrice(stars: number, usd: number): JSX.Element {
+  return (
+    <>
+      <span style={{ fontWeight: 800 }}>⭐{stars}</span>
+      <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: 12, marginLeft: 6 }}>(${usd.toFixed(2)})</span>
+    </>
+  )
 }
 
 function discountedPrice(base: number, pct: number) {
@@ -38,12 +39,10 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
   const lvlIdx = getLevelIdx(spent)
   const discount = lvl.discount
   const finalUsd = discountedPrice(cat.price_usd, discount)
+  const finalStars = Math.round(cat.price_stars * (100 - discount) / 100)
 
-  function fmtPrice(usd: number) {
-    if (!me) return `$${usd.toFixed(2)}`
-    if (lang === 'ua' && me.rate_uah) return `${Math.round(usd * me.rate_uah)}₴ ($${usd.toFixed(2)})`
-    if (lang === 'ru' && me.rate_rub) return `${Math.round(usd * me.rate_rub)}₽ ($${usd.toFixed(2)})`
-    return `$${usd.toFixed(2)}`
+  function fmtPrice(stars: number, usd: number) {
+    return `⭐${stars} ($${usd.toFixed(2)})`
   }
 
   return (
@@ -91,7 +90,7 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <span className="muted" style={{ fontSize: 13 }}>{T.original_price}</span>
                 <span style={{ fontWeight: 600, fontSize: 14, textDecoration: 'line-through', color: 'var(--muted)' }}>
-                  {fmtPrice(cat.price_usd)}
+                  {fmtPrice(cat.price_stars, cat.price_usd)}
                 </span>
               </div>
 
@@ -105,7 +104,7 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
                     {lvl.icon} −{discount}%
                   </span>
                 </div>
-                <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--green)' }}>−{fmtPrice(cat.price_usd - finalUsd)}</span>
+                <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--green)' }}>−⭐{cat.price_stars - finalStars}</span>
               </div>
 
               <div style={{ height: 1, background: 'var(--border)', marginBottom: 12 }} />
@@ -115,7 +114,7 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 700, fontSize: 15 }}>{T.final_price}</span>
             <span style={{ fontWeight: 800, fontSize: 22, color: 'var(--orange)' }}>
-              {fmtPrice(finalUsd)}
+              ⭐{finalStars} <span style={{ fontWeight: 400, fontSize: 14, color: 'var(--muted)' }}>(${finalUsd.toFixed(2)})</span>
             </span>
           </div>
         </div>
@@ -204,17 +203,10 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
   if (view === 'menu') {
     const spent = me?.total_spent_usd ?? 0
     const lvl = getLevel(spent)
-    const usd = me?.balance_usd ?? 0
-    const mainBalance = me
-      ? (lang === 'ua' && me.rate_uah
-          ? `${Math.round(usd * me.rate_uah)}₴`
-          : lang === 'ru' && me.rate_rub
-          ? `${Math.round(usd * me.rate_rub)}₽`
-          : `$${usd.toFixed(2)}`)
-      : '…'
-    const subBalance = me && ((lang === 'ua' && me.rate_uah) || (lang === 'ru' && me.rate_rub))
-      ? `($${usd.toFixed(2)})`
-      : null
+    const starsBalance = me?.balance_stars ?? 0
+    const usdDisplay = (starsBalance * 0.013).toFixed(2)
+    const mainBalance = `⭐${starsBalance}`
+    const subBalance = `($${usdDisplay})`
 
     return (
       <div className="page">
@@ -242,7 +234,7 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
               </div>
               <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1 }}>
                 <span style={{ fontWeight: 800, fontSize: 30 }}>{mainBalance}</span>
-                {subBalance && <span style={{ fontWeight: 400, fontSize: 13, marginLeft: 7, color: 'var(--muted)' }}>{subBalance}</span>}
+                <span style={{ fontWeight: 400, fontSize: 13, marginLeft: 7, color: 'var(--muted)' }}>{subBalance}</span>
               </div>
             </div>
 
@@ -400,7 +392,7 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div className="price-pill" style={{ flex: 1, justifyContent: 'center', fontSize: 15, padding: '9px 12px' }}>
-                    {localPrice(cat.price_usd, lang, me)}
+                    {localPrice(cat.price_stars, cat.price_usd)}
                   </div>
                   <button
                     className="btn btn-primary"

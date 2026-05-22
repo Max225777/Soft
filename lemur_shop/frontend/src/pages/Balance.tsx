@@ -8,7 +8,6 @@ interface Props { me: Me | null; lang: Lang }
 
 const PRESETS_RUB = [100, 250, 500, 1000]
 const PRESETS_USD = [1, 2, 5, 10, 25, 50]
-// Пресети в Stars (мінімум 1 зірка)
 const PRESETS_STARS = [1, 5, 10, 50, 100]
 const STARS_PER_USD = 141
 
@@ -16,6 +15,16 @@ const SLIDE_STYLE = `
   @keyframes expand-down {
     from { opacity: 0; transform: translateY(-12px); }
     to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes topup-pop {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(-16px) scale(.92); }
+    55%  { transform: translateX(-50%) translateY(4px) scale(1.02); }
+    100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  }
+  @keyframes star-spin {
+    0%   { transform: rotate(0deg) scale(1); }
+    50%  { transform: rotate(20deg) scale(1.3); }
+    100% { transform: rotate(0deg) scale(1); }
   }
 `
 
@@ -49,18 +58,14 @@ export default function Balance({ me, lang }: Props) {
   const [fkError, setFkError] = useState<string | null>(null)
   const [cryptoError, setCryptoError] = useState<string | null>(null)
   const [starsError, setStarsError] = useState<string | null>(null)
+  const [topupSuccess, setTopupSuccess] = useState<number | null>(null)
 
   if (!me) return <div className="page"><p className="muted">{T.loading}</p></div>
 
-  const usd = me.balance_usd
+  const stars = me.balance_stars
+  const usdDisplay = (stars * 0.013).toFixed(2)
   const spent = me.total_spent_usd ?? 0
   const lvl = getLevel(spent)
-  const hasLocal = (lang === 'ua' && me.rate_uah) || (lang === 'ru' && me.rate_rub)
-  const mainBalance = lang === 'ua' && me.rate_uah
-    ? `${Math.round(usd * me.rate_uah)}₴`
-    : lang === 'ru' && me.rate_rub
-    ? `${Math.round(usd * me.rate_rub)}₽`
-    : `$${usd.toFixed(2)}`
   const rubRate = me.rate_rub || 90
 
   const payLabel = lang === 'ru' ? 'Пополнить' : lang === 'ua' ? 'Поповнити' : 'Pay'
@@ -87,16 +92,17 @@ export default function Balance({ me, lang }: Props) {
     finally { setCryptoLoading(false) }
   }
 
-  async function payStars(stars: number) {
-    if (stars < 1) return
+  async function payStars(count: number) {
+    if (count < 1) return
     setStarsLoading(true); setStarsError(null)
     try {
-      const { invoice_url } = await api.starsInvoice(stars)
+      const { invoice_url } = await api.starsInvoice(count)
       if (window.Telegram?.WebApp) {
         window.Telegram.WebApp.openInvoice(invoice_url, status => {
           if (status === 'paid') {
-            setStarsError(null)
             setOpen(null)
+            setTopupSuccess(count)
+            setTimeout(() => setTopupSuccess(null), 4000)
           } else if (status === 'cancelled' || status === 'failed') {
             setStarsError(T.stars_failed)
           }
@@ -138,9 +144,36 @@ export default function Balance({ me, lang }: Props) {
 
   return (
     <div className="page">
+      <style>{SLIDE_STYLE}</style>
+
+      {/* Success toast */}
+      {topupSuccess && (
+        <div style={{
+          position: 'fixed', top: 24, left: '50%', zIndex: 999,
+          animation: 'topup-pop .45s cubic-bezier(.32,1,.6,1)',
+          background: 'linear-gradient(135deg, #1a180a, #1a1600)',
+          border: '2px solid rgba(255,184,48,.6)',
+          borderRadius: 18, padding: '14px 22px',
+          display: 'flex', alignItems: 'center', gap: 14,
+          boxShadow: '0 8px 40px rgba(0,0,0,.7)',
+          transform: 'translateX(-50%)',
+          pointerEvents: 'none',
+        }}>
+          <span style={{ fontSize: 32, animation: 'star-spin .6s ease' }}>⭐</span>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: '#FFB830' }}>
+              +{topupSuccess} {lang === 'ru' ? 'звёзд зачислено!' : lang === 'ua' ? 'зірок зараховано!' : 'Stars credited!'}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+              {lang === 'ru' ? 'Баланс обновится при следующем открытии' : lang === 'ua' ? 'Баланс оновиться при наступному відкритті' : 'Balance updates on next open'}
+            </div>
+          </div>
+        </div>
+      )}
+
       <h1 style={{ marginBottom: 16 }}>{T.balance}</h1>
 
-      {/* Balance hero */}
+      {/* Balance hero — Stars primary */}
       <div style={{
         background: 'linear-gradient(135deg, #1E1428 0%, #1A1020 50%, #141018 100%)',
         border: '1px solid rgba(255,107,43,.22)',
@@ -154,16 +187,14 @@ export default function Balance({ me, lang }: Props) {
         <div style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6 }}>
           {T.balance.toUpperCase()}
         </div>
-        <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1, marginBottom: hasLocal ? 4 : 12 }}>
-          <span style={{ fontWeight: 800, fontSize: 40 }}>{mainBalance}</span>
+        <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1, marginBottom: 4 }}>
+          <span style={{ fontWeight: 800, fontSize: 40 }}>⭐{stars}</span>
+          <span style={{ fontWeight: 400, fontSize: 15, marginLeft: 10, color: 'var(--muted)' }}>(${usdDisplay})</span>
         </div>
-        {hasLocal && (
-          <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 12 }}>(${usd.toFixed(2)})</div>
-        )}
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 8,
           background: `${lvl.color}15`, border: `1px solid ${lvl.color}30`,
-          borderRadius: 20, padding: '5px 12px',
+          borderRadius: 20, padding: '5px 12px', marginTop: 10,
         }}>
           <span style={{ fontSize: 15 }}>{lvl.icon}</span>
           <span style={{ fontWeight: 700, fontSize: 13, color: lvl.color }}>{lvl.name[lang]}</span>
@@ -282,6 +313,7 @@ export default function Balance({ me, lang }: Props) {
           </ExpandPanel>
         )}
       </div>
+
       {/* Stars card */}
       <div style={{
         background: 'linear-gradient(135deg, rgba(255,184,48,.08), rgba(255,184,48,.03))',
@@ -300,7 +332,7 @@ export default function Balance({ me, lang }: Props) {
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 15, color: '#FFB830' }}>Telegram Stars</div>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-              {lang === 'ru' ? '⭐141 = $1 · такой курс из-за комиссии ТГ' : lang === 'ua' ? '⭐141 = $1 · такий курс через комісію ТГ' : '⭐141 = $1 · rate due to TG commission'}
+              {lang === 'ru' ? '1:1 · такой курс из-за комиссии ТГ' : lang === 'ua' ? '1:1 · такий курс через комісію ТГ' : '1:1 · rate due to TG commission'}
             </div>
           </div>
           <div style={{ color: 'var(--muted)', fontSize: 18, transition: 'transform .2s', transform: open === 'stars' ? 'rotate(90deg)' : '' }}>›</div>

@@ -22,18 +22,19 @@ async def pre_checkout(query: PreCheckoutQuery) -> None:
 @router.message(F.successful_payment)
 async def successful_payment(message: Message) -> None:
     sp = message.successful_payment
-    payload = sp.invoice_payload  # "stars_topup:{user_id}:{amount_usd}"
-    stars = sp.total_amount       # кількість зірок (XTR amount)
+    payload = sp.invoice_payload  # "stars_topup:{user_id}:{stars}"
+    stars = sp.total_amount       # кількість зірок (XTR amount = Stars count)
 
     try:
         parts = payload.split(":")
         if parts[0] != "stars_topup":
             return
         user_id = int(parts[1])
-        amount_usd = Decimal(parts[2])
     except Exception as e:
         log.error("Bad payment payload %r: %s", payload, e)
         return
+
+    amount_usd = Decimal(str(round(stars * settings.STAR_DISPLAY_USD, 4)))
 
     async with AsyncSessionLocal() as s:
         async with s.begin():
@@ -41,20 +42,22 @@ async def successful_payment(message: Message) -> None:
             if not user:
                 log.error("Payment for unknown user %s", user_id)
                 return
-            user.balance_usd = user.balance_usd + amount_usd
+            # 1:1 — зараховуємо рівно стільки Stars, скільки заплатив
+            user.balance_stars = user.balance_stars + stars
+            new_balance = user.balance_stars  # зберігаємо до закриття сесії
             s.add(TopUp(
                 user_id=user_id,
                 amount_usd=amount_usd,
                 admin_id=0,  # 0 = Stars payment
             ))
 
-    log.info("Stars topup: user=%s stars=%s usd=%s", user_id, stars, amount_usd)
+    log.info("Stars topup: user=%s stars=%s", user_id, stars)
 
     uname = f"@{user.username}" if user.username else f"ID:{user_id}"
     await message.answer(
         f"✅ Баланс поповнено!\n\n"
-        f"⭐ {stars} зірок → <b>${float(amount_usd):.2f}</b>\n"
-        f"💰 Новий баланс: <b>${float(user.balance_usd):.2f}</b>",
+        f"⭐ +{stars} зірок\n"
+        f"💫 Новий баланс: <b>⭐{new_balance}</b>",
         parse_mode="HTML"
     )
 
@@ -64,8 +67,7 @@ async def successful_payment(message: Message) -> None:
         txt = (
             f"⭐ <b>Поповнення через Stars!</b>\n\n"
             f"👤 {uname} (<code>{user_id}</code>)\n"
-            f"⭐ Stars: {stars}\n"
-            f"💰 Зараховано: <b>${float(amount_usd):.2f}</b>"
+            f"⭐ Зараховано: <b>+{stars}</b>"
         )
         for admin_id in settings.ADMIN_IDS:
             try:
