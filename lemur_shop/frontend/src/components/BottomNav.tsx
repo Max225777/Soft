@@ -1,7 +1,7 @@
 import type { Lang } from '../i18n'
 import { getT } from '../i18n'
 
-export type Tab = 'shop' | 'profile' | 'balance' | 'admin'
+export type Tab = 'shop' | 'profile' | 'balance' | 'admin' | 'game'
 
 interface Props { active: Tab; onChange(t: Tab): void; lang: Lang; isAdmin?: boolean }
 
@@ -32,16 +32,25 @@ const icons: Record<Tab, JSX.Element> = {
       <path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>
     </svg>
   ),
+  game: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="2" y="6" width="20" height="12" rx="4"/>
+      <path d="M12 10v4M10 12h4"/>
+      <circle cx="17" cy="12" r="1" fill="currentColor"/>
+      <circle cx="15" cy="10" r="1" fill="currentColor"/>
+    </svg>
+  ),
 }
 
 export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
   const T = getT(lang)
-  const tabs: Tab[] = isAdmin ? ['shop', 'balance', 'profile', 'admin'] : ['shop', 'profile', 'balance']
+  const tabs: Tab[] = isAdmin ? ['shop', 'balance', 'game', 'profile', 'admin'] : ['shop', 'balance', 'game', 'profile']
   const labels: Record<Tab, string> = {
     shop:    T.shop,
     profile: T.profile,
     balance: T.balance_tab,
     admin:   '⚙️ Адмін',
+    game:    '🎮 Гра',
   }
   return (
     <nav className="nav">

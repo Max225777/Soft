@@ -32,6 +32,12 @@ export const api = {
   starsBuy:     (stars: number, amount_usd: number) => req<{ ok: boolean }>('/stars/buy', { method: 'POST', body: JSON.stringify({ stars, amount_usd }) }),
 }
 
+export const gameApi = {
+  status: () => req<{ can_play_free: boolean; cost_stars: number; balance_stars: number }>('/game/status'),
+  start:  () => req<{ token: string; is_free: boolean }>('/game/start', { method: 'POST', body: '{}' }),
+  finish: (token: string, score: number) => req<{ stars_earned: number; score: number; new_balance: number }>('/game/finish', { method: 'POST', body: JSON.stringify({ token, score }) }),
+}
+
 export const adminApi = {
   stats:           () => req<AdminStats>('/admin/stats'),
   users:           (page: number, limit = 20, search = '') => req<AdminUsersPage>(`/admin/users?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`),

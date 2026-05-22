@@ -985,6 +985,93 @@ async def api_admin_reset_stats(admin: User = Depends(require_admin)):
     return {"ok": True}
 
 
+import uuid as _uuid
+
+_game_sessions: dict[str, dict] = {}
+
+class GameFinishRequest(BaseModel):
+    token: str
+    score: int
+
+@app.get("/api/game/status")
+async def api_game_status(user: User = Depends(get_current_user)):
+    from datetime import date as _date
+    from lemur_shop.db.models import GamePlay
+    async with AsyncSessionLocal() as s:
+        free_today = await s.scalar(
+            select(func.count(GamePlay.id))
+            .where(GamePlay.user_id == user.id)
+            .where(GamePlay.is_free == True)
+            .where(func.date(GamePlay.created_at) == _date.today())
+        ) or 0
+    return {
+        "can_play_free": free_today == 0,
+        "cost_stars": 10,
+        "balance_stars": user.balance_stars,
+    }
+
+@app.post("/api/game/start")
+async def api_game_start(user: User = Depends(get_current_user)):
+    from datetime import date as _date
+    from lemur_shop.db.models import GamePlay
+    async with AsyncSessionLocal() as s:
+        free_today = await s.scalar(
+            select(func.count(GamePlay.id))
+            .where(GamePlay.user_id == user.id)
+            .where(GamePlay.is_free == True)
+            .where(func.date(GamePlay.created_at) == _date.today())
+        ) or 0
+
+    is_free = free_today == 0
+    if not is_free:
+        async with AsyncSessionLocal() as s:
+            async with s.begin():
+                u = await s.get(User, user.id)
+                if not u or u.balance_stars < 10:
+                    raise HTTPException(402, "insufficient_balance")
+                u.balance_stars -= 10
+
+    token = str(_uuid.uuid4())
+    _game_sessions[token] = {
+        "user_id": user.id,
+        "is_free": is_free,
+        "created_at": datetime.now(timezone.utc),
+    }
+    return {"token": token, "is_free": is_free}
+
+@app.post("/api/game/finish")
+async def api_game_finish(body: GameFinishRequest, user: User = Depends(get_current_user)):
+    from lemur_shop.db.models import GamePlay
+    session = _game_sessions.pop(body.token, None)
+    if not session or session["user_id"] != user.id:
+        raise HTTPException(400, "Invalid session")
+    elapsed = (datetime.now(timezone.utc) - session["created_at"]).total_seconds()
+    if elapsed > 600:
+        raise HTTPException(400, "Session expired")
+
+    score = max(0, min(int(body.score), 5000))
+    if score < 300: stars_earned = 2
+    elif score < 700: stars_earned = 5
+    elif score < 1200: stars_earned = 12
+    elif score < 2000: stars_earned = 25
+    elif score < 3000: stars_earned = 45
+    else: stars_earned = 75
+
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            u = await s.get(User, user.id)
+            u.balance_stars = u.balance_stars + stars_earned
+            new_balance = u.balance_stars
+            s.add(GamePlay(
+                user_id=user.id,
+                score=score,
+                stars_earned=stars_earned,
+                is_free=session["is_free"],
+            ))
+
+    return {"stars_earned": stars_earned, "score": score, "new_balance": new_balance}
+
+
 @app.get("/{path:path}")
 async def spa_fallback(path: str):
     static_file = os.path.join(STATIC_DIR, path)

@@ -102,3 +102,13 @@ class ReferralPayout(Base):
     order_id: Mapped[int] = mapped_column(Integer, ForeignKey("orders.id"), nullable=False)
     bonus_usd: Mapped[Decimal] = mapped_column(Numeric(10, 4), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class GamePlay(Base):
+    __tablename__ = "game_plays"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
+    score: Mapped[int] = mapped_column(Integer, default=0)
+    stars_earned: Mapped[int] = mapped_column(Integer, default=0)
+    is_free: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
