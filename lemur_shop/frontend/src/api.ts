@@ -33,11 +33,13 @@ export const api = {
 }
 
 export const adminApi = {
-  stats:      () => req<AdminStats>('/admin/stats'),
-  users:      (page: number, limit = 20, search = '') => req<AdminUsersPage>(`/admin/users?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`),
-  userDetail: (id: number) => req<AdminUserDetail>(`/admin/user/${id}`),
-  orders:     (page: number, limit = 30) => req<AdminOrdersPage>(`/admin/orders?page=${page}&limit=${limit}`),
-  topups:     (page: number, limit = 30) => req<AdminTopupsPage>(`/admin/topups?page=${page}&limit=${limit}`),
+  stats:           () => req<AdminStats>('/admin/stats'),
+  users:           (page: number, limit = 20, search = '') => req<AdminUsersPage>(`/admin/users?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`),
+  userDetail:      (id: number) => req<AdminUserDetail>(`/admin/user/${id}`),
+  orders:          (page: number, limit = 30) => req<AdminOrdersPage>(`/admin/orders?page=${page}&limit=${limit}`),
+  topups:          (page: number, limit = 30) => req<AdminTopupsPage>(`/admin/topups?page=${page}&limit=${limit}`),
+  broadcast:       (text: string, parse_mode = 'HTML') => req<{ ok: boolean; total: number }>('/admin/broadcast', { method: 'POST', body: JSON.stringify({ text, parse_mode }) }),
+  broadcastStatus: () => req<BroadcastStatus>('/admin/broadcast/status'),
 }
 
 export interface Me {
@@ -56,10 +58,14 @@ export interface Order {
 }
 
 export interface AdminStats {
-  total_users: number; total_orders: number
+  total_users: number; unique_buyers: number; users_with_balance: number; conversion_pct: number
+  total_orders: number; avg_order_usd: number
   total_revenue_usd: number; total_topups_usd: number; total_stars_balance: number
   new_users_today: number; orders_today: number; revenue_today: number; topups_today: number
   categories: { category: string; count: number; revenue_usd: number }[]
+}
+export interface BroadcastStatus {
+  running: boolean; sent: number; failed: number; total: number; text: string
 }
 export interface AdminUser {
   id: number; name: string; username: string | null

@@ -750,9 +750,21 @@ async def api_admin_stats(admin: User = Depends(require_admin)):
 
         total_stars_balance = await s.scalar(select(func.sum(User.balance_stars))) or 0
 
+        from sqlalchemy import distinct
+        unique_buyers      = await s.scalar(select(func.count(distinct(Order.user_id)))) or 0
+        users_with_balance = await s.scalar(select(func.count(User.id)).where(User.balance_stars > 0)) or 0
+        conversion_pct     = round(unique_buyers / total_users * 100, 1) if total_users else 0.0
+
+        # avg order value
+        avg_order_usd = float(total_rev_usd) / total_orders if total_orders else 0.0
+
     return {
         "total_users":        total_users,
+        "unique_buyers":      unique_buyers,
+        "users_with_balance": users_with_balance,
+        "conversion_pct":     conversion_pct,
         "total_orders":       total_orders,
+        "avg_order_usd":      round(avg_order_usd, 2),
         "total_revenue_usd":  float(total_rev_usd),
         "total_topups_usd":   float(total_topups),
         "total_stars_balance": total_stars_balance,
@@ -903,6 +915,59 @@ async def api_admin_topups(page: int = 1, limit: int = 30, admin: User = Depends
     return {"total": total, "page": page, "pages": ceil(total / limit) if total else 1, "topups": result}
 
 
+# ─── Broadcast ────────────────────────────────────────────────────────────────
+
+_broadcast_status: dict = {"running": False, "sent": 0, "failed": 0, "total": 0, "text": ""}
+
+
+async def _run_broadcast(text: str, parse_mode: str) -> None:
+    global _broadcast_status
+    async with AsyncSessionLocal() as s:
+        user_ids = (await s.execute(
+            select(User.id).where(User.is_banned == False)
+        )).scalars().all()
+
+    _broadcast_status.update(running=True, sent=0, failed=0, total=len(user_ids), text=text)
+
+    for uid in user_ids:
+        if not _bot:
+            break
+        try:
+            await _bot.send_message(uid, text, parse_mode=parse_mode)
+            _broadcast_status["sent"] += 1
+        except Exception:
+            _broadcast_status["failed"] += 1
+        await asyncio.sleep(0.05)  # 20 msg/s
+
+    _broadcast_status["running"] = False
+
+
+class BroadcastRequest(BaseModel):
+    text: str
+    parse_mode: str = "HTML"
+
+
+@app.post("/api/admin/broadcast")
+async def api_admin_broadcast(
+    body: BroadcastRequest,
+    background_tasks,
+    admin: User = Depends(require_admin),
+):
+    from fastapi import BackgroundTasks  # noqa
+    if _broadcast_status["running"]:
+        raise HTTPException(409, "Розсилка вже виконується")
+    if not body.text.strip():
+        raise HTTPException(400, "Порожній текст")
+    if not _bot:
+        raise HTTPException(503, "Бот не запущено")
+
+    asyncio.create_task(_run_broadcast(body.text, body.parse_mode))
+    return {"ok": True, "total": 0}
+
+
+@app.get("/api/admin/broadcast/status")
+async def api_admin_broadcast_status(admin: User = Depends(require_admin)):
+    return _broadcast_status
 
 
 @app.get("/{path:path}")

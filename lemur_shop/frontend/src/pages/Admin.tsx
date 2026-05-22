@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
-import { adminApi, type AdminStats, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow } from '../api'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { adminApi, type AdminStats, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type BroadcastStatus } from '../api'
 
-type AdminTab = 'overview' | 'users' | 'orders' | 'topups'
+type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'broadcast'
 
 const CATEGORY_FLAGS: Record<string, string> = { us: '🇺🇸', ua: '🇺🇦', kz: '🇰🇿' }
 
@@ -65,11 +65,42 @@ function Overview() {
           sub={`⭐${Math.round(stats.topups_today / 0.013)}`} />
       </div>
 
-      {/* All time */}
-      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>ВСЕ ВДЕНЬ</div>
+      {/* Funnel */}
+      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>ВОРОНКА</div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <StatCard label="Всього юзерів" value={stats.total_users} color="#4CAF72" />
-        <StatCard label="Замовлень" value={stats.total_orders} color="var(--orange)" />
+        <StatCard label="Запустили бота" value={stats.total_users} color="#4CAF72" />
+        <StatCard label="Купили (унікал.)" value={stats.unique_buyers} color="var(--orange)"
+          sub={`${stats.conversion_pct}% конверсія`} />
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <StatCard label="Є баланс ⭐" value={stats.users_with_balance} color="var(--gold)" />
+        <StatCard label="Сер. чек" value={`$${stats.avg_order_usd.toFixed(2)}`} color="var(--orange)"
+          sub={`⭐${Math.round(stats.avg_order_usd / 0.013)}`} />
+      </div>
+
+      {/* Conversion bar */}
+      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px' }}>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
+          Конверсія: {stats.unique_buyers} / {stats.total_users} купили
+        </div>
+        <div style={{ height: 8, borderRadius: 4, background: 'rgba(255,255,255,.08)', overflow: 'hidden' }}>
+          <div style={{
+            height: '100%', borderRadius: 4,
+            background: 'linear-gradient(90deg, var(--orange), #ff9500)',
+            width: `${Math.min(stats.conversion_pct, 100)}%`, transition: 'width .5s',
+          }} />
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--orange)', marginTop: 4, fontWeight: 700 }}>
+          {stats.conversion_pct}%
+        </div>
+      </div>
+
+      {/* All time */}
+      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>ЗАГАЛОМ</div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <StatCard label="Всього замовлень" value={stats.total_orders} color="var(--orange)" />
+        <StatCard label="На балансах" value={`⭐${stats.total_stars_balance}`}
+          sub={`$${(stats.total_stars_balance * 0.013).toFixed(2)}`} color="var(--gold)" />
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <StatCard label="Загальний дохід" value={`$${stats.total_revenue_usd.toFixed(2)}`}
@@ -77,8 +108,6 @@ function Overview() {
         <StatCard label="Поповнено" value={`$${stats.total_topups_usd.toFixed(2)}`}
           sub={`⭐${Math.round(stats.total_topups_usd / 0.013)}`} color="#2AABEE" />
       </div>
-      <StatCard label="⭐ На балансах юзерів" value={`⭐${stats.total_stars_balance}`}
-        sub={`$${(stats.total_stars_balance * 0.013).toFixed(2)}`} color="var(--gold)" />
 
       {/* Categories */}
       {stats.categories.length > 0 && (
@@ -347,12 +376,136 @@ function Topups() {
   )
 }
 
+// ── Broadcast ─────────────────────────────────────────────────────────────────
+function Broadcast() {
+  const [text, setText] = useState('')
+  const [parseMode, setParseMode] = useState<'HTML' | 'Markdown'>('HTML')
+  const [status, setStatus] = useState<BroadcastStatus | null>(null)
+  const [sending, setSending] = useState(false)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    adminApi.broadcastStatus().then(setStatus).catch(() => {})
+  }, [])
+
+  function startPoll() {
+    if (pollRef.current) return
+    pollRef.current = setInterval(async () => {
+      const s = await adminApi.broadcastStatus().catch(() => null)
+      if (s) {
+        setStatus(s)
+        if (!s.running && pollRef.current) {
+          clearInterval(pollRef.current)
+          pollRef.current = null
+          setSending(false)
+        }
+      }
+    }, 1000)
+  }
+
+  async function send() {
+    if (!text.trim()) return
+    setSending(true)
+    try {
+      await adminApi.broadcast(text, parseMode)
+      setStatus({ running: true, sent: 0, failed: 0, total: 0, text })
+      startPoll()
+    } catch (e: any) {
+      alert(e.message)
+      setSending(false)
+    }
+  }
+
+  const progress = status && status.total > 0
+    ? Math.round((status.sent + status.failed) / status.total * 100)
+    : 0
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Status */}
+      {status?.running && (
+        <div style={{
+          background: 'rgba(42,171,238,.1)', border: '1px solid rgba(42,171,238,.3)',
+          borderRadius: 12, padding: '12px 14px',
+        }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: '#2AABEE', marginBottom: 8 }}>
+            📤 Розсилка виконується...
+          </div>
+          <div style={{ height: 6, background: 'rgba(255,255,255,.1)', borderRadius: 3, marginBottom: 6, overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: '#2AABEE', borderRadius: 3, width: `${progress}%`, transition: 'width .3s' }} />
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+            ✅ {status.sent} надіслано · ❌ {status.failed} помилок · з {status.total}
+          </div>
+        </div>
+      )}
+      {status && !status.running && status.total > 0 && (
+        <div style={{
+          background: 'rgba(76,175,114,.1)', border: '1px solid rgba(76,175,114,.3)',
+          borderRadius: 12, padding: '12px 14px',
+        }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: '#4CAF72', marginBottom: 4 }}>✅ Розсилку завершено</div>
+          <div style={{ fontSize: 13, color: 'var(--muted)' }}>
+            Надіслано: {status.sent} · Помилки (заблоковані): {status.failed} · Всього: {status.total}
+          </div>
+        </div>
+      )}
+
+      {/* Composer */}
+      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: 14 }}>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Формат</div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          {(['HTML', 'Markdown'] as const).map(m => (
+            <button key={m} onClick={() => setParseMode(m)}
+              style={{
+                padding: '6px 14px', fontSize: 13, borderRadius: 8, cursor: 'pointer',
+                background: parseMode === m ? 'rgba(255,107,43,.2)' : 'transparent',
+                color: parseMode === m ? 'var(--orange)' : 'var(--muted)',
+                border: parseMode === m ? '1px solid rgba(255,107,43,.4)' : '1px solid var(--border)',
+              }}>
+              {m}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Текст повідомлення</div>
+        <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
+          rows={6}
+          placeholder={parseMode === 'HTML'
+            ? '<b>Жирний</b>, <i>курсив</i>, <code>код</code>'
+            : '*Жирний*, _курсив_, `код`'}
+          style={{
+            width: '100%', background: 'rgba(255,255,255,.05)',
+            border: '1px solid var(--border)', borderRadius: 10,
+            padding: '10px 12px', color: 'var(--text)', fontSize: 14,
+            resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box',
+          }}
+        />
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, marginBottom: 12 }}>
+          Буде надіслано <b style={{ color: 'var(--text)' }}>всім незаблокованим</b> користувачам
+        </div>
+
+        <button
+          className="btn btn-primary"
+          disabled={sending || !text.trim() || (status?.running ?? false)}
+          onClick={send}
+        >
+          {sending || status?.running ? '📤 Надсилається...' : '📢 Розіслати всім'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Main Admin page ───────────────────────────────────────────────────────────
 const TABS: { id: AdminTab; label: string }[] = [
-  { id: 'overview', label: '📊 Огляд' },
-  { id: 'users',    label: '👥 Юзери' },
-  { id: 'orders',   label: '📦 Замовл.' },
-  { id: 'topups',   label: '💰 Поповн.' },
+  { id: 'overview',  label: '📊 Огляд' },
+  { id: 'users',     label: '👥 Юзери' },
+  { id: 'orders',    label: '📦 Замовл.' },
+  { id: 'topups',    label: '💰 Поповн.' },
+  { id: 'broadcast', label: '📢 Розсилка' },
 ]
 
 export default function Admin() {
@@ -362,33 +515,45 @@ export default function Admin() {
     <div className="page">
       <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 12 }}>⚙️ Адмін-панель</div>
 
-      {/* Tab bar */}
-      <div style={{
-        display: 'flex', gap: 6, marginBottom: 14,
-        background: 'var(--bg2)', borderRadius: 14, padding: 4,
-        border: '1px solid var(--border)',
-      }}>
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            style={{
-              flex: 1, padding: '8px 4px', fontSize: 12, fontWeight: tab === t.id ? 700 : 500,
+      {/* Tab bar — two rows */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 14 }}>
+        <div style={{
+          display: 'flex', gap: 4,
+          background: 'var(--bg2)', borderRadius: 12, padding: 4,
+          border: '1px solid var(--border)',
+        }}>
+          {TABS.slice(0, 3).map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)} style={{
+              flex: 1, padding: '8px 4px', fontSize: 11, fontWeight: tab === t.id ? 700 : 500,
               background: tab === t.id ? 'rgba(255,107,43,.2)' : 'transparent',
               color: tab === t.id ? 'var(--orange)' : 'var(--muted)',
               border: tab === t.id ? '1px solid rgba(255,107,43,.35)' : '1px solid transparent',
-              borderRadius: 10, cursor: 'pointer', transition: 'all .15s',
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
+              borderRadius: 8, cursor: 'pointer', transition: 'all .15s',
+            }}>{t.label}</button>
+          ))}
+        </div>
+        <div style={{
+          display: 'flex', gap: 4,
+          background: 'var(--bg2)', borderRadius: 12, padding: 4,
+          border: '1px solid var(--border)',
+        }}>
+          {TABS.slice(3).map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)} style={{
+              flex: 1, padding: '8px 4px', fontSize: 11, fontWeight: tab === t.id ? 700 : 500,
+              background: tab === t.id ? 'rgba(255,107,43,.2)' : 'transparent',
+              color: tab === t.id ? 'var(--orange)' : 'var(--muted)',
+              border: tab === t.id ? '1px solid rgba(255,107,43,.35)' : '1px solid transparent',
+              borderRadius: 8, cursor: 'pointer', transition: 'all .15s',
+            }}>{t.label}</button>
+          ))}
+        </div>
       </div>
 
-      {tab === 'overview' && <Overview />}
-      {tab === 'users'    && <Users />}
-      {tab === 'orders'   && <Orders />}
-      {tab === 'topups'   && <Topups />}
+      {tab === 'overview'  && <Overview />}
+      {tab === 'users'     && <Users />}
+      {tab === 'orders'    && <Orders />}
+      {tab === 'topups'    && <Topups />}
+      {tab === 'broadcast' && <Broadcast />}
     </div>
   )
 }
