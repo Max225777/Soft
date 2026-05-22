@@ -13,6 +13,8 @@ _MIGRATIONS = [
     "UPDATE users SET balance_stars = ROUND(CAST(balance_usd AS FLOAT) / 0.013) WHERE balance_stars = 0 AND CAST(balance_usd AS FLOAT) > 0.009",
     "ALTER TABLE topups ADD COLUMN IF NOT EXISTS amount_stars BIGINT DEFAULT 0",
     "CREATE TABLE IF NOT EXISTS game_plays (id SERIAL PRIMARY KEY, user_id BIGINT NOT NULL, score INT DEFAULT 0, stars_earned INT DEFAULT 0, is_free BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT NOW())",
+    "CREATE TABLE IF NOT EXISTS wheel_pot (id INTEGER PRIMARY KEY DEFAULT 1, stars BIGINT DEFAULT 0)",
+    "INSERT INTO wheel_pot (id, stars) VALUES (1, 0) ON CONFLICT (id) DO NOTHING",
 ]
 
 

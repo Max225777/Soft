@@ -39,15 +39,14 @@ export const gameApi = {
 }
 
 export interface WheelResult {
-  bets: number[]
-  total_pool: number
-  winner_idx: number
   player_won: boolean
   payout: number
   new_balance: number
+  pot_stars: number
 }
 
 export const wheelApi = {
+  pot:  () => req<{ pot_stars: number; potential_win: number }>('/wheel/pot'),
   spin: (bet: number) => req<WheelResult>('/wheel/spin', { method: 'POST', body: JSON.stringify({ bet }) }),
 }
 

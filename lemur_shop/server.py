@@ -64,7 +64,8 @@ async def lifespan(app: FastAPI):
 
     log.info("Підключення до БД...")
     await create_tables()
-    log.info("БД готова")
+    await _load_wheel_pot()
+    log.info("БД готова, wheel_pot=%d", _wheel_pot)
 
     _bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     _dp = Dispatcher(storage=MemoryStorage())
@@ -1126,54 +1127,103 @@ async def api_game_finish(body: GameFinishRequest, user: User = Depends(get_curr
 
 
 # ---------------------------------------------------------------------------
-# Wheel of Fortune
-# 10 participants (1 real + 9 simulated).  Each spin:
-#   - player's bet deducted upfront
-#   - 9 fake co-players with random bets in [bet/2 .. bet*2]
-#   - winner chosen with weights proportional to bets (fair share = fair chance)
-#   - house keeps 25 %: winner receives 75 % of total pool
-# Expected RTP for player ≈ 75 % (house edge 25 %)
+# Wheel of Fortune — jackpot accumulation mechanic
+#
+# All bets go into a shared pot (persisted in DB).
+# A random secret threshold is drawn after each win.
+# Win fires ONLY when pot >= threshold.
+# Winner receives WHEEL_PAYOUT_PCT of pot; owner keeps the rest.
+# Players can see the growing pot → incentive to keep spinning.
 # ---------------------------------------------------------------------------
+
+WHEEL_PAYOUT_PCT = 0.70   # winner gets 70 %, house keeps 30 %
+WHEEL_MIN_THRESHOLD = 50  # Stars: smallest possible threshold
+WHEEL_MAX_THRESHOLD = 400 # Stars: largest possible threshold
+
+_wheel_pot: int = 0
+_wheel_threshold: int = _random.randint(WHEEL_MIN_THRESHOLD, WHEEL_MAX_THRESHOLD)
+_wheel_lock: asyncio.Lock | None = None  # initialised in lifespan
+
+from sqlalchemy import text as _text
+
+async def _load_wheel_pot() -> None:
+    global _wheel_pot
+    try:
+        async with AsyncSessionLocal() as s:
+            row = (await s.execute(_text("SELECT stars FROM wheel_pot WHERE id = 1"))).first()
+            _wheel_pot = int(row[0]) if row else 0
+    except Exception:
+        _wheel_pot = 0
+
+async def _save_wheel_pot(stars: int) -> None:
+    try:
+        async with AsyncSessionLocal() as s:
+            await s.execute(_text("UPDATE wheel_pot SET stars = :s WHERE id = 1"), {"s": stars})
+            await s.commit()
+    except Exception:
+        pass
+
+
 class WheelSpinRequest(BaseModel):
     bet: int = 50
 
+@app.get("/api/wheel/pot")
+async def api_wheel_pot(user: User = Depends(get_current_user)):
+    return {
+        "pot_stars": _wheel_pot,
+        "potential_win": round(_wheel_pot * WHEEL_PAYOUT_PCT),
+    }
+
 @app.post("/api/wheel/spin")
 async def api_wheel_spin(body: WheelSpinRequest, user: User = Depends(get_current_user)):
+    global _wheel_pot, _wheel_threshold, _wheel_lock
+
+    if _wheel_lock is None:
+        _wheel_lock = asyncio.Lock()
+
     bet = max(10, min(body.bet, 1000))
 
+    # Deduct bet from user balance upfront
     async with AsyncSessionLocal() as s:
         async with s.begin():
             u = await s.get(User, user.id)
             if not u or u.balance_stars < bet:
                 raise HTTPException(402, "insufficient_balance")
             u.balance_stars -= bet
-            bal_after_deduct = u.balance_stars
 
-    lo = max(10, bet // 2)
-    hi = min(1000, bet * 2)
-    fake_bets = [_random.randint(lo, hi) for _ in range(9)]
-    bets = [bet] + fake_bets
-    total_pool = sum(bets)
+    # Pot logic (serialised via lock)
+    async with _wheel_lock:
+        _wheel_pot += bet
 
-    winner_idx = _random.choices(range(10), weights=bets)[0]
-    player_won = (winner_idx == 0)
-    payout = round(total_pool * 0.75) if player_won else 0
+        if _wheel_pot >= _wheel_threshold:
+            player_won = True
+            payout     = round(_wheel_pot * WHEEL_PAYOUT_PCT)
+            _wheel_pot = 0
+            _wheel_threshold = _random.randint(WHEEL_MIN_THRESHOLD, WHEEL_MAX_THRESHOLD)
+        else:
+            player_won = False
+            payout     = 0
 
-    new_balance = bal_after_deduct
+        pot_now = _wheel_pot
+        await _save_wheel_pot(pot_now)
+
+    new_balance = 0
     if player_won:
         async with AsyncSessionLocal() as s:
             async with s.begin():
                 u = await s.get(User, user.id)
                 u.balance_stars += payout
                 new_balance = u.balance_stars
+    else:
+        async with AsyncSessionLocal() as s:
+            u = await s.get(User, user.id)
+            new_balance = u.balance_stars if u else 0
 
     return {
-        "bets": bets,
-        "total_pool": total_pool,
-        "winner_idx": winner_idx,
         "player_won": player_won,
-        "payout": payout,
+        "payout":     payout,
         "new_balance": new_balance,
+        "pot_stars":   pot_now,
     }
 
 
