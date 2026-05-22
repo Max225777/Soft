@@ -950,10 +950,8 @@ class BroadcastRequest(BaseModel):
 @app.post("/api/admin/broadcast")
 async def api_admin_broadcast(
     body: BroadcastRequest,
-    background_tasks,
     admin: User = Depends(require_admin),
 ):
-    from fastapi import BackgroundTasks  # noqa
     if _broadcast_status["running"]:
         raise HTTPException(409, "Розсилка вже виконується")
     if not body.text.strip():
