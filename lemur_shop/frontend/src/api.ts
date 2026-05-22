@@ -33,9 +33,9 @@ export const api = {
 }
 
 export const gameApi = {
-  status: () => req<{ can_play_free: boolean; cost_stars: number; balance_stars: number }>('/game/status'),
-  start:  () => req<{ token: string; is_free: boolean }>('/game/start', { method: 'POST', body: '{}' }),
-  finish: (token: string, score: number) => req<{ stars_earned: number; score: number; new_balance: number }>('/game/finish', { method: 'POST', body: JSON.stringify({ token, score }) }),
+  status: () => req<{ can_play_free: boolean; min_bet: number; balance_stars: number }>('/game/status'),
+  start:  (bet: number) => req<{ token: string; is_free: boolean; bet: number }>('/game/start', { method: 'POST', body: JSON.stringify({ bet }) }),
+  finish: (token: string, score: number) => req<{ score: number; bet: number; multiplier: number; stars_won: number; net: number; new_balance: number }>('/game/finish', { method: 'POST', body: JSON.stringify({ token, score }) }),
 }
 
 export const adminApi = {

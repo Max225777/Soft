@@ -989,9 +989,15 @@ import uuid as _uuid
 
 _game_sessions: dict[str, dict] = {}
 
+class GameStartRequest(BaseModel):
+    bet: int = 10  # Stars to stake
+
 class GameFinishRequest(BaseModel):
     token: str
     score: int
+
+# Multiplier tiers: (min_score, multiplier_x10) — x10 to avoid floats
+GAME_TIERS = [(2000, 50), (1000, 30), (500, 20), (200, 15)]  # descending
 
 @app.get("/api/game/status")
 async def api_game_status(user: User = Depends(get_current_user)):
@@ -1006,14 +1012,16 @@ async def api_game_status(user: User = Depends(get_current_user)):
         ) or 0
     return {
         "can_play_free": free_today == 0,
-        "cost_stars": 10,
+        "min_bet": 10,
         "balance_stars": user.balance_stars,
     }
 
 @app.post("/api/game/start")
-async def api_game_start(user: User = Depends(get_current_user)):
+async def api_game_start(body: GameStartRequest, user: User = Depends(get_current_user)):
     from datetime import date as _date
     from lemur_shop.db.models import GamePlay
+    bet = max(10, min(body.bet, user.balance_stars))
+
     async with AsyncSessionLocal() as s:
         free_today = await s.scalar(
             select(func.count(GamePlay.id))
@@ -1023,21 +1031,23 @@ async def api_game_start(user: User = Depends(get_current_user)):
         ) or 0
 
     is_free = free_today == 0
-    if not is_free:
-        async with AsyncSessionLocal() as s:
-            async with s.begin():
-                u = await s.get(User, user.id)
-                if not u or u.balance_stars < 10:
-                    raise HTTPException(402, "insufficient_balance")
-                u.balance_stars -= 10
+    # Always deduct bet upfront; free play uses 10 Stars as stake
+    actual_bet = 10 if is_free else bet
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            u = await s.get(User, user.id)
+            if not u or u.balance_stars < actual_bet:
+                raise HTTPException(402, "insufficient_balance")
+            u.balance_stars -= actual_bet
 
     token = str(_uuid.uuid4())
     _game_sessions[token] = {
         "user_id": user.id,
         "is_free": is_free,
+        "bet": actual_bet,
         "created_at": datetime.now(timezone.utc),
     }
-    return {"token": token, "is_free": is_free}
+    return {"token": token, "is_free": is_free, "bet": actual_bet}
 
 @app.post("/api/game/finish")
 async def api_game_finish(body: GameFinishRequest, user: User = Depends(get_current_user)):
@@ -1050,26 +1060,38 @@ async def api_game_finish(body: GameFinishRequest, user: User = Depends(get_curr
         raise HTTPException(400, "Session expired")
 
     score = max(0, min(int(body.score), 5000))
-    if score < 300: stars_earned = 2
-    elif score < 700: stars_earned = 5
-    elif score < 1200: stars_earned = 12
-    elif score < 2000: stars_earned = 25
-    elif score < 3000: stars_earned = 45
-    else: stars_earned = 75
+    bet = session["bet"]
+
+    # Determine multiplier (x10 internally)
+    mult_x10 = 0
+    for min_score, m in GAME_TIERS:
+        if score >= min_score:
+            mult_x10 = m
+            break
+
+    stars_won = round(bet * mult_x10 / 10) if mult_x10 else 0
+    net = stars_won - bet  # can be negative (lost bet) or positive
 
     async with AsyncSessionLocal() as s:
         async with s.begin():
             u = await s.get(User, user.id)
-            u.balance_stars = u.balance_stars + stars_earned
+            u.balance_stars = u.balance_stars + stars_won
             new_balance = u.balance_stars
             s.add(GamePlay(
                 user_id=user.id,
                 score=score,
-                stars_earned=stars_earned,
+                stars_earned=stars_won,
                 is_free=session["is_free"],
             ))
 
-    return {"stars_earned": stars_earned, "score": score, "new_balance": new_balance}
+    return {
+        "score": score,
+        "bet": bet,
+        "multiplier": mult_x10 / 10,
+        "stars_won": stars_won,
+        "net": net,
+        "new_balance": new_balance,
+    }
 
 
 @app.get("/{path:path}")
