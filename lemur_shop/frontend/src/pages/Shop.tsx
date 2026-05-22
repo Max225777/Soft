@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api, type Category, type BuyResult, type Me } from '../api'
 import { getT, type Lang } from '../i18n'
-import { getLevel, getLevelIdx, LEVELS } from './Profile'
 import LegalFooter from '../components/LegalFooter'
 
 interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void }
@@ -17,9 +16,6 @@ function localPrice(stars: number, usd: number): JSX.Element {
   )
 }
 
-function discountedPrice(base: number, pct: number) {
-  return Math.round(base * (100 - pct) * 100) / 10000
-}
 
 const TG_ICON = (
   <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
@@ -34,16 +30,6 @@ interface ConfirmProps {
 
 function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
   const T = getT(lang)
-  const spent = me?.total_spent_usd ?? 0
-  const lvl = getLevel(spent)
-  const lvlIdx = getLevelIdx(spent)
-  const discount = lvl.discount
-  const finalUsd = discountedPrice(cat.price_usd, discount)
-  const finalStars = Math.round(cat.price_stars * (100 - discount) / 100)
-
-  function fmtPrice(stars: number, usd: number) {
-    return `⭐${stars} ($${usd.toFixed(2)})`
-  }
 
   return (
     <div style={{
@@ -80,60 +66,16 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
           </div>
         </div>
 
-        {/* Price breakdown */}
         <div style={{
           background: 'rgba(0,0,0,.25)', borderRadius: 14,
-          border: '1px solid var(--border)', padding: '14px 16px', marginBottom: 16,
+          border: '1px solid var(--border)', padding: '14px 16px', marginBottom: 20,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
-          {discount > 0 && (
-            <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span className="muted" style={{ fontSize: 13 }}>{T.original_price}</span>
-                <span style={{ fontWeight: 600, fontSize: 14, textDecoration: 'line-through', color: 'var(--muted)' }}>
-                  {fmtPrice(cat.price_stars, cat.price_usd)}
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span className="muted" style={{ fontSize: 13 }}>{T.your_discount}</span>
-                  <span style={{
-                    fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                    background: `${lvl.color}20`, color: lvl.color, border: `1px solid ${lvl.color}35`,
-                  }}>
-                    {lvl.icon} −{discount}%
-                  </span>
-                </div>
-                <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--green)' }}>−⭐{cat.price_stars - finalStars}</span>
-              </div>
-
-              <div style={{ height: 1, background: 'var(--border)', marginBottom: 12 }} />
-            </>
-          )}
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontWeight: 700, fontSize: 15 }}>{T.final_price}</span>
-            <span style={{ fontWeight: 800, fontSize: 22, color: 'var(--orange)' }}>
-              ⭐{finalStars} <span style={{ fontWeight: 400, fontSize: 14, color: 'var(--muted)' }}>(${finalUsd.toFixed(2)})</span>
-            </span>
-          </div>
-        </div>
-
-        {/* Level progress dots */}
-        <div style={{ display: 'flex', gap: 5, marginBottom: 20 }}>
-          {LEVELS.map((l, i) => (
-            <div key={i} style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{
-                height: 3, borderRadius: 3, marginBottom: 4,
-                background: i <= lvlIdx ? l.color : 'rgba(255,255,255,.08)',
-                boxShadow: i <= lvlIdx ? `0 0 6px ${l.glow}` : 'none',
-              }} />
-              <div style={{ fontSize: 14 }}>{l.icon}</div>
-              <div style={{ fontSize: 9, color: i === lvlIdx ? l.color : 'var(--muted)', fontWeight: 700, marginTop: 2 }}>
-                −{l.discount}%
-              </div>
-            </div>
-          ))}
+          <span style={{ fontWeight: 700, fontSize: 15 }}>{T.final_price}</span>
+          <span style={{ fontWeight: 800, fontSize: 24, color: 'var(--orange)' }}>
+            ⭐{cat.price_stars}
+            <span style={{ fontWeight: 400, fontSize: 13, color: 'var(--muted)', marginLeft: 8 }}>(${cat.price_usd.toFixed(2)})</span>
+          </span>
         </div>
 
         <div style={{ display: 'flex', gap: 10 }}>
@@ -201,12 +143,8 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
 
   // ─── Головне меню ─────────────────────────────────────────────────────────
   if (view === 'menu') {
-    const spent = me?.total_spent_usd ?? 0
-    const lvl = getLevel(spent)
     const starsBalance = me?.balance_stars ?? 0
     const usdDisplay = (starsBalance * 0.013).toFixed(2)
-    const mainBalance = `⭐${starsBalance}`
-    const subBalance = `($${usdDisplay})`
 
     return (
       <div className="page">
@@ -227,33 +165,13 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
             pointerEvents: 'none',
           }} />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 4 }}>
-                {T.balance.toUpperCase()}
-              </div>
-              <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1 }}>
-                <span style={{ fontWeight: 800, fontSize: 30 }}>{mainBalance}</span>
-                <span style={{ fontWeight: 400, fontSize: 13, marginLeft: 7, color: 'var(--muted)' }}>{subBalance}</span>
-              </div>
+          <div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 4 }}>
+              {T.balance.toUpperCase()}
             </div>
-
-            <div style={{ flex: 1 }} />
-
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              background: `${lvl.color}15`, border: `1px solid ${lvl.color}30`,
-              borderRadius: 20, padding: '6px 12px',
-              flexShrink: 0,
-            }}>
-              <span style={{ fontSize: 16 }}>{lvl.icon}</span>
-              <span style={{ fontWeight: 700, fontSize: 12, color: lvl.color }}>{lvl.name[lang]}</span>
-              {lvl.discount > 0 && (
-                <span style={{
-                  fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 20,
-                  background: `${lvl.color}25`, color: lvl.color,
-                }}>−{lvl.discount}%</span>
-              )}
+            <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1 }}>
+              <span style={{ fontWeight: 800, fontSize: 30 }}>⭐{starsBalance}</span>
+              <span style={{ fontWeight: 400, fontSize: 13, marginLeft: 7, color: 'var(--muted)' }}>(${usdDisplay})</span>
             </div>
           </div>
         </div>

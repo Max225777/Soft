@@ -20,12 +20,12 @@ class Settings(BaseSettings):
 
     CHANNEL_USERNAME: str = "@LEMUR_SHOP"
     SUPPORT_USERNAME: str = "@LEMUR_MANEGER"
-    # Telegram бере 15% комісії при виведенні Stars → 120 / 0.85 ≈ 141
-    STARS_PER_USD: int = 141
-    # 1 Star ≈ $0.013 (офіційний курс TG, тільки для відображення)
+    # 1 Star ≈ $0.013 (офіційний курс TG для відображення)
     STAR_DISPLAY_USD: float = 0.013
-    # Stars з користувача за $1 собівартості товару (покриває комісію + маржу)
+    # Stars з користувача за $1 собівартості товару
     STARS_PER_PRODUCT_USD: int = 130
+    # Stars за $1 при поповненні через бот-команду /topup
+    STARS_PER_USD: int = 77
 
     FREEKASSA_MERCHANT_ID: str = ""
     FREEKASSA_SECRET1: str = ""

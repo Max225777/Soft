@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { api, type Me } from '../api'
 import { getT, type Lang } from '../i18n'
-import { getLevel } from './Profile'
 import LegalFooter from '../components/LegalFooter'
 
 interface Props { me: Me | null; lang: Lang }
@@ -64,8 +63,6 @@ export default function Balance({ me, lang }: Props) {
 
   const stars = me.balance_stars
   const usdDisplay = (stars * 0.013).toFixed(2)
-  const spent = me.total_spent_usd ?? 0
-  const lvl = getLevel(spent)
   const rubRate = me.rate_rub || 90
 
   const payLabel = lang === 'ru' ? 'Пополнить' : lang === 'ua' ? 'Поповнити' : 'Pay'
@@ -187,22 +184,9 @@ export default function Balance({ me, lang }: Props) {
         <div style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6 }}>
           {T.balance.toUpperCase()}
         </div>
-        <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1, marginBottom: 4 }}>
+        <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1 }}>
           <span style={{ fontWeight: 800, fontSize: 40 }}>⭐{stars}</span>
           <span style={{ fontWeight: 400, fontSize: 15, marginLeft: 10, color: 'var(--muted)' }}>(${usdDisplay})</span>
-        </div>
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 8,
-          background: `${lvl.color}15`, border: `1px solid ${lvl.color}30`,
-          borderRadius: 20, padding: '5px 12px', marginTop: 10,
-        }}>
-          <span style={{ fontSize: 15 }}>{lvl.icon}</span>
-          <span style={{ fontWeight: 700, fontSize: 13, color: lvl.color }}>{lvl.name[lang]}</span>
-          {lvl.discount > 0 && (
-            <span style={{ fontSize: 11, fontWeight: 700, padding: '1px 7px', borderRadius: 20, background: `${lvl.color}25`, color: lvl.color }}>
-              −{lvl.discount}%
-            </span>
-          )}
         </div>
       </div>
 
@@ -332,7 +316,7 @@ export default function Balance({ me, lang }: Props) {
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 15, color: '#FFB830' }}>Telegram Stars</div>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-              {lang === 'ru' ? '1:1 · такой курс из-за комиссии ТГ' : lang === 'ua' ? '1:1 · такий курс через комісію ТГ' : '1:1 · rate due to TG commission'}
+              {lang === 'ru' ? 'Оплата звёздами Telegram' : lang === 'ua' ? 'Оплата зірками Telegram' : 'Pay with Telegram Stars'}
             </div>
           </div>
           <div style={{ color: 'var(--muted)', fontSize: 18, transition: 'transform .2s', transform: open === 'stars' ? 'rotate(90deg)' : '' }}>›</div>

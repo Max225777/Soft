@@ -200,13 +200,6 @@ class SetLangRequest(BaseModel):
 
 # ─── API Routes ───────────────────────────────────────────────────────────────
 
-def _level_discount_pct(total_spent_usd: float) -> int:
-    if total_spent_usd >= 100: return 5
-    if total_spent_usd >= 50:  return 3
-    if total_spent_usd >= 15:  return 2
-    if total_spent_usd >= 5:   return 1
-    return 0
-
 
 @app.get("/api/me")
 async def api_me(user: User = Depends(get_current_user)):
@@ -214,26 +207,22 @@ async def api_me(user: User = Depends(get_current_user)):
     rub = await get_rate("RUB")
     async with AsyncSessionLocal() as s:
         orders_count = await s.scalar(select(func.count()).where(Order.user_id == user.id))
-        total_spent = await s.scalar(
-            select(func.sum(Order.price_usd)).where(Order.user_id == user.id, Order.status == "delivered")
-        ) or Decimal(0)
     lang = user.lang
     stars = user.balance_stars
     usd_display = round(stars * settings.STAR_DISPLAY_USD, 2)
     return {
-        "id":              user.id,
-        "name":            user.full_name or user.username or str(user.id),
-        "username":        user.username,
-        "lang":            lang,
-        "balance_stars":   stars,
-        "balance_usd":     usd_display,
-        "balance_uah":     round(usd_display * uah, 0),
-        "balance_rub":     round(usd_display * rub, 0),
-        "rate_uah":        uah,
-        "rate_rub":        rub,
-        "orders_count":    orders_count,
-        "total_spent_usd": float(total_spent),
-        "is_admin":        user.id in settings.ADMIN_IDS,
+        "id":            user.id,
+        "name":          user.full_name or user.username or str(user.id),
+        "username":      user.username,
+        "lang":          lang,
+        "balance_stars": stars,
+        "balance_usd":   usd_display,
+        "balance_uah":   round(usd_display * uah, 0),
+        "balance_rub":   round(usd_display * rub, 0),
+        "rate_uah":      uah,
+        "rate_rub":      rub,
+        "orders_count":  orders_count,
+        "is_admin":      user.id in settings.ADMIN_IDS,
     }
 
 
@@ -271,14 +260,7 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="Unknown category")
 
     base_price_usd = cat_info["price_usd"]
-    base_price_stars = round(base_price_usd * settings.STARS_PER_PRODUCT_USD)
-
-    async with AsyncSessionLocal() as s:
-        total_spent = await s.scalar(
-            select(func.sum(Order.price_usd)).where(Order.user_id == user.id, Order.status == "delivered")
-        ) or Decimal(0)
-    discount_pct = _level_discount_pct(float(total_spent))
-    shop_price_stars = round(base_price_stars * (100 - discount_pct) / 100)
+    shop_price_stars = round(base_price_usd * settings.STARS_PER_PRODUCT_USD)
     shop_price_usd = Decimal(str(round(shop_price_stars * settings.STAR_DISPLAY_USD, 2)))
 
     if user.balance_stars < shop_price_stars:
@@ -315,7 +297,7 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
     if _bot and settings.ADMIN_IDS:
         from lemur_shop.services.lolz_shop import CATEGORIES as _CATS
         cat_info = _CATS.get(body.category, {})
-        profit = shop_price - lolz_cost
+        profit = shop_price_usd - lolz_cost
         uname = f"@{user.username}" if user.username else f"ID:{user.id}"
         flag = cat_info.get("flag", "")
         title = cat_info.get("title", body.category.upper())
@@ -323,9 +305,8 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
             f"🛒 <b>Нова покупка!</b>\n\n"
             f"👤 {uname} (<code>{user.id}</code>)\n"
             f"📦 {flag} Telegram {title}\n"
-            f"💳 Ціна: <b>${float(shop_price):.2f}</b>"
-            + (f" (знижка {discount_pct}%)" if discount_pct else "") +
-            f"\n💸 Витрати (Lolz): ${float(lolz_cost):.2f}\n"
+            f"💫 Ціна: <b>⭐{shop_price_stars}</b> (${float(shop_price_usd):.2f})\n"
+            f"💸 Витрати (Lolz): ${float(lolz_cost):.2f}\n"
             f"💰 Прибуток: <b>${float(profit):.2f}</b>\n\n"
             f"📱 Номер: <code>{phone}</code>\n"
             f"🆔 Lolz ID: <code>{lolz_item_id}</code>"
