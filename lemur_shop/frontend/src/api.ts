@@ -38,16 +38,22 @@ export const gameApi = {
   finish: (token: string, score: number) => req<{ score: number; bet: number; multiplier: number; stars_won: number; net: number; new_balance: number }>('/game/finish', { method: 'POST', body: JSON.stringify({ token, score }) }),
 }
 
-export interface WheelResult {
-  player_won: boolean
-  payout: number
-  new_balance: number
-  pot_stars: number
+export interface WheelParticipantInfo {
+  name: string; is_you: boolean; is_bot: boolean
 }
+export interface WheelRoomInfo {
+  id: number; stake: number; max_players: number; status: string
+  participants: WheelParticipantInfo[]
+  winner_name: string | null; winner_is_you: boolean; payout: number
+  new_balance: number
+}
+export interface WheelLobbyEntry { stake: number; max_players: number; waiting: number }
 
 export const wheelApi = {
-  pot:  () => req<{ pot_stars: number; potential_win: number }>('/wheel/pot'),
-  spin: (bet: number) => req<WheelResult>('/wheel/spin', { method: 'POST', body: JSON.stringify({ bet }) }),
+  lobby:  () => req<WheelLobbyEntry[]>('/wheel/lobby'),
+  join:   (stake: number, max_players: number) =>
+            req<{ room_id: number }>('/wheel/join', { method: 'POST', body: JSON.stringify({ stake, max_players }) }),
+  room:   (id: number) => req<WheelRoomInfo>(`/wheel/room/${id}`),
 }
 
 export const adminApi = {

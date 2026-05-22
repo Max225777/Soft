@@ -15,6 +15,8 @@ _MIGRATIONS = [
     "CREATE TABLE IF NOT EXISTS game_plays (id SERIAL PRIMARY KEY, user_id BIGINT NOT NULL, score INT DEFAULT 0, stars_earned INT DEFAULT 0, is_free BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT NOW())",
     "CREATE TABLE IF NOT EXISTS wheel_pot (id INTEGER PRIMARY KEY DEFAULT 1, stars BIGINT DEFAULT 0)",
     "INSERT INTO wheel_pot (id, stars) VALUES (1, 0) ON CONFLICT (id) DO NOTHING",
+    "CREATE TABLE IF NOT EXISTS wheel_rooms (id SERIAL PRIMARY KEY, stake INT NOT NULL, max_players INT NOT NULL, status VARCHAR(16) DEFAULT 'waiting', winner_user_id BIGINT, winner_name VARCHAR(64), payout INT DEFAULT 0, created_at TIMESTAMP DEFAULT NOW())",
+    "CREATE TABLE IF NOT EXISTS wheel_participants (id SERIAL PRIMARY KEY, room_id INT NOT NULL REFERENCES wheel_rooms(id), user_id BIGINT, name VARCHAR(64) NOT NULL, is_bot BOOLEAN DEFAULT FALSE, joined_at TIMESTAMP DEFAULT NOW())",
 ]
 
 

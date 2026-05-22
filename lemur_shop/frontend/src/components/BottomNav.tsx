@@ -1,7 +1,7 @@
 import type { Lang } from '../i18n'
 import { getT } from '../i18n'
 
-export type Tab = 'shop' | 'profile' | 'balance' | 'admin'
+export type Tab = 'shop' | 'profile' | 'balance' | 'admin' | 'wheel'
 
 interface Props { active: Tab; onChange(t: Tab): void; lang: Lang; isAdmin?: boolean }
 
@@ -51,13 +51,14 @@ const icons: Record<Tab, JSX.Element> = {
 export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
   const T = getT(lang)
   const tabs: Tab[] = isAdmin
-    ? ['shop', 'balance', 'profile', 'admin']
-    : ['shop', 'balance', 'profile']
+    ? ['shop', 'balance', 'wheel', 'profile', 'admin']
+    : ['shop', 'balance', 'wheel', 'profile']
   const labels: Record<Tab, string> = {
     shop:    T.shop,
     profile: T.profile,
     balance: T.balance_tab,
     admin:   '⚙️ Адмін',
+    wheel:   '🎡 Колесо',
   }
   return (
     <nav className="nav">

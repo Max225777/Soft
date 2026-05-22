@@ -112,3 +112,25 @@ class GamePlay(Base):
     stars_earned: Mapped[int] = mapped_column(Integer, default=0)
     is_free: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+
+class WheelRoom(Base):
+    __tablename__ = "wheel_rooms"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    stake: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_players: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default='waiting')  # waiting | done
+    winner_user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    winner_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    payout: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+
+class WheelParticipant(Base):
+    __tablename__ = "wheel_participants"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    room_id: Mapped[int] = mapped_column(Integer, ForeignKey("wheel_rooms.id"), nullable=False, index=True)
+    user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+    is_bot: Mapped[bool] = mapped_column(Boolean, default=False)
+    joined_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

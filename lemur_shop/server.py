@@ -65,6 +65,7 @@ async def lifespan(app: FastAPI):
     log.info("Підключення до БД...")
     await create_tables()
     await _load_wheel_pot()
+    asyncio.create_task(_wheel_bot_filler())
     log.info("БД готова, wheel_pot=%d", _wheel_pot)
 
     _bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
@@ -1127,104 +1128,225 @@ async def api_game_finish(body: GameFinishRequest, user: User = Depends(get_curr
 
 
 # ---------------------------------------------------------------------------
-# Wheel of Fortune — jackpot accumulation mechanic
+# Wheel of Fortune — real multiplayer lobby
 #
-# All bets go into a shared pot (persisted in DB).
-# A random secret threshold is drawn after each win.
-# Win fires ONLY when pot >= threshold.
-# Winner receives WHEEL_PAYOUT_PCT of pot; owner keeps the rest.
-# Players can see the growing pot → incentive to keep spinning.
+# Players choose stake (10/25/50/100) + room size (2/5/10).
+# Everyone pays same stake. Winner takes 75 % of pool; house keeps 25 %.
+# Rooms auto-fill with bots after ROOM_TIMEOUT seconds.
 # ---------------------------------------------------------------------------
 
-WHEEL_PAYOUT_PCT = 0.70   # winner gets 70 %, house keeps 30 %
-WHEEL_MIN_THRESHOLD = 50  # Stars: smallest possible threshold
-WHEEL_MAX_THRESHOLD = 400 # Stars: largest possible threshold
-
-_wheel_pot: int = 0
-_wheel_threshold: int = _random.randint(WHEEL_MIN_THRESHOLD, WHEEL_MAX_THRESHOLD)
-_wheel_lock: asyncio.Lock | None = None  # initialised in lifespan
-
 from sqlalchemy import text as _text
+from lemur_shop.db.models import WheelRoom, WheelParticipant
 
-async def _load_wheel_pot() -> None:
-    global _wheel_pot
-    try:
-        async with AsyncSessionLocal() as s:
-            row = (await s.execute(_text("SELECT stars FROM wheel_pot WHERE id = 1"))).first()
-            _wheel_pot = int(row[0]) if row else 0
-    except Exception:
-        _wheel_pot = 0
+WHEEL_CUT    = 0.25          # house keeps 25 %
+ROOM_TIMEOUT = 90            # seconds before bots fill remaining slots
+VALID_STAKES = {10, 25, 50, 100}
+VALID_SIZES  = {2, 5, 10}
+_WLOCK       = asyncio.Lock()
 
-async def _save_wheel_pot(stars: int) -> None:
-    try:
-        async with AsyncSessionLocal() as s:
-            await s.execute(_text("UPDATE wheel_pot SET stars = :s WHERE id = 1"), {"s": stars})
-            await s.commit()
-    except Exception:
-        pass
+_BOT_NAMES = [
+    'Олексій','Марія','Дмитро','Катя','Іван','Аня','Микола','Настя',
+    'Вова','Юля','Сашко','Оля','Петро','Таня','Сергій','Ліза',
+    'Артем','Віка','Богдан','Соня','Андрій','Даша','Павло','Ірина',
+]
+_BOT_FLAGS = ['🇺🇦','🇺🇦','🇺🇦','🇷🇺','🇵🇱','🇩🇪','🇧🇾','🇰🇿']
 
 
-class WheelSpinRequest(BaseModel):
-    bet: int = 50
-
-@app.get("/api/wheel/pot")
-async def api_wheel_pot(user: User = Depends(get_current_user)):
-    return {
-        "pot_stars": _wheel_pot,
-        "potential_win": round(_wheel_pot * WHEEL_PAYOUT_PCT),
-    }
-
-@app.post("/api/wheel/spin")
-async def api_wheel_spin(body: WheelSpinRequest, user: User = Depends(get_current_user)):
-    global _wheel_pot, _wheel_threshold, _wheel_lock
-
-    if _wheel_lock is None:
-        _wheel_lock = asyncio.Lock()
-
-    bet = max(10, min(body.bet, 1000))
-
-    # Deduct bet from user balance upfront
+async def _spin_room(room_id: int) -> None:
+    """Select winner, credit payout, mark room done. Must be called under _WLOCK."""
     async with AsyncSessionLocal() as s:
         async with s.begin():
-            u = await s.get(User, user.id)
-            if not u or u.balance_stars < bet:
-                raise HTTPException(402, "insufficient_balance")
-            u.balance_stars -= bet
+            room = await s.get(WheelRoom, room_id)
+            if not room or room.status != 'waiting':
+                return
+            parts = (await s.execute(
+                select(WheelParticipant).where(WheelParticipant.room_id == room_id)
+            )).scalars().all()
+            if not parts:
+                room.status = 'done'
+                return
+            winner = _random.choice(parts)
+            payout = round(room.stake * room.max_players * (1 - WHEEL_CUT))
+            room.status         = 'done'
+            room.winner_user_id = winner.user_id
+            room.winner_name    = winner.name
+            room.payout         = payout
+            if winner.user_id:
+                u = await s.get(User, winner.user_id)
+                if u:
+                    u.balance_stars += payout
 
-    # Pot logic (serialised via lock)
-    async with _wheel_lock:
-        _wheel_pot += bet
 
-        if _wheel_pot >= _wheel_threshold:
-            player_won = True
-            payout     = round(_wheel_pot * WHEEL_PAYOUT_PCT)
-            _wheel_pot = 0
-            _wheel_threshold = _random.randint(WHEEL_MIN_THRESHOLD, WHEEL_MAX_THRESHOLD)
-        else:
-            player_won = False
-            payout     = 0
+async def _wheel_bot_filler() -> None:
+    """Background task: fill stale rooms with bots every 15 s."""
+    while True:
+        await asyncio.sleep(15)
+        try:
+            cutoff = datetime.now(timezone.utc).replace(tzinfo=None)
+            from datetime import timedelta
+            cutoff -= timedelta(seconds=ROOM_TIMEOUT)
+            async with AsyncSessionLocal() as s:
+                stale = (await s.execute(
+                    select(WheelRoom)
+                    .where(WheelRoom.status == 'waiting')
+                    .where(WheelRoom.created_at < cutoff)
+                )).scalars().all()
+                stale_ids = [r.id for r in stale]
 
-        pot_now = _wheel_pot
-        await _save_wheel_pot(pot_now)
+            for rid in stale_ids:
+                async with _WLOCK:
+                    async with AsyncSessionLocal() as s:
+                        room = await s.get(WheelRoom, rid)
+                        if not room or room.status != 'waiting':
+                            continue
+                        count = (await s.scalar(
+                            select(func.count(WheelParticipant.id))
+                            .where(WheelParticipant.room_id == rid)
+                        )) or 0
+                        needed = room.max_players - count
+                        if needed > 0:
+                            async with s.begin():
+                                for _ in range(needed):
+                                    flag = _random.choice(_BOT_FLAGS)
+                                    name = f"{flag} {_random.choice(_BOT_NAMES)}"
+                                    s.add(WheelParticipant(
+                                        room_id=rid, user_id=None,
+                                        name=name, is_bot=True,
+                                    ))
+                    await _spin_room(rid)
+        except Exception as e:
+            log.warning("wheel bot filler: %s", e)
 
-    new_balance = 0
-    if player_won:
+
+class WheelJoinRequest(BaseModel):
+    stake: int
+    max_players: int
+
+
+def _room_view(room: WheelRoom, parts: list, my_user_id: int) -> dict:
+    return {
+        "id":          room.id,
+        "stake":       room.stake,
+        "max_players": room.max_players,
+        "status":      room.status,
+        "participants": [
+            {"name": p.name, "is_you": p.user_id == my_user_id, "is_bot": p.is_bot}
+            for p in parts
+        ],
+        "winner_name":  room.winner_name,
+        "winner_is_you": room.winner_user_id == my_user_id if room.winner_user_id else False,
+        "payout":      room.payout,
+    }
+
+
+@app.get("/api/wheel/lobby")
+async def api_wheel_lobby(user: User = Depends(get_current_user)):
+    """Return waiting count per (stake, max_players) combination."""
+    async with AsyncSessionLocal() as s:
+        rows = (await s.execute(
+            select(
+                WheelRoom.stake,
+                WheelRoom.max_players,
+                func.count(WheelParticipant.id).label("cnt"),
+            )
+            .outerjoin(WheelParticipant, WheelParticipant.room_id == WheelRoom.id)
+            .where(WheelRoom.status == 'waiting')
+            .group_by(WheelRoom.id, WheelRoom.stake, WheelRoom.max_players)
+            .order_by(WheelRoom.stake, WheelRoom.max_players)
+        )).all()
+
+    # Best open room per (stake, size)
+    best: dict[tuple, dict] = {}
+    for stake, max_p, cnt in rows:
+        key = (stake, max_p)
+        if key not in best or cnt > best[key]["waiting"]:
+            best[key] = {"waiting": int(cnt)}
+    return [
+        {"stake": k[0], "max_players": k[1], "waiting": v["waiting"]}
+        for k, v in best.items()
+    ]
+
+
+@app.post("/api/wheel/join")
+async def api_wheel_join(body: WheelJoinRequest, user: User = Depends(get_current_user)):
+    if body.stake not in VALID_STAKES:
+        raise HTTPException(400, "invalid_stake")
+    if body.max_players not in VALID_SIZES:
+        raise HTTPException(400, "invalid_size")
+
+    async with _WLOCK:
+        # Check user not already in an active room
+        async with AsyncSessionLocal() as s:
+            existing = await s.scalar(
+                select(WheelParticipant.room_id)
+                .join(WheelRoom, WheelRoom.id == WheelParticipant.room_id)
+                .where(WheelParticipant.user_id == user.id)
+                .where(WheelRoom.status == 'waiting')
+            )
+        if existing:
+            raise HTTPException(409, "already_in_room")
+
+        # Deduct stake
         async with AsyncSessionLocal() as s:
             async with s.begin():
                 u = await s.get(User, user.id)
-                u.balance_stars += payout
-                new_balance = u.balance_stars
-    else:
-        async with AsyncSessionLocal() as s:
-            u = await s.get(User, user.id)
-            new_balance = u.balance_stars if u else 0
+                if not u or u.balance_stars < body.stake:
+                    raise HTTPException(402, "insufficient_balance")
+                u.balance_stars -= body.stake
+                display_name = (u.username and f"@{u.username}") or u.full_name or "Гравець"
 
-    return {
-        "player_won": player_won,
-        "payout":     payout,
-        "new_balance": new_balance,
-        "pot_stars":   pot_now,
-    }
+        # Find open room or create one
+        async with AsyncSessionLocal() as s:
+            room_row = await s.scalar(
+                select(WheelRoom)
+                .where(WheelRoom.status == 'waiting')
+                .where(WheelRoom.stake == body.stake)
+                .where(WheelRoom.max_players == body.max_players)
+                .order_by(WheelRoom.created_at)
+            )
+            if room_row:
+                room_id = room_row.id
+            else:
+                async with s.begin():
+                    new_room = WheelRoom(stake=body.stake, max_players=body.max_players)
+                    s.add(new_room)
+                    await s.flush()
+                    room_id = new_room.id
+
+        # Add participant
+        async with AsyncSessionLocal() as s:
+            async with s.begin():
+                s.add(WheelParticipant(
+                    room_id=room_id, user_id=user.id,
+                    name=display_name, is_bot=False,
+                ))
+
+        # Check if room is now full
+        async with AsyncSessionLocal() as s:
+            count = (await s.scalar(
+                select(func.count(WheelParticipant.id))
+                .where(WheelParticipant.room_id == room_id)
+            )) or 0
+
+        if count >= body.max_players:
+            await _spin_room(room_id)
+
+    return {"room_id": room_id}
+
+
+@app.get("/api/wheel/room/{room_id}")
+async def api_wheel_room(room_id: int, user: User = Depends(get_current_user)):
+    async with AsyncSessionLocal() as s:
+        room = await s.get(WheelRoom, room_id)
+        if not room:
+            raise HTTPException(404, "room_not_found")
+        parts = (await s.execute(
+            select(WheelParticipant)
+            .where(WheelParticipant.room_id == room_id)
+            .order_by(WheelParticipant.joined_at)
+        )).scalars().all()
+    new_balance = user.balance_stars
+    return {**_room_view(room, parts, user.id), "new_balance": new_balance}
 
 
 
