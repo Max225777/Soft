@@ -28,7 +28,7 @@ export const api = {
   fkCreate:       (amount_usd: number, currency: string) => req<{ url: string; order_id: number }>('/fk/create', { method: 'POST', body: JSON.stringify({ amount_usd, currency }) }),
   cryptoCreate:   (amount_usd: number) => req<{ url: string; invoice_id: number }>('/crypto/create', { method: 'POST', body: JSON.stringify({ amount_usd }) }),
   starsRate:    () => req<{ stars_per_usd: number }>('/stars/rate'),
-  starsInvoice: (amount_usd: number) => req<{ invoice_url: string; stars: number; amount_usd: number }>('/stars/invoice', { method: 'POST', body: JSON.stringify({ amount_usd }) }),
+  starsInvoice: (stars: number) => req<{ invoice_url: string; stars: number; amount_usd: number }>('/stars/invoice', { method: 'POST', body: JSON.stringify({ stars }) }),
   starsBuy:     (stars: number, amount_usd: number) => req<{ ok: boolean }>('/stars/buy', { method: 'POST', body: JSON.stringify({ stars, amount_usd }) }),
 }
 

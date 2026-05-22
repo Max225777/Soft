@@ -662,7 +662,7 @@ async def api_stars_rate():
 
 
 class StarsInvoiceRequest(BaseModel):
-    amount_usd: float
+    stars: int
 
 class StarsBuyRequest(BaseModel):
     stars: int
@@ -673,13 +673,13 @@ class StarsBuyRequest(BaseModel):
 async def api_stars_invoice(body: StarsInvoiceRequest, user: User = Depends(get_current_user)):
     if _bot is None:
         raise HTTPException(status_code=503, detail="Bot not ready")
-    amount_usd = round(body.amount_usd, 2)
-    if amount_usd < 0.5 or amount_usd > 500:
+    stars = body.stars
+    if stars < 1 or stars > 100000:
         raise HTTPException(status_code=400, detail="Invalid amount")
-    stars = max(1, round(amount_usd * settings.STARS_PER_USD))
+    amount_usd = round(stars / settings.STARS_PER_USD, 4)
     link = await _bot.create_invoice_link(
         title="Поповнення балансу Лемур",
-        description=f"Зарахування ${amount_usd:.2f} на баланс магазину",
+        description=f"Поповнення на ⭐{stars}",
         payload=f"stars_topup:{user.id}:{amount_usd}",
         currency="XTR",
         prices=[LabeledPrice(label="Telegram Stars", amount=stars)],

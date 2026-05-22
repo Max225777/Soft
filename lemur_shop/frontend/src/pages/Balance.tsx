@@ -41,7 +41,7 @@ export default function Balance({ me, lang }: Props) {
   const [customRub, setCustomRub] = useState('')
   const [cryptoAmount, setCryptoAmount] = useState(0)
   const [customUsd, setCustomUsd] = useState('')
-  const [starsAmount, setStarsAmount] = useState(0)
+  const [starsCount, setStarsCount] = useState(0)
   const [customStars, setCustomStars] = useState('')
   const [fkLoading, setFkLoading] = useState(false)
   const [cryptoLoading, setCryptoLoading] = useState(false)
@@ -87,11 +87,11 @@ export default function Balance({ me, lang }: Props) {
     finally { setCryptoLoading(false) }
   }
 
-  async function payStars(usd: number) {
-    if (usd <= 0) return
+  async function payStars(stars: number) {
+    if (stars < 1) return
     setStarsLoading(true); setStarsError(null)
     try {
-      const { invoice_url, stars } = await api.starsInvoice(usd)
+      const { invoice_url } = await api.starsInvoice(stars)
       if (window.Telegram?.WebApp) {
         window.Telegram.WebApp.openInvoice(invoice_url, status => {
           if (status === 'paid') {
@@ -118,7 +118,7 @@ export default function Balance({ me, lang }: Props) {
   }
   function toggleStars() {
     if (open === 'stars') { setOpen(null); return }
-    setStarsError(null); setStarsAmount(0); setCustomStars(''); setOpen('stars')
+    setStarsError(null); setStarsCount(0); setCustomStars(''); setOpen('stars')
   }
 
   const inputStyle: React.CSSProperties = {
@@ -310,7 +310,7 @@ export default function Balance({ me, lang }: Props) {
           <ExpandPanel>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginBottom: 10 }}>
               {PRESETS_STARS.map(s => (
-                <button key={s} onClick={() => { setStarsAmount(s / STARS_PER_USD); setCustomStars(String(s)) }}
+                <button key={s} onClick={() => { setStarsCount(s); setCustomStars(String(s)) }}
                   style={presetBtn(customStars === String(s))}>
                   ⭐{s}
                 </button>
@@ -321,17 +321,17 @@ export default function Balance({ me, lang }: Props) {
               placeholder={lang === 'ru' ? 'Кол-во звёзд (⭐)' : lang === 'ua' ? 'Кількість зірок (⭐)' : 'Stars amount (⭐)'}
               value={customStars}
               onChange={e => {
-                const stars = parseInt(e.target.value) || 0
+                const s = Math.max(0, parseInt(e.target.value) || 0)
                 setCustomStars(e.target.value)
-                setStarsAmount(stars > 0 ? stars / STARS_PER_USD : 0)
+                setStarsCount(s)
               }}
               style={{ ...inputStyle, marginBottom: 10 }}
             />
             {starsError && <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--red)' }}>{starsError}</div>}
-            <button className="btn btn-primary" disabled={starsAmount <= 0 || starsLoading}
-              onClick={() => payStars(starsAmount)}
+            <button className="btn btn-primary" disabled={starsCount < 1 || starsLoading}
+              onClick={() => payStars(starsCount)}
               style={{ background: 'linear-gradient(135deg, #FFB830, #e09000)' }}>
-              {starsLoading ? '⏳...' : starsAmount > 0 ? `${payLabel} ⭐${customStars || Math.round(starsAmount * STARS_PER_USD)}` : payLabel}
+              {starsLoading ? '⏳...' : starsCount >= 1 ? `${payLabel} ⭐${starsCount}` : payLabel}
             </button>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>
               {lang === 'ru' ? 'Оплата через Telegram Stars' : lang === 'ua' ? 'Оплата через Telegram Stars' : 'Pay via Telegram Stars'}
