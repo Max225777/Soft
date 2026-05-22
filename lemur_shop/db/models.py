@@ -75,6 +75,7 @@ class TopUp(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
     amount_usd: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    amount_stars: Mapped[int] = mapped_column(Integer, default=0)
     admin_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 

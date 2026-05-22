@@ -40,6 +40,7 @@ export const adminApi = {
   topups:          (page: number, limit = 30) => req<AdminTopupsPage>(`/admin/topups?page=${page}&limit=${limit}`),
   broadcast:       (text: string, parse_mode = 'HTML') => req<{ ok: boolean; total: number }>('/admin/broadcast', { method: 'POST', body: JSON.stringify({ text, parse_mode }) }),
   broadcastStatus: () => req<BroadcastStatus>('/admin/broadcast/status'),
+  resetStats:      () => req<{ ok: boolean }>('/admin/reset-stats', { method: 'POST' }),
 }
 
 export interface Me {

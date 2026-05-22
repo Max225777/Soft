@@ -1,6 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { adminApi, type AdminStats, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type BroadcastStatus } from '../api'
 
+function useOverviewStats() {
+  const [stats, setStats] = useState<AdminStats | null>(null)
+  const [loading, setLoading] = useState(true)
+  const reload = () => { setLoading(true); adminApi.stats().then(setStats).finally(() => setLoading(false)) }
+  useEffect(() => { reload() }, [])
+  return { stats, loading, reload }
+}
+
 type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'broadcast'
 
 const CATEGORY_FLAGS: Record<string, string> = { us: '🇺🇸', ua: '🇺🇦', kz: '🇰🇿' }
@@ -40,12 +48,21 @@ function Pagination({ page, pages, onPage }: { page: number; pages: number; onPa
 
 // ── Overview ──────────────────────────────────────────────────────────────────
 function Overview() {
-  const [stats, setStats] = useState<AdminStats | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { stats, loading, reload } = useOverviewStats()
+  const [resetting, setResetting] = useState(false)
 
-  useEffect(() => {
-    adminApi.stats().then(setStats).finally(() => setLoading(false))
-  }, [])
+  async function handleReset() {
+    if (!confirm('Скинути ВСІ баланси, замовлення і поповнення? Це незворотно!')) return
+    setResetting(true)
+    try {
+      await adminApi.resetStats()
+      reload()
+    } catch (e: any) {
+      alert(e.message)
+    } finally {
+      setResetting(false)
+    }
+  }
 
   if (loading) return <div style={{ padding: 20, textAlign: 'center', color: 'var(--muted)' }}>⏳ Завантаження...</div>
   if (!stats) return <div style={{ padding: 20, color: 'var(--red)' }}>Помилка завантаження</div>
@@ -130,6 +147,25 @@ function Overview() {
           ))}
         </>
       )}
+
+      {/* Danger zone */}
+      <div style={{
+        marginTop: 8, background: 'rgba(255,60,60,.06)',
+        border: '1px solid rgba(255,60,60,.2)', borderRadius: 12, padding: '12px 14px',
+      }}>
+        <div style={{ fontSize: 12, color: '#ff5555', fontWeight: 700, marginBottom: 8 }}>⚠️ Небезпечна зона</div>
+        <button
+          className="btn"
+          disabled={resetting}
+          onClick={handleReset}
+          style={{
+            background: 'rgba(255,60,60,.15)', color: '#ff5555',
+            border: '1px solid rgba(255,60,60,.3)', fontSize: 13,
+          }}
+        >
+          {resetting ? '⏳ Скидання...' : '🗑 Скинути всі баланси і статистику'}
+        </button>
+      </div>
     </div>
   )
 }

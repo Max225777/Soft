@@ -908,7 +908,7 @@ async def api_admin_topups(page: int = 1, limit: int = 30, admin: User = Depends
                 "username":   u.username if u else None,
                 "user_name":  u.full_name if u else "?",
                 "amount_usd": float(t.amount_usd),
-                "amount_stars": round(float(t.amount_usd) / settings.STAR_DISPLAY_USD),
+                "amount_stars": t.amount_stars if t.amount_stars else round(float(t.amount_usd) / settings.STAR_DISPLAY_USD),
                 "created_at": t.created_at.isoformat(),
             })
 
@@ -968,6 +968,23 @@ async def api_admin_broadcast(
 @app.get("/api/admin/broadcast/status")
 async def api_admin_broadcast_status(admin: User = Depends(require_admin)):
     return _broadcast_status
+
+
+@app.post("/api/admin/reset-stats")
+async def api_admin_reset_stats(admin: User = Depends(require_admin)):
+    from sqlalchemy import delete
+    from lemur_shop.db.models import FKOrder
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            await s.execute(delete(TopUp))
+            await s.execute(delete(Order))
+            await s.execute(delete(FKOrder))
+            await s.execute(
+                __import__('sqlalchemy').text(
+                    "UPDATE users SET balance_stars = 0, balance_usd = 0, balance_uah = 0, balance_rub = 0"
+                )
+            )
+    return {"ok": True}
 
 
 @app.get("/{path:path}")

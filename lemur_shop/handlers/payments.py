@@ -48,7 +48,8 @@ async def successful_payment(message: Message) -> None:
             s.add(TopUp(
                 user_id=user_id,
                 amount_usd=amount_usd,
-                admin_id=0,  # 0 = Stars payment
+                amount_stars=stars,
+                admin_id=0,
             ))
 
     log.info("Stars topup: user=%s stars=%s", user_id, stars)
