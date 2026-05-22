@@ -309,28 +309,29 @@ export default function Balance({ me, lang }: Props) {
         {open === 'stars' && (
           <ExpandPanel>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginBottom: 10 }}>
-              {PRESETS_STARS.map(s => {
-                const usd = +(s / STARS_PER_USD).toFixed(4)
-                return (
-                  <button key={s} onClick={() => { setStarsAmount(usd); setCustomStars('') }}
-                    style={presetBtn(starsAmount === usd && !customStars)}>
-                    ⭐{s}
-                  </button>
-                )
-              })}
+              {PRESETS_STARS.map(s => (
+                <button key={s} onClick={() => { setStarsAmount(s / STARS_PER_USD); setCustomStars(String(s)) }}
+                  style={presetBtn(customStars === String(s))}>
+                  ⭐{s}
+                </button>
+              ))}
             </div>
             <input
-              type="number" min="0.01" step="0.01"
-              placeholder={lang === 'ru' ? 'Сумма ($)' : lang === 'ua' ? 'Сума ($)' : 'Amount ($)'}
+              type="number" min="1" step="1"
+              placeholder={lang === 'ru' ? 'Кол-во звёзд (⭐)' : lang === 'ua' ? 'Кількість зірок (⭐)' : 'Stars amount (⭐)'}
               value={customStars}
-              onChange={e => { setCustomStars(e.target.value); setStarsAmount(parseFloat(e.target.value) || 0) }}
+              onChange={e => {
+                const stars = parseInt(e.target.value) || 0
+                setCustomStars(e.target.value)
+                setStarsAmount(stars > 0 ? stars / STARS_PER_USD : 0)
+              }}
               style={{ ...inputStyle, marginBottom: 10 }}
             />
             {starsError && <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--red)' }}>{starsError}</div>}
             <button className="btn btn-primary" disabled={starsAmount <= 0 || starsLoading}
               onClick={() => payStars(starsAmount)}
               style={{ background: 'linear-gradient(135deg, #FFB830, #e09000)' }}>
-              {starsLoading ? '⏳...' : starsAmount > 0 ? `${payLabel} $${starsAmount.toFixed(2)} ⭐` : payLabel}
+              {starsLoading ? '⏳...' : starsAmount > 0 ? `${payLabel} ⭐${customStars || Math.round(starsAmount * STARS_PER_USD)}` : payLabel}
             </button>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>
               {lang === 'ru' ? 'Оплата через Telegram Stars' : lang === 'ua' ? 'Оплата через Telegram Stars' : 'Pay via Telegram Stars'}
