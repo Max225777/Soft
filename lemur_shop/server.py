@@ -718,7 +718,192 @@ async def api_stars_buy(body: StarsBuyRequest, user: User = Depends(get_current_
     return {"ok": True}
 
 
-# ─── SPA fallback ─────────────────────────────────────────────────────────────
+# ─── Admin API ────────────────────────────────────────────────────────────────
+
+def require_admin(user: User = Depends(get_current_user)) -> User:
+    if user.id not in settings.ADMIN_IDS:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return user
+
+
+@app.get("/api/admin/stats")
+async def api_admin_stats(admin: User = Depends(require_admin)):
+    from math import ceil
+    from datetime import date
+    async with AsyncSessionLocal() as s:
+        total_users   = await s.scalar(select(func.count(User.id))) or 0
+        total_orders  = await s.scalar(select(func.count(Order.id))) or 0
+        total_rev_usd = await s.scalar(select(func.sum(Order.price_usd))) or 0
+        total_topups  = await s.scalar(select(func.sum(TopUp.amount_usd))) or 0
+
+        today = date.today()
+        new_users_today  = await s.scalar(select(func.count(User.id)).where(func.date(User.created_at) == today)) or 0
+        orders_today     = await s.scalar(select(func.count(Order.id)).where(func.date(Order.created_at) == today)) or 0
+        revenue_today    = await s.scalar(select(func.sum(Order.price_usd)).where(func.date(Order.created_at) == today)) or 0
+        topups_today     = await s.scalar(select(func.sum(TopUp.amount_usd)).where(func.date(TopUp.created_at) == today)) or 0
+
+        cat_rows = (await s.execute(
+            select(Order.category, func.count(Order.id), func.sum(Order.price_usd))
+            .group_by(Order.category)
+            .order_by(func.count(Order.id).desc())
+        )).all()
+
+        total_stars_balance = await s.scalar(select(func.sum(User.balance_stars))) or 0
+
+    return {
+        "total_users":        total_users,
+        "total_orders":       total_orders,
+        "total_revenue_usd":  float(total_rev_usd),
+        "total_topups_usd":   float(total_topups),
+        "total_stars_balance": total_stars_balance,
+        "new_users_today":    new_users_today,
+        "orders_today":       orders_today,
+        "revenue_today":      float(revenue_today),
+        "topups_today":       float(topups_today),
+        "categories": [
+            {"category": r[0] or "?", "count": r[1], "revenue_usd": float(r[2] or 0)}
+            for r in cat_rows
+        ],
+    }
+
+
+@app.get("/api/admin/users")
+async def api_admin_users(
+    page: int = 1, limit: int = 20, search: str = "",
+    admin: User = Depends(require_admin),
+):
+    from math import ceil
+    from sqlalchemy import or_, cast, String as SAString
+    async with AsyncSessionLocal() as s:
+        q = select(User).order_by(User.created_at.desc())
+        if search:
+            q = q.where(
+                or_(
+                    User.username.ilike(f"%{search}%"),
+                    User.full_name.ilike(f"%{search}%"),
+                    cast(User.id, SAString) == search,
+                )
+            )
+        total = await s.scalar(select(func.count()).select_from(q.subquery())) or 0
+        users = (await s.execute(q.offset((page - 1) * limit).limit(limit))).scalars().all()
+
+        result = []
+        for u in users:
+            order_count = await s.scalar(select(func.count(Order.id)).where(Order.user_id == u.id)) or 0
+            topup_sum   = await s.scalar(select(func.sum(TopUp.amount_usd)).where(TopUp.user_id == u.id)) or 0
+            result.append({
+                "id":           u.id,
+                "name":         u.full_name,
+                "username":     u.username,
+                "balance_stars": u.balance_stars,
+                "orders_count": order_count,
+                "topups_usd":   float(topup_sum),
+                "is_admin":     u.id in settings.ADMIN_IDS,
+                "is_banned":    u.is_banned,
+                "created_at":   u.created_at.isoformat(),
+            })
+
+    return {"total": total, "page": page, "pages": ceil(total / limit) if total else 1, "users": result}
+
+
+@app.get("/api/admin/user/{uid}")
+async def api_admin_user_detail(uid: int, admin: User = Depends(require_admin)):
+    async with AsyncSessionLocal() as s:
+        u = await s.get(User, uid)
+        if not u:
+            raise HTTPException(404, "User not found")
+        orders = (await s.execute(
+            select(Order).where(Order.user_id == uid).order_by(Order.created_at.desc())
+        )).scalars().all()
+        topups = (await s.execute(
+            select(TopUp).where(TopUp.user_id == uid).order_by(TopUp.created_at.desc())
+        )).scalars().all()
+
+    return {
+        "id":           u.id,
+        "name":         u.full_name,
+        "username":     u.username,
+        "balance_stars": u.balance_stars,
+        "balance_usd":  float(u.balance_usd),
+        "is_banned":    u.is_banned,
+        "created_at":   u.created_at.isoformat(),
+        "referred_by_id": u.referred_by_id,
+        "orders": [
+            {
+                "id":           o.id,
+                "category":     o.category,
+                "price_usd":    float(o.price_usd),
+                "status":       o.status,
+                "delivered_data": o.delivered_data,
+                "created_at":   o.created_at.isoformat(),
+            }
+            for o in orders
+        ],
+        "topups": [
+            {
+                "id":         t.id,
+                "amount_usd": float(t.amount_usd),
+                "created_at": t.created_at.isoformat(),
+            }
+            for t in topups
+        ],
+    }
+
+
+@app.get("/api/admin/orders")
+async def api_admin_orders(page: int = 1, limit: int = 30, admin: User = Depends(require_admin)):
+    from math import ceil
+    async with AsyncSessionLocal() as s:
+        total  = await s.scalar(select(func.count(Order.id))) or 0
+        orders = (await s.execute(
+            select(Order).order_by(Order.created_at.desc())
+            .offset((page - 1) * limit).limit(limit)
+        )).scalars().all()
+
+        result = []
+        for o in orders:
+            u = await s.get(User, o.user_id)
+            result.append({
+                "id":        o.id,
+                "user_id":   o.user_id,
+                "username":  u.username if u else None,
+                "user_name": u.full_name if u else "?",
+                "category":  o.category,
+                "price_usd": float(o.price_usd),
+                "status":    o.status,
+                "created_at": o.created_at.isoformat(),
+            })
+
+    return {"total": total, "page": page, "pages": ceil(total / limit) if total else 1, "orders": result}
+
+
+@app.get("/api/admin/topups")
+async def api_admin_topups(page: int = 1, limit: int = 30, admin: User = Depends(require_admin)):
+    from math import ceil
+    async with AsyncSessionLocal() as s:
+        total  = await s.scalar(select(func.count(TopUp.id))) or 0
+        topups = (await s.execute(
+            select(TopUp).order_by(TopUp.created_at.desc())
+            .offset((page - 1) * limit).limit(limit)
+        )).scalars().all()
+
+        result = []
+        for t in topups:
+            u = await s.get(User, t.user_id)
+            result.append({
+                "id":         t.id,
+                "user_id":    t.user_id,
+                "username":   u.username if u else None,
+                "user_name":  u.full_name if u else "?",
+                "amount_usd": float(t.amount_usd),
+                "amount_stars": round(float(t.amount_usd) / settings.STAR_DISPLAY_USD),
+                "created_at": t.created_at.isoformat(),
+            })
+
+    return {"total": total, "page": page, "pages": ceil(total / limit) if total else 1, "topups": result}
+
+
+
 
 @app.get("/{path:path}")
 async def spa_fallback(path: str):

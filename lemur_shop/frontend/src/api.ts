@@ -32,6 +32,14 @@ export const api = {
   starsBuy:     (stars: number, amount_usd: number) => req<{ ok: boolean }>('/stars/buy', { method: 'POST', body: JSON.stringify({ stars, amount_usd }) }),
 }
 
+export const adminApi = {
+  stats:      () => req<AdminStats>('/admin/stats'),
+  users:      (page: number, limit = 20, search = '') => req<AdminUsersPage>(`/admin/users?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`),
+  userDetail: (id: number) => req<AdminUserDetail>(`/admin/user/${id}`),
+  orders:     (page: number, limit = 30) => req<AdminOrdersPage>(`/admin/orders?page=${page}&limit=${limit}`),
+  topups:     (page: number, limit = 30) => req<AdminTopupsPage>(`/admin/topups?page=${page}&limit=${limit}`),
+}
+
 export interface Me {
   id: number; name: string; username: string | null
   lang: 'ua' | 'ru' | 'en'
@@ -46,6 +54,40 @@ export interface Order {
   id: number; price_usd: number; status: string
   created_at: string; delivered_data: string | null
 }
+
+export interface AdminStats {
+  total_users: number; total_orders: number
+  total_revenue_usd: number; total_topups_usd: number; total_stars_balance: number
+  new_users_today: number; orders_today: number; revenue_today: number; topups_today: number
+  categories: { category: string; count: number; revenue_usd: number }[]
+}
+export interface AdminUser {
+  id: number; name: string; username: string | null
+  balance_stars: number; orders_count: number; topups_usd: number
+  is_admin: boolean; is_banned: boolean; created_at: string
+}
+export interface AdminUsersPage { total: number; page: number; pages: number; users: AdminUser[] }
+export interface AdminOrderDetail {
+  id: number; category: string | null; price_usd: number; status: string
+  delivered_data: string | null; created_at: string
+}
+export interface AdminTopupDetail { id: number; amount_usd: number; created_at: string }
+export interface AdminUserDetail {
+  id: number; name: string; username: string | null
+  balance_stars: number; balance_usd: number
+  is_banned: boolean; created_at: string; referred_by_id: number | null
+  orders: AdminOrderDetail[]; topups: AdminTopupDetail[]
+}
+export interface AdminOrderRow {
+  id: number; user_id: number; username: string | null; user_name: string
+  category: string | null; price_usd: number; status: string; created_at: string
+}
+export interface AdminOrdersPage { total: number; page: number; pages: number; orders: AdminOrderRow[] }
+export interface AdminTopupRow {
+  id: number; user_id: number; username: string | null; user_name: string
+  amount_usd: number; amount_stars: number; created_at: string
+}
+export interface AdminTopupsPage { total: number; page: number; pages: number; topups: AdminTopupRow[] }
 
 declare global {
   interface Window {
