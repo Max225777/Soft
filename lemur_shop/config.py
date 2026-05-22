@@ -22,8 +22,8 @@ class Settings(BaseSettings):
     SUPPORT_USERNAME: str = "@LEMUR_MANEGER"
     # 1 Star ≈ $0.013 (курс при поповненні балансу зірками)
     STAR_DISPLAY_USD: float = 0.013
-    # Stars з користувача за $1 собівартості товару
-    STARS_PER_PRODUCT_USD: int = 130
+    # Stars з користувача за $1 ціни товару (= round(1/STAR_DISPLAY_USD))
+    STARS_PER_PRODUCT_USD: int = 77
     # Stars за $1 при поповненні через бот-команду /topup
     STARS_PER_USD: int = 77
 

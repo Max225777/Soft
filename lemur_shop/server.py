@@ -247,7 +247,7 @@ async def api_categories(user: User = Depends(get_current_user)):
             "flag":        info["flag"],
             "title":       info["title"],
             "price_usd":   info["price_usd"],
-            "price_stars": round(info["price_usd"] * settings.STARS_PER_PRODUCT_USD),
+            "price_stars": round(info["price_usd"] / settings.STAR_DISPLAY_USD),
         }
         for cat, info in CATEGORIES.items()
     ]
@@ -260,8 +260,8 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="Unknown category")
 
     base_price_usd = cat_info["price_usd"]
-    shop_price_stars = round(base_price_usd * settings.STARS_PER_PRODUCT_USD)
-    shop_price_usd = Decimal(str(round(shop_price_stars * settings.STAR_DISPLAY_USD, 2)))
+    shop_price_stars = round(base_price_usd / settings.STAR_DISPLAY_USD)
+    shop_price_usd = Decimal(str(round(float(base_price_usd), 2)))
 
     if user.balance_stars < shop_price_stars:
         raise HTTPException(status_code=402, detail="insufficient_balance")
