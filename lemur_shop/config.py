@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     CHANNEL_USERNAME: str = "@LEMUR_SHOP"
     SUPPORT_USERNAME: str = "@LEMUR_MANEGER"
-    # 1 Star ≈ $0.013 (офіційний курс TG для відображення)
+    # 1 Star ≈ $0.013 (курс при поповненні балансу зірками)
     STAR_DISPLAY_USD: float = 0.013
     # Stars з користувача за $1 собівартості товару
     STARS_PER_PRODUCT_USD: int = 130
