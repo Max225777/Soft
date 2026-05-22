@@ -200,21 +200,6 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
         </div>
 
         <div style={{
-          background: 'linear-gradient(135deg, #1a180a 0%, #1a1600 100%)',
-          border: '1px solid rgba(255,215,0,.25)',
-          borderRadius: 16, padding: '20px 16px',
-          display: 'flex', alignItems: 'center', gap: 16,
-          cursor: 'pointer', marginBottom: 10,
-        }} onClick={() => setView('stars')}>
-          <div className="cat-icon" style={{ background: 'linear-gradient(135deg, #FFD700, #E8950A)', color: '#fff', fontSize: 30 }}>⭐</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_stars}</div>
-            <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{T.tg_stars_desc}</div>
-          </div>
-          <div style={{ color: '#FFD700', fontSize: 24, fontWeight: 300 }}>›</div>
-        </div>
-
-        <div style={{
           background: 'linear-gradient(135deg, #0e1a0e 0%, #0a140a 100%)',
           border: '1px solid rgba(95,186,71,.12)',
           borderRadius: 16, padding: '20px 16px',
@@ -416,7 +401,6 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
   )
 
   // ─── Зірки ────────────────────────────────────────────────────────────────
-  if (view === 'stars') return <StarsView me={me} lang={lang} onBack={() => setView('menu')} />
 
   return null
 }
