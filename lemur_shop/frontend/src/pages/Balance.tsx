@@ -195,57 +195,6 @@ export default function Balance({ me, lang }: Props) {
         {lang === 'ru' ? 'СПОСОБЫ ПОПОЛНЕНИЯ' : lang === 'ua' ? 'СПОСОБИ ПОПОВНЕННЯ' : 'TOP UP METHODS'}
       </div>
 
-      {/* FK card */}
-      <div className="card" style={{ marginBottom: 8, padding: 0, overflow: 'hidden' }}>
-        <div
-          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer' }}
-          onClick={toggleFK}
-        >
-          <div style={{
-            width: 38, height: 38, borderRadius: 11, flexShrink: 0,
-            background: 'rgba(255,107,43,.12)', border: '1px solid rgba(255,107,43,.2)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
-          }}>🏦</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>СБП / Ру банки</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>🇷🇺 Тільки RU · ~12% комісія</div>
-          </div>
-          <div style={{ color: 'var(--muted)', fontSize: 18, transition: 'transform .2s', transform: open === 'fk' ? 'rotate(90deg)' : '' }}>›</div>
-        </div>
-
-        {open === 'fk' && (
-          <ExpandPanel>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 10 }}>
-              {PRESETS_RUB.map(p => (
-                <button key={p} onClick={() => { setFkAmount(p); setCustomRub('') }}
-                  style={presetBtn(fkAmount === p && !customRub)}>
-                  ₽{p}
-                </button>
-              ))}
-            </div>
-            <input
-              type="number" min="100" step="50"
-              placeholder={lang === 'ru' ? 'Своя сумма (₽)' : 'Своя сума (₽)'}
-              value={customRub}
-              onChange={e => { setCustomRub(e.target.value); setFkAmount(parseFloat(e.target.value) || 0) }}
-              style={{ ...inputStyle, marginBottom: 10 }}
-            />
-            {fkAmount > 0 && fkAmount < 100 && (
-              <div style={{ marginBottom: 8, fontSize: 12, color: 'var(--red)' }}>
-                {lang === 'ru' ? 'Минимальная сумма пополнения: ₽100' : 'Мінімальна сума поповнення: ₽100'}
-              </div>
-            )}
-            {fkError && <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--red)' }}>{fkError}</div>}
-            <button className="btn btn-primary" disabled={fkAmount < 100 || fkLoading}
-              style={fkAmount < 100 ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
-              onClick={() => payFK(fkAmount)}>
-              {fkLoading ? '⏳...' : fkAmount >= 100 ? `${payLabel} ₽${fkAmount}` : `${payLabel} (мін. ₽100)`}
-            </button>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{afterLabel}</div>
-          </ExpandPanel>
-        )}
-      </div>
-
       {/* Crypto card */}
       <div style={{
         background: 'linear-gradient(135deg, rgba(38,161,123,.08), rgba(38,161,123,.03))',
