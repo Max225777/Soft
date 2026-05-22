@@ -275,8 +275,9 @@ export default function Balance({ me, lang }: Props) {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
               {PRESETS_USD.map(p => (
                 <button key={p} onClick={() => { setCryptoAmount(p); setCustomUsd('') }}
-                  style={presetBtn(cryptoAmount === p && !customUsd)}>
-                  ${p}
+                  style={{ ...presetBtn(cryptoAmount === p && !customUsd), lineHeight: 1.3 }}>
+                  <div>${p}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7 }}>⭐{Math.round(p / 0.013)}</div>
                 </button>
               ))}
             </div>
@@ -285,13 +286,20 @@ export default function Balance({ me, lang }: Props) {
               placeholder={lang === 'ua' ? 'Сума ($)' : lang === 'ru' ? 'Сумма ($)' : 'Amount ($)'}
               value={customUsd}
               onChange={e => { setCustomUsd(e.target.value); setCryptoAmount(parseFloat(e.target.value) || 0) }}
-              style={{ ...inputStyle, marginBottom: 10 }}
+              style={{ ...inputStyle, marginBottom: cryptoAmount > 0 ? 6 : 10 }}
             />
+            {cryptoAmount > 0 && (
+              <div style={{ fontSize: 13, color: '#26A17B', fontWeight: 600, marginBottom: 10, textAlign: 'center' }}>
+                ${cryptoAmount.toFixed(2)} = <b>⭐{Math.round(cryptoAmount / 0.013)}</b>
+              </div>
+            )}
             {cryptoError && <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--red)' }}>{cryptoError}</div>}
             <button className="btn btn-primary" disabled={cryptoAmount < 0.5 || cryptoLoading}
               onClick={() => payCrypto(cryptoAmount)}
               style={{ background: 'linear-gradient(135deg, #26A17B, #1a7a5e)' }}>
-              {cryptoLoading ? '⏳...' : `${payLabel} $${cryptoAmount > 0 ? cryptoAmount.toFixed(2) : '0.00'} USDT`}
+              {cryptoLoading ? '⏳...' : cryptoAmount >= 0.5
+                ? `${payLabel} $${cryptoAmount.toFixed(2)} → ⭐${Math.round(cryptoAmount / 0.013)}`
+                : payLabel}
             </button>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{afterLabel}</div>
           </ExpandPanel>
