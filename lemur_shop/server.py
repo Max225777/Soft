@@ -980,10 +980,10 @@ async def api_admin_reset_stats(admin: User = Depends(require_admin)):
             await s.execute(delete(Order))
             await s.execute(delete(FKOrder))
             await s.execute(
-                __import__('sqlalchemy').text(
-                    "UPDATE users SET balance_stars = 0, balance_usd = 0, balance_uah = 0, balance_rub = 0"
+                    __import__('sqlalchemy').text(
+                        "UPDATE users SET balance_stars = 0, balance_usd = 0"
+                    )
                 )
-            )
     return {"ok": True}
 
 
