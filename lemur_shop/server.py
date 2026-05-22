@@ -89,9 +89,14 @@ async def lifespan(app: FastAPI):
 
     if webapp_url.startswith("https://"):
         try:
-            await _bot.set_webhook(webapp_url + "/webhook", drop_pending_updates=True)
+            allowed = _dp.resolve_used_update_types()
+            await _bot.set_webhook(
+                webapp_url + "/webhook",
+                drop_pending_updates=True,
+                allowed_updates=allowed,
+            )
             use_webhook = True
-            log.info("Webhook: %s/webhook", webapp_url)
+            log.info("Webhook: %s/webhook (updates: %s)", webapp_url, allowed)
         except Exception as e:
             log.warning("Webhook не вдалось (%s) — polling", e)
             await _bot.delete_webhook()
