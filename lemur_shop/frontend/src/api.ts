@@ -38,6 +38,19 @@ export const gameApi = {
   finish: (token: string, score: number) => req<{ score: number; bet: number; multiplier: number; stars_won: number; net: number; new_balance: number }>('/game/finish', { method: 'POST', body: JSON.stringify({ token, score }) }),
 }
 
+export interface WheelResult {
+  bets: number[]
+  total_pool: number
+  winner_idx: number
+  player_won: boolean
+  payout: number
+  new_balance: number
+}
+
+export const wheelApi = {
+  spin: (bet: number) => req<WheelResult>('/wheel/spin', { method: 'POST', body: JSON.stringify({ bet }) }),
+}
+
 export const adminApi = {
   stats:           () => req<AdminStats>('/admin/stats'),
   users:           (page: number, limit = 20, search = '') => req<AdminUsersPage>(`/admin/users?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`),

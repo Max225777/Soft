@@ -1,7 +1,7 @@
 import type { Lang } from '../i18n'
 import { getT } from '../i18n'
 
-export type Tab = 'shop' | 'profile' | 'balance' | 'admin' | 'game'
+export type Tab = 'shop' | 'profile' | 'balance' | 'admin' | 'wheel'
 
 interface Props { active: Tab; onChange(t: Tab): void; lang: Lang; isAdmin?: boolean }
 
@@ -32,25 +32,33 @@ const icons: Record<Tab, JSX.Element> = {
       <path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>
     </svg>
   ),
-  game: (
+  wheel: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="2" y="6" width="20" height="12" rx="4"/>
-      <path d="M12 10v4M10 12h4"/>
-      <circle cx="17" cy="12" r="1" fill="currentColor"/>
-      <circle cx="15" cy="10" r="1" fill="currentColor"/>
+      <circle cx="12" cy="12" r="10"/>
+      <circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/>
+      <line x1="12" y1="2"  x2="12" y2="6"/>
+      <line x1="12" y1="18" x2="12" y2="22"/>
+      <line x1="2"  y1="12" x2="6"  y2="12"/>
+      <line x1="18" y1="12" x2="22" y2="12"/>
+      <line x1="5.5"  y1="5.5"  x2="8.4"  y2="8.4"/>
+      <line x1="15.6" y1="15.6" x2="18.5" y2="18.5"/>
+      <line x1="18.5" y1="5.5"  x2="15.6" y2="8.4"/>
+      <line x1="8.4"  y1="15.6" x2="5.5"  y2="18.5"/>
     </svg>
   ),
 }
 
 export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
   const T = getT(lang)
-  const tabs: Tab[] = isAdmin ? ['shop', 'balance', 'game', 'profile', 'admin'] : ['shop', 'balance', 'game', 'profile']
+  const tabs: Tab[] = isAdmin
+    ? ['shop', 'balance', 'wheel', 'profile', 'admin']
+    : ['shop', 'balance', 'wheel', 'profile']
   const labels: Record<Tab, string> = {
     shop:    T.shop,
     profile: T.profile,
     balance: T.balance_tab,
     admin:   '⚙️ Адмін',
-    game:    '🎮 Гра',
+    wheel:   '🎡 Колесо',
   }
   return (
     <nav className="nav">

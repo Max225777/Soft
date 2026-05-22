@@ -1125,7 +1125,59 @@ async def api_game_finish(body: GameFinishRequest, user: User = Depends(get_curr
     }
 
 
-@app.get("/{path:path}")
+# ---------------------------------------------------------------------------
+# Wheel of Fortune
+# 10 participants (1 real + 9 simulated).  Each spin:
+#   - player's bet deducted upfront
+#   - 9 fake co-players with random bets in [bet/2 .. bet*2]
+#   - winner chosen with weights proportional to bets (fair share = fair chance)
+#   - house keeps 25 %: winner receives 75 % of total pool
+# Expected RTP for player ≈ 75 % (house edge 25 %)
+# ---------------------------------------------------------------------------
+class WheelSpinRequest(BaseModel):
+    bet: int = 50
+
+@app.post("/api/wheel/spin")
+async def api_wheel_spin(body: WheelSpinRequest, user: User = Depends(get_current_user)):
+    bet = max(10, min(body.bet, 1000))
+
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            u = await s.get(User, user.id)
+            if not u or u.balance_stars < bet:
+                raise HTTPException(402, "insufficient_balance")
+            u.balance_stars -= bet
+            bal_after_deduct = u.balance_stars
+
+    lo = max(10, bet // 2)
+    hi = min(1000, bet * 2)
+    fake_bets = [_random.randint(lo, hi) for _ in range(9)]
+    bets = [bet] + fake_bets
+    total_pool = sum(bets)
+
+    winner_idx = _random.choices(range(10), weights=bets)[0]
+    player_won = (winner_idx == 0)
+    payout = round(total_pool * 0.75) if player_won else 0
+
+    new_balance = bal_after_deduct
+    if player_won:
+        async with AsyncSessionLocal() as s:
+            async with s.begin():
+                u = await s.get(User, user.id)
+                u.balance_stars += payout
+                new_balance = u.balance_stars
+
+    return {
+        "bets": bets,
+        "total_pool": total_pool,
+        "winner_idx": winner_idx,
+        "player_won": player_won,
+        "payout": payout,
+        "new_balance": new_balance,
+    }
+
+
+
 async def spa_fallback(path: str):
     static_file = os.path.join(STATIC_DIR, path)
     if os.path.isfile(static_file):
