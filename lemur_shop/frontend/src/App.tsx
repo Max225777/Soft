@@ -5,7 +5,6 @@ import Shop from './pages/Shop'
 import Profile from './pages/Profile'
 import Balance from './pages/Balance'
 import Admin from './pages/Admin'
-import Wheel from './pages/Wheel'
 import type { Lang } from './i18n'
 import { getT } from './i18n'
 
@@ -71,7 +70,6 @@ export default function App() {
         {tab === 'profile' && <Profile key="profile" me={me} lang={lang} onChangeLang={l => { setLang(l); api.me().then(setMe).catch(() => {}) }} />}
         {tab === 'balance' && <Balance key="balance" me={me} lang={lang} />}
         {tab === 'admin'   && <Admin   key="admin" />}
-        {tab === 'wheel'   && <Wheel   key="wheel" />}
       </div>
       <BottomNav active={tab} onChange={setTab} lang={lang} isAdmin={me?.is_admin} />
     </>
