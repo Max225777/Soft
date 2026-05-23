@@ -64,9 +64,8 @@ async def lifespan(app: FastAPI):
 
     log.info("Підключення до БД...")
     await create_tables()
-    await _load_wheel_pot()
     asyncio.create_task(_wheel_bot_filler())
-    log.info("БД готова, wheel_pot=%d", _wheel_pot)
+    log.info("БД готова")
 
     _bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     _dp = Dispatcher(storage=MemoryStorage())
