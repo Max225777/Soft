@@ -17,7 +17,11 @@ CATEGORIES: dict[str, dict] = {
 
 async def _search_with_pmax(country: str, pmax: float, limit: int = 10) -> list[dict]:
     try:
-        return await lolz.search_telegram(country=country, pmax=pmax, count=limit)
+        items = await lolz.search_telegram(country=country, pmax=pmax, count=limit, strict=True)
+        if items:
+            return items
+        # fallback: без фільтрів spam/origin — щоб знайти дешевші акаунти
+        return await lolz.search_telegram(country=country, pmax=pmax, count=limit, strict=False)
     except LolzApiError:
         return []
 

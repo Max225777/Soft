@@ -40,18 +40,20 @@ class LolzClient:
             raise LolzApiError(r.status_code, r.text[:200])
         return r.json()
 
-    async def search_telegram(self, country: str, pmax: float = 2.0, count: int = 10) -> list[dict]:
-        """Пошук TG-акаунтів за країною. Повертає список item-об'єктів."""
+    async def search_telegram(self, country: str, pmax: float = 2.0, count: int = 10,
+                              strict: bool = True) -> list[dict]:
+        """Пошук TG-акаунтів за країною. strict=False прибирає фільтри spam/origin."""
         params: dict[str, Any] = {
-            "origin[]":     ["autoreg", "self_registration"],
             "country[]":    [country.upper()],
             "password":     "no",
             "email":        "no",
-            "spam":         "no",
             "pmax":         pmax,
             "order_by":     "price_to_up",
             "count":        count,
         }
+        if strict:
+            params["origin[]"] = ["autoreg", "self_registration"]
+            params["spam"] = "no"
         data = await self._get("telegram", params)
         return data.get("items") or []
 
