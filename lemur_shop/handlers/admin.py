@@ -50,10 +50,14 @@ async def cmd_topup(message: Message) -> None:
             if not user:
                 await message.answer(f"❌ Користувача «{parts[1]}» не знайдено.")
                 return
-            user.balance_usd = user.balance_usd + amount
+            from lemur_shop.config import settings
+            stars = round(float(amount) / settings.STAR_DISPLAY_USD)
+            user.balance_usd   = user.balance_usd + amount
+            user.balance_stars = user.balance_stars + stars
             s.add(TopUp(
                 user_id=user.id,
                 amount_usd=amount,
+                amount_stars=stars,
                 admin_id=message.from_user.id,
             ))
 
@@ -61,8 +65,8 @@ async def cmd_topup(message: Message) -> None:
     await message.answer(
         f"✅ Баланс поповнено\n\n"
         f"👤 @{name} (ID: <code>{user.id}</code>)\n"
-        f"➕ +${amount:.2f}\n"
-        f"💰 Новий баланс: ${float(user.balance_usd):.2f}",
+        f"➕ +${amount:.2f} = +⭐{stars}\n"
+        f"💰 Новий баланс: ⭐{user.balance_stars}",
         parse_mode="HTML"
     )
 
