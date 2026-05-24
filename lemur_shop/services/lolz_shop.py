@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 CATEGORIES: dict[str, dict] = {
     "us": {"country": "US", "title": "USA",        "flag": "🇺🇸", "price_usd": 1.30, "pmax_tiers": [0.50]},
     "ua": {"country": "UA", "title": "Ukraine",    "flag": "🇺🇦", "price_usd": 3.25, "pmax_tiers": [2.50]},
-    "kz": {"country": "KZ", "title": "Kazakhstan", "flag": "🇰🇿", "price_usd": 3.25, "pmax_tiers": [1.30, 1.70, 2.40]},
+    "kz": {"country": "KZ", "title": "Kazakhstan", "flag": "🇰🇿", "price_usd": 3.25, "pmax_tiers": [1.70, 2.40]},
 }
 
 
