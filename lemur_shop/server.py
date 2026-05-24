@@ -615,10 +615,15 @@ async def crypto_notify(request: Request):
             user = await s.get(User, user_id)
             if not user:
                 return Response(content="ok")
-            user.balance_usd = user.balance_usd + amount_usd
-            s.add(TopUp(user_id=user_id, amount_usd=amount_usd, admin_id=0))
+            stars_credited = round(float(amount_usd) / settings.STAR_DISPLAY_USD)
+            user.balance_usd    = user.balance_usd + amount_usd
+            user.balance_stars  = user.balance_stars + stars_credited
+            s.add(TopUp(
+                user_id=user_id, amount_usd=amount_usd,
+                amount_stars=stars_credited, admin_id=0,
+            ))
 
-    log.info("CryptoBot paid: user=%s amount=%s", user_id, amount_usd)
+    log.info("CryptoBot paid: user=%s amount=%s stars=%s", user_id, amount_usd, stars_credited)
 
     if _bot:
         if settings.ADMIN_IDS:
@@ -626,7 +631,7 @@ async def crypto_notify(request: Request):
             txt = (
                 f"💎 <b>Поповнення через CryptoBot!</b>\n\n"
                 f"👤 {uname} (<code>{user_id}</code>)\n"
-                f"💰 Зараховано: <b>${float(amount_usd):.2f} USDT</b>"
+                f"💰 Зараховано: <b>${float(amount_usd):.2f} USDT = ⭐{stars_credited}</b>"
             )
             for admin_id in settings.ADMIN_IDS:
                 try:
@@ -710,7 +715,7 @@ async def api_stars_buy(body: StarsBuyRequest, user: User = Depends(get_current_
             await _bot.send_message(
                 user.id,
                 f"⭐ Замовлення на <b>{body.stars} Stars</b> прийнято!\n"
-                f"💰 Списано: <b>${float(amount_usd):.2f}</b>\n\n"
+                f"💫 Списано з балансу: <b>⭐{price_stars}</b>\n\n"
                 f"Зірки будуть відправлені протягом 10 хвилин.",
                 parse_mode="HTML"
             )
