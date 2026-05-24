@@ -67,6 +67,7 @@ async def auto_buy_category(category: str) -> tuple[str, int, float]:
         raise LolzApiError("Unknown category")
     country = cat["country"]
     tiers: list[float] = cat.get("pmax_tiers", [2.50])
+    shop_price: float = cat.get("price_usd", 9999)
 
     items: list[dict] = []
     for pmax in tiers:
@@ -83,5 +84,15 @@ async def auto_buy_category(category: str) -> tuple[str, int, float]:
     item = items_sorted[0]
     item_id = int(item.get("item_id") or item.get("id"))
     lolz_price = float(item.get("price") or item.get("price_usd") or 0)
+
+    prices = [float(i.get("price") or i.get("price_usd") or 0) for i in items_sorted[:5]]
+    log.info("Price range for %s: cheapest=%.2f, top5=%s, shop_price=%.2f, margin=%.2f",
+             category, lolz_price, prices, shop_price, shop_price - lolz_price)
+
+    if lolz_price > shop_price * 0.85:
+        raise LolzApiError(
+            f"Margin too low: cheapest account ${lolz_price:.2f}, shop price ${shop_price:.2f}"
+        )
+
     phone = await auto_buy(item_id, lolz_price)
     return phone, item_id, lolz_price
