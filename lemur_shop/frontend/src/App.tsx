@@ -15,26 +15,21 @@ const CHANNEL_URL = `https://t.me/${CHANNEL}`
 export default function App() {
   const [tab, setTab]         = useState<Tab>('shop')
   const [me, setMe]           = useState<Me | null>(null)
-  const [lang, setLang]       = useState<Lang | null>(() => {
-    const saved = localStorage.getItem(LANG_KEY)
-    return (saved as Lang) || null
-  })
+  const [lang, setLang]       = useState<Lang>(() => (localStorage.getItem(LANG_KEY) as Lang) || 'ru')
   const [subChecked, setSubChecked] = useState(false)
   const [subscribed, setSubscribed] = useState(true)
   const [checkingAgain, setCheckingAgain] = useState(false)
 
   useEffect(() => {
     window.Telegram?.WebApp?.expand()
-    if (lang) {
-      api.me().then(setMe).catch(() => {})
-      api.checkSub().then(r => {
-        setSubscribed(r.subscribed)
-        setSubChecked(true)
-      }).catch(() => {
-        setSubscribed(true)
-        setSubChecked(true)
-      })
-    }
+    api.me().then(setMe).catch(() => {})
+    api.checkSub().then(r => {
+      setSubscribed(r.subscribed)
+      setSubChecked(true)
+    }).catch(() => {
+      setSubscribed(true)
+      setSubChecked(true)
+    })
   }, [lang])
 
   function selectLang(l: Lang) {
@@ -56,17 +51,14 @@ export default function App() {
     }
   }
 
-  if (!lang) return <LangSelect onSelect={selectLang} />
-
-  if (lang && subChecked && !subscribed) {
-    const T = getT(lang)
+  if (subChecked && !subscribed) {
     return <SubGate lang={lang} onCheck={recheckSub} checking={checkingAgain} />
   }
 
   return (
     <>
       <div style={{ flex: 1 }}>
-        {tab === 'shop'    && <Shop    key="shop"    lang={lang} me={me} onGoToBalance={() => setTab('balance')} />}
+        {tab === 'shop'    && <Shop    key="shop"    lang={lang} me={me} onGoToBalance={() => setTab('balance')} onBuy={() => api.me().then(setMe).catch(() => {})} />}
         {tab === 'profile' && <Profile key="profile" me={me} lang={lang} onChangeLang={l => { setLang(l); api.me().then(setMe).catch(() => {}) }} />}
         {tab === 'balance' && <Balance key="balance" me={me} lang={lang} />}
         {tab === 'admin'   && <Admin   key="admin" />}
@@ -139,23 +131,3 @@ function SubGate({ lang, onCheck, checking }: { lang: Lang; onCheck(): void; che
   )
 }
 
-function LangSelect({ onSelect }: { onSelect: (l: Lang) => void }) {
-  return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', minHeight: '100dvh', gap: 12, padding: 28,
-    }}>
-      <div style={{ fontSize: 56, marginBottom: 4 }}>🦎</div>
-      <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--text)' }}>Лемур</div>
-      <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16, textAlign: 'center' }}>
-        Виберіть мову · Choose language · Выберите язык
-      </div>
-      {(['ru', 'ua', 'en'] as const).map(l => (
-        <button key={l} className="btn btn-primary" style={{ width: '100%', maxWidth: 300 }}
-          onClick={() => onSelect(l)}>
-          {l === 'ru' ? '🇷🇺 Русский' : l === 'ua' ? '🇺🇦 Українська' : '🇬🇧 English'}
-        </button>
-      ))}
-    </div>
-  )
-}

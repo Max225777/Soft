@@ -3,7 +3,7 @@ import { api, type Category, type BuyResult, type Me } from '../api'
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
 
-interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void }
+interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void; onBuy?: () => void }
 
 type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars'
 
@@ -87,7 +87,7 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
   )
 }
 
-export default function Shop({ lang, me, onGoToBalance }: Props) {
+export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   const T = getT(lang)
   const [view, setView]       = useState<View>('menu')
   const [cats, setCats]       = useState<Category[]>([])
@@ -110,6 +110,7 @@ export default function Shop({ lang, me, onGoToBalance }: Props) {
       const res = await api.buy(cat.category)
       setResult(res)
       setView('success')
+      onBuy?.()
     } catch (e: any) {
       if (e.message === 'insufficient_balance') {
         setView('list')
