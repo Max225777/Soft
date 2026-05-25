@@ -17,11 +17,7 @@ CATEGORIES: dict[str, dict] = {
 
 async def _search_with_pmax(country: str, pmax: float, limit: int = 10) -> list[dict]:
     try:
-        items = await lolz.search_telegram(country=country, pmax=pmax, count=limit, strict=True)
-        if items:
-            return items
-        # fallback: без фільтрів spam/origin — щоб знайти дешевші акаунти
-        return await lolz.search_telegram(country=country, pmax=pmax, count=limit, strict=False)
+        return await lolz.search_telegram(country=country, pmax=pmax, count=limit)
     except LolzApiError:
         return []
 
@@ -93,9 +89,9 @@ async def auto_buy_category(category: str) -> tuple[str, int, float]:
     log.info("Price range for %s: cheapest=%.2f, top5=%s, shop_price=%.2f, margin=%.2f",
              category, lolz_price, prices, shop_price, shop_price - lolz_price)
 
-    if lolz_price >= shop_price:
+    if lolz_price > shop_price - 0.5:
         raise LolzApiError(
-            f"No margin: cheapest account ${lolz_price:.2f} >= shop price ${shop_price:.2f}"
+            f"Margin too low: cost ${lolz_price:.2f}, shop ${shop_price:.2f}, margin ${shop_price - lolz_price:.2f}"
         )
 
     phone = await auto_buy(item_id, lolz_price)
