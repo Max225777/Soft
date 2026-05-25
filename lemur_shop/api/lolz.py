@@ -46,7 +46,6 @@ class LolzClient:
             "origin[]":     ["autoreg", "self_registration"],
             "country[]":    [country.upper()],
             "password":     "no",
-            "email":        "no",
             "pmax":         pmax,
             "order_by":     "price_to_up",
             "count":        count,
