@@ -47,7 +47,6 @@ class LolzClient:
             "country[]":    [country.upper()],
             "password":     "no",
             "email":        "no",
-            "spam":         "no",
             "pmax":         pmax,
             "order_by":     "price_to_up",
             "count":        count,
