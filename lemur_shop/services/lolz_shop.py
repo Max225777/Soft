@@ -71,7 +71,7 @@ async def auto_buy_category(category: str) -> tuple[str, int, float]:
 
     items: list[dict] = []
     for pmax in tiers:
-        items = await _search_with_pmax(country, pmax)
+        items = await _search_with_pmax(country, pmax, limit=50)
         if items:
             log.info("Found %d accounts for %s at pmax=%.2f", len(items), category, pmax)
             break
