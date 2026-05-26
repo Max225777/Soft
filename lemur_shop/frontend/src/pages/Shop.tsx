@@ -72,10 +72,17 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           <span style={{ fontWeight: 700, fontSize: 15 }}>{T.final_price}</span>
-          <span style={{ fontWeight: 800, fontSize: 24, color: 'var(--orange)' }}>
-            ⭐{cat.price_stars}
-            <span style={{ fontWeight: 400, fontSize: 13, color: 'var(--muted)', marginLeft: 8 }}>(${cat.price_usd.toFixed(2)})</span>
-          </span>
+          {cat.discount_stars ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontSize: 16 }}>⭐{cat.price_stars}</span>
+              <span style={{ fontWeight: 800, fontSize: 24, color: '#ff6b2b' }}>⭐{cat.discount_stars}</span>
+            </span>
+          ) : (
+            <span style={{ fontWeight: 800, fontSize: 24, color: 'var(--orange)' }}>
+              ⭐{cat.price_stars}
+              <span style={{ fontWeight: 400, fontSize: 13, color: 'var(--muted)', marginLeft: 8 }}>(${cat.price_usd.toFixed(2)})</span>
+            </span>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 10 }}>
@@ -296,7 +303,12 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div className="price-pill" style={{ flex: 1, justifyContent: 'center', fontSize: 15, padding: '9px 12px' }}>
-                    {localPrice(cat.price_stars, cat.price_usd)}
+                    {cat.discount_stars ? (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontSize: 13 }}>⭐{cat.price_stars}</span>
+                        <span style={{ fontWeight: 800, color: '#ff6b2b' }}>⭐{cat.discount_stars}</span>
+                      </span>
+                    ) : localPrice(cat.price_stars, cat.price_usd)}
                   </div>
                   <button
                     className="btn btn-primary"

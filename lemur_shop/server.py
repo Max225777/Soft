@@ -243,11 +243,12 @@ async def api_set_lang(body: SetLangRequest, user: User = Depends(get_current_us
 async def api_categories(user: User = Depends(get_current_user)):
     return [
         {
-            "category":    cat,
-            "flag":        info["flag"],
-            "title":       info["title"],
-            "price_usd":   info["price_usd"],
-            "price_stars": round(info["price_usd"] / settings.STAR_DISPLAY_USD),
+            "category":       cat,
+            "flag":           info["flag"],
+            "title":          info["title"],
+            "price_usd":      info["price_usd"],
+            "price_stars":    round(info["price_usd"] / settings.STAR_DISPLAY_USD),
+            "discount_stars": info.get("discount_stars"),
         }
         for cat, info in CATEGORIES.items()
     ]
@@ -260,8 +261,13 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="Unknown category")
 
     base_price_usd = cat_info["price_usd"]
-    shop_price_stars = round(base_price_usd / settings.STAR_DISPLAY_USD)
-    shop_price_usd = Decimal(str(round(float(base_price_usd), 2)))
+    discount_stars = cat_info.get("discount_stars")
+    if discount_stars:
+        shop_price_stars = discount_stars
+        shop_price_usd = Decimal(str(round(discount_stars * settings.STAR_DISPLAY_USD, 4)))
+    else:
+        shop_price_stars = round(base_price_usd / settings.STAR_DISPLAY_USD)
+        shop_price_usd = Decimal(str(round(float(base_price_usd), 2)))
 
     if user.balance_stars < shop_price_stars:
         raise HTTPException(status_code=402, detail="insufficient_balance")

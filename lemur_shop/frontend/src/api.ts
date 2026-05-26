@@ -75,7 +75,7 @@ export interface Me {
   rate_uah: number; rate_rub: number
   orders_count: number; is_admin: boolean
 }
-export interface Category { category: string; flag: string; title: string; price_usd: number; price_stars: number }
+export interface Category { category: string; flag: string; title: string; price_usd: number; price_stars: number; discount_stars?: number }
 export interface BuyResult { order_id: number; phone: string; created_at: string }
 export interface Order {
   id: number; price_usd: number; status: string
