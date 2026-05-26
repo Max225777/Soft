@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { api, type Me } from './api'
 import BottomNav, { type Tab } from './components/BottomNav'
 import Shop from './pages/Shop'
@@ -19,10 +19,12 @@ export default function App() {
   const [subChecked, setSubChecked] = useState(false)
   const [subscribed, setSubscribed] = useState(true)
   const [checkingAgain, setCheckingAgain] = useState(false)
+  const [balanceDiff, setBalanceDiff] = useState<number | null>(null)
+  const prevStars = useRef<number>(0)
 
   useEffect(() => {
     window.Telegram?.WebApp?.expand()
-    api.me().then(setMe).catch(() => {})
+    api.me().then(u => { setMe(u); prevStars.current = u.balance_stars }).catch(() => {})
     api.checkSub().then(r => {
       setSubscribed(r.subscribed)
       setSubChecked(true)
@@ -32,11 +34,29 @@ export default function App() {
     })
   }, [lang])
 
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const fresh = await api.me()
+        const diff = fresh.balance_stars - prevStars.current
+        if (diff > 0) {
+          setBalanceDiff(diff)
+          setTimeout(() => setBalanceDiff(null), 2500)
+        }
+        prevStars.current = fresh.balance_stars
+        setMe(fresh)
+      } catch {}
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
+  function refreshMe() { api.me().then(u => { prevStars.current = u.balance_stars; setMe(u) }).catch(() => {}) }
+
   function selectLang(l: Lang) {
     localStorage.setItem(LANG_KEY, l)
     setLang(l)
     api.setLang(l).catch(() => {})
-    api.me().then(setMe).catch(() => {})
+    refreshMe()
   }
 
   async function recheckSub() {
@@ -58,9 +78,9 @@ export default function App() {
   return (
     <>
       <div style={{ flex: 1 }}>
-        {tab === 'shop'    && <Shop    key="shop"    lang={lang} me={me} onGoToBalance={() => setTab('balance')} onBuy={() => api.me().then(setMe).catch(() => {})} />}
-        {tab === 'profile' && <Profile key="profile" me={me} lang={lang} onChangeLang={l => { setLang(l); api.me().then(setMe).catch(() => {}) }} />}
-        {tab === 'balance' && <Balance key="balance" me={me} lang={lang} />}
+        {tab === 'shop'    && <Shop    key="shop"    lang={lang} me={me} onGoToBalance={() => setTab('balance')} onBuy={refreshMe} />}
+        {tab === 'profile' && <Profile key="profile" me={me} lang={lang} onChangeLang={l => { setLang(l); refreshMe() }} />}
+        {tab === 'balance' && <Balance key="balance" me={me} lang={lang} balanceDiff={balanceDiff} />}
         {tab === 'admin'   && <Admin   key="admin" />}
       </div>
       <BottomNav active={tab} onChange={setTab} lang={lang} isAdmin={me?.is_admin} />

@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { api, type Me } from '../api'
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
 
-interface Props { me: Me | null; lang: Lang }
+interface Props { me: Me | null; lang: Lang; balanceDiff?: number | null }
 
 const PRESETS_RUB = [100, 250, 500, 1000]
 const PRESETS_USD = [1, 2, 5, 10, 25, 50]
@@ -48,11 +48,8 @@ function ExpandPanel({ children }: { children: React.ReactNode }) {
   )
 }
 
-export default function Balance({ me: initMe, lang }: Props) {
+export default function Balance({ me, lang, balanceDiff }: Props) {
   const T = getT(lang)
-  const [me, setMe] = useState<Me | null>(initMe)
-  const [balanceDiff, setBalanceDiff] = useState<number | null>(null)
-  const prevStars = useRef<number>(initMe?.balance_stars ?? 0)
   const [open, setOpen] = useState<'fk' | 'crypto' | 'stars' | null>(null)
   const [fkAmount, setFkAmount] = useState(0)
   const [customRub, setCustomRub] = useState('')
@@ -67,22 +64,6 @@ export default function Balance({ me: initMe, lang }: Props) {
   const [cryptoError, setCryptoError] = useState<string | null>(null)
   const [starsError, setStarsError] = useState<string | null>(null)
   const [topupSuccess, setTopupSuccess] = useState<number | null>(null)
-
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const fresh = await api.me()
-        setMe(fresh)
-        const diff = fresh.balance_stars - prevStars.current
-        if (diff > 0) {
-          setBalanceDiff(diff)
-          setTimeout(() => setBalanceDiff(null), 2500)
-        }
-        prevStars.current = fresh.balance_stars
-      } catch {}
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [])
 
   if (!me) return <div className="page"><p className="muted">{T.loading}</p></div>
 
