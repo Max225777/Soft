@@ -299,6 +299,11 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 800, fontSize: 17 }}>{cat.title}</div>
                     <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>Telegram account</div>
+                    {cat.discount_stars && (
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#ff6b2b', marginTop: 4 }}>
+                        🎉 Скидка в честь открытия магазина
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
