@@ -22,19 +22,40 @@ _CHARS = string.ascii_uppercase + string.digits
 
 WELCOME = {
     "ru": (
-        "🦎 <b>Лемур</b>\n\n"
-        "Добро пожаловать в наш магазин.\n\n"
-        "Нажмите кнопку ниже, чтобы открыть каталог."
+        "🦎 <b>Лемур Шоп</b>\n\n"
+        "Привет! Добро пожаловать в автоматический цифровой магазин.\n\n"
+        "🛒 <b>Что есть в магазине:</b>\n"
+        "📱 Telegram аккаунты — 🇺🇸 🇰🇿 🇺🇦\n"
+        "⭐ Аккаунты США от <b>25 звёзд</b>\n\n"
+        "💳 <b>Способы оплаты:</b>\n"
+        "⭐ Telegram Stars\n"
+        "🤑 CryptoBot (USDT и др.)\n\n"
+        "⚡️ Выдача мгновенная, работаем 24/7.\n\n"
+        "👇 Нажми кнопку и открывай каталог:"
     ),
     "ua": (
-        "🦎 <b>Лемур</b>\n\n"
-        "Ласкаво просимо до нашого магазину.\n\n"
-        "Натисніть кнопку нижче, щоб відкрити каталог."
+        "🦎 <b>Лемур Шоп</b>\n\n"
+        "Привіт! Ласкаво просимо до автоматичного цифрового магазину.\n\n"
+        "🛒 <b>Що є в магазині:</b>\n"
+        "📱 Telegram акаунти — 🇺🇸 🇰🇿 🇺🇦\n"
+        "⭐ Акаунти США від <b>25 зірок</b>\n\n"
+        "💳 <b>Способи оплати:</b>\n"
+        "⭐ Telegram Stars\n"
+        "🤑 CryptoBot (USDT та ін.)\n\n"
+        "⚡️ Видача миттєва, працюємо 24/7.\n\n"
+        "👇 Натисни кнопку і відкривай каталог:"
     ),
     "en": (
-        "🦎 <b>Lemur</b>\n\n"
-        "Welcome to our shop.\n\n"
-        "Press the button below to open the catalogue."
+        "🦎 <b>Lemur Shop</b>\n\n"
+        "Hey! Welcome to our automated digital store.\n\n"
+        "🛒 <b>What's available:</b>\n"
+        "📱 Telegram accounts — 🇺🇸 🇰🇿 🇺🇦\n"
+        "⭐ US accounts from <b>25 stars</b>\n\n"
+        "💳 <b>Payment methods:</b>\n"
+        "⭐ Telegram Stars\n"
+        "🤑 CryptoBot (USDT etc.)\n\n"
+        "⚡️ Instant delivery, 24/7.\n\n"
+        "👇 Press the button to open the catalogue:"
     ),
 }
 
