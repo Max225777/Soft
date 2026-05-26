@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { api, type Me } from '../api'
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
@@ -25,6 +25,12 @@ const SLIDE_STYLE = `
     50%  { transform: rotate(20deg) scale(1.3); }
     100% { transform: rotate(0deg) scale(1); }
   }
+  @keyframes balance-plus {
+    0%   { opacity: 0; transform: translateY(0); }
+    20%  { opacity: 1; }
+    80%  { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-32px); }
+  }
 `
 
 function ExpandPanel({ children }: { children: React.ReactNode }) {
@@ -42,8 +48,11 @@ function ExpandPanel({ children }: { children: React.ReactNode }) {
   )
 }
 
-export default function Balance({ me, lang }: Props) {
+export default function Balance({ me: initMe, lang }: Props) {
   const T = getT(lang)
+  const [me, setMe] = useState<Me | null>(initMe)
+  const [balanceDiff, setBalanceDiff] = useState<number | null>(null)
+  const prevStars = useRef<number>(initMe?.balance_stars ?? 0)
   const [open, setOpen] = useState<'fk' | 'crypto' | 'stars' | null>(null)
   const [fkAmount, setFkAmount] = useState(0)
   const [customRub, setCustomRub] = useState('')
@@ -58,6 +67,22 @@ export default function Balance({ me, lang }: Props) {
   const [cryptoError, setCryptoError] = useState<string | null>(null)
   const [starsError, setStarsError] = useState<string | null>(null)
   const [topupSuccess, setTopupSuccess] = useState<number | null>(null)
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const fresh = await api.me()
+        setMe(fresh)
+        const diff = fresh.balance_stars - prevStars.current
+        if (diff > 0) {
+          setBalanceDiff(diff)
+          setTimeout(() => setBalanceDiff(null), 2500)
+        }
+        prevStars.current = fresh.balance_stars
+      } catch {}
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [])
 
   if (!me) return <div className="page"><p className="muted">{T.loading}</p></div>
 
@@ -184,9 +209,17 @@ export default function Balance({ me, lang }: Props) {
         <div style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6 }}>
           {T.balance.toUpperCase()}
         </div>
-        <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1 }}>
+        <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1, position: 'relative', display: 'inline-block' }}>
           <span style={{ fontWeight: 800, fontSize: 40 }}>⭐{stars}</span>
           <span style={{ fontWeight: 400, fontSize: 15, marginLeft: 10, color: 'var(--muted)' }}>(${usdDisplay})</span>
+          {balanceDiff && (
+            <span style={{
+              position: 'absolute', top: -8, right: -48,
+              color: '#4cff8f', fontWeight: 800, fontSize: 18,
+              animation: 'balance-plus 2.5s ease forwards',
+              pointerEvents: 'none', whiteSpace: 'nowrap',
+            }}>+{balanceDiff}⭐</span>
+          )}
         </div>
       </div>
 
