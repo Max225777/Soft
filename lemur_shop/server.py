@@ -1407,7 +1407,7 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
     # ── Admin notification ──────────────────────────────────────────────────
     if _bot and settings.ADMIN_IDS:
         uname = f"@{user.username}" if user.username else f"ID:{user.id}"
-        svc_flag = "👁️" if body.service_key == "tg_views" else (body.reaction or "🔥") if body.service_key == "tg_reactions" else "👥"
+        svc_flag = svc.get("flag", "🔥")
         svc_name = svc.get("title", body.service_key)
         stars_usd = price_stars * 0.013
         txt = (
@@ -1428,7 +1428,7 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
     # ── User notification ───────────────────────────────────────────────────
     if _bot:
         lang = getattr(user, "lang", "ru")
-        svc_flag = "👁️" if body.service_key == "tg_views" else (body.reaction or "🔥") if body.service_key == "tg_reactions" else "👥"
+        svc_flag = svc.get("flag", "🔥")
         if lang == "ua":
             user_txt = (
                 f"{svc_flag} <b>Замовлення прийнято!</b>\n\n"
