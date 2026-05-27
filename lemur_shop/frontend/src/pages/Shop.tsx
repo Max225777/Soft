@@ -364,19 +364,19 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           key={svc.service_id}
           className="smm-card"
           onClick={() => { setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(10); setSmmCustom(''); setView('smm') }}
-          style={{ borderRadius: 20, padding: '18px 16px', marginBottom: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 16 }}
+          style={{ borderRadius: 20, padding: '18px 16px', marginBottom: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14 }}
         >
           {/* Icon */}
           <div style={{
-            width: 58, height: 58, borderRadius: 18, flexShrink: 0,
+            width: 56, height: 56, borderRadius: 18, flexShrink: 0,
             background: 'linear-gradient(135deg, #5FBA47 0%, #2d7a1c 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
             boxShadow: '0 4px 16px rgba(95,186,71,.35)',
           }}>👥</div>
 
           {/* Info */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>{svc.title}</div>
+            <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 5 }}>{svc.title}</div>
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 4,
               background: 'rgba(95,186,71,.15)', border: '1px solid rgba(95,186,71,.3)',
@@ -385,11 +385,29 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
             <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>{T.smm_channels_only}</div>
           </div>
 
-          {/* Price + arrow */}
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div className="text-green-grad" style={{ fontWeight: 900, fontSize: 22, lineHeight: 1 }}>⭐{svc.price_per_100_stars}</div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{T.smm_per_100}</div>
-            <div style={{ fontSize: 20, color: '#5FBA47', marginTop: 6, fontWeight: 300 }}>›</div>
+          {/* Price badge column */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+            {/* Main price */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(95,186,71,.18), rgba(45,122,28,.1))',
+              border: '1px solid rgba(95,186,71,.3)',
+              borderRadius: 12, padding: '6px 10px', textAlign: 'center',
+            }}>
+              <div className="text-green-grad" style={{ fontWeight: 900, fontSize: 18, lineHeight: 1 }}>
+                ⭐{svc.price_per_100_stars}
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>{T.smm_per_100}</div>
+            </div>
+            {/* Promo pill */}
+            <div style={{
+              background: 'rgba(244,169,0,.12)', border: '1px solid rgba(244,169,0,.28)',
+              borderRadius: 10, padding: '4px 8px',
+              fontSize: 11, fontWeight: 800, color: 'var(--orange)',
+              whiteSpace: 'nowrap',
+            }}>
+              100 {T.smm_subs_word} = ⭐10
+            </div>
+            <div style={{ fontSize: 16, color: '#5FBA47', fontWeight: 300 }}>›</div>
           </div>
         </div>
       ))}
@@ -415,7 +433,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
         const msg: string = e.message ?? ''
         const smmErrMap: Record<string, Record<string, string>> = {
           insufficient_balance: { ru: 'Недостаточно звёзд', ua: 'Недостатньо зірок', en: 'Insufficient stars' },
-          user_inactive:        { ru: 'Сервис временно недоступен — попробуйте позже', ua: 'Сервіс тимчасово недоступний — спробуйте пізніше', en: 'Service temporarily unavailable' },
+          user_inactive:        { ru: 'Канал не найден или недоступен. Проверьте, что канал публичный', ua: 'Канал не знайдено або недоступний. Перевірте, що канал публічний', en: 'Channel not found or unavailable. Make sure the channel is public' },
           neworder_invalid_link:{ ru: 'Неверная ссылка на канал', ua: 'Неправильне посилання на канал', en: 'Invalid channel link' },
           invalid_link:         { ru: 'Неверная ссылка на канал', ua: 'Неправильне посилання на канал', en: 'Invalid channel link' },
         }

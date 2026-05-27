@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import httpx
 import logging
 
@@ -28,10 +29,26 @@ class SmmApiError(Exception):
     pass
 
 
+def normalize_tg_link(link: str) -> str:
+    """Convert https://t.me/username → https://t.me/username (keep as-is).
+    Most SMM panels accept full t.me URLs, but some need @username.
+    We send the full URL and also log what we sent.
+    """
+    link = link.strip()
+    # If user entered @username, convert to full URL
+    if link.startswith("@"):
+        link = f"https://t.me/{link[1:]}"
+    # If user entered just username (no @ or https)
+    if not link.startswith("http") and not link.startswith("t.me"):
+        link = f"https://t.me/{link}"
+    return link
+
+
 async def smm_request(action: str, **params) -> dict:
     data = {"key": settings.SMMWAY_API_KEY, "action": action, **params}
     async with httpx.AsyncClient(timeout=20) as c:
         r = await c.post(SMM_API_URL, data=data)
+    log.info("smmway %s → status=%d body=%s", action, r.status_code, r.text[:300])
     result = r.json()
     if "error" in result:
         raise SmmApiError(result["error"])
@@ -39,6 +56,8 @@ async def smm_request(action: str, **params) -> dict:
 
 
 async def place_order(service_id: int, link: str, quantity: int) -> int:
+    link = normalize_tg_link(link)
+    log.info("smmway place_order service=%d link=%r qty=%d", service_id, link, quantity)
     result = await smm_request("add", service=service_id, link=link, quantity=quantity)
     return int(result["order"])
 
