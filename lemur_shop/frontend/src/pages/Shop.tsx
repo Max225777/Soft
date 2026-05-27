@@ -404,12 +404,38 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
       </div>
     )
 
+    const infoItems = lang === 'ru' ? [
+      { icon: '📢', text: 'Работает только с открытыми каналами и группами' },
+      { icon: '⏱', text: 'Начало выполнения: 5–10 минут после заказа' },
+      { icon: '🛡', text: 'Гарантия 365 дней — восполним списанных подписчиков' },
+      { icon: '🔒', text: 'Канал должен быть публичным во время выполнения' },
+    ] : [
+      { icon: '📢', text: 'Працює лише з відкритими каналами та групами' },
+      { icon: '⏱', text: 'Початок виконання: 5–10 хвилин після замовлення' },
+      { icon: '🛡', text: 'Гарантія 365 днів — поповнимо відписаних' },
+      { icon: '🔒', text: 'Канал має бути публічним під час виконання' },
+    ]
+
     return (
       <div className="page">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           <button onClick={() => setView('smm_list')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--orange)', fontSize: 26, lineHeight: 1 }}>‹</button>
           <h1 style={{ margin: 0 }}>👥 {svc?.title}</h1>
         </div>
+
+        {/* Інструкція */}
+        <div style={{
+          background: 'rgba(95,186,71,.06)', border: '1px solid rgba(95,186,71,.2)',
+          borderRadius: 16, padding: '14px 16px', marginBottom: 14,
+        }}>
+          {infoItems.map((item, i) => (
+            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: i < infoItems.length - 1 ? 10 : 0 }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
+              <span style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.45 }}>{item.text}</span>
+            </div>
+          ))}
+        </div>
+
         <div className="card">
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 6 }}>
