@@ -30,17 +30,17 @@ class SmmApiError(Exception):
 
 
 def normalize_tg_link(link: str) -> str:
-    """Convert https://t.me/username → https://t.me/username (keep as-is).
-    Most SMM panels accept full t.me URLs, but some need @username.
-    We send the full URL and also log what we sent.
-    """
+    """Convert any TG link format to t.me/username (no protocol, per smmway docs)."""
     link = link.strip()
-    # If user entered @username, convert to full URL
     if link.startswith("@"):
-        link = f"https://t.me/{link[1:]}"
-    # If user entered just username (no @ or https)
-    if not link.startswith("http") and not link.startswith("t.me"):
-        link = f"https://t.me/{link}"
+        return f"t.me/{link[1:]}"
+    # strip protocol
+    for prefix in ("https://", "http://"):
+        if link.startswith(prefix):
+            link = link[len(prefix):]
+    # ensure t.me/ prefix
+    if not link.startswith("t.me/"):
+        link = f"t.me/{link}"
     return link
 
 
