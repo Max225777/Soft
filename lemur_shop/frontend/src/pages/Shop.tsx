@@ -435,18 +435,18 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
         <div className="card">
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 6 }}>
-              {lang === 'ru' ? 'Ссылка на группу/канал' : 'Посилання на групу/канал'}
+              {lang === 'ru' ? 'Ссылка на канал' : 'Посилання на канал'}
             </label>
-            <input type="text" placeholder="https://t.me/..." value={smmLink}
+            <input type="text" placeholder="https://t.me/yourchannel" value={smmLink}
               onChange={e => setSmmLink(e.target.value)}
               style={{ width: '100%', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 12, padding: '11px 14px', color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}
             />
           </div>
           <div style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 8 }}>
-              {lang === 'ru' ? 'Количество' : 'Кількість'}: <b style={{ color: 'var(--text)' }}>{smmQty}</b>
+              {lang === 'ru' ? 'Количество подписчиков' : 'Кількість підписників'}
             </label>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
               {[100, 200, 500, 1000, 5000].map(q => (
                 <button key={q} onClick={() => setSmmQty(q)} style={{
                   padding: '7px 14px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer',
@@ -456,13 +456,32 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
                 }}>{q}</button>
               ))}
             </div>
+            <input
+              type="number" min={100} max={10000} step={100}
+              value={smmQty}
+              onChange={e => {
+                const v = Math.max(100, Math.min(10000, Math.round(Number(e.target.value) / 100) * 100))
+                setSmmQty(v || 100)
+              }}
+              style={{ width: '100%', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 12, padding: '11px 14px', color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}
+              placeholder={lang === 'ru' ? 'Или введите своё число (100–10000)' : 'Або введіть своє число (100–10000)'}
+            />
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>
+              {lang === 'ru' ? 'Мин. 100 · Макс. 10 000 · Кратно 100' : 'Мін. 100 · Макс. 10 000 · Кратно 100'}
+            </div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <span style={{ color: 'var(--muted)', fontSize: 14 }}>{lang === 'ru' ? 'Стоимость' : 'Вартість'}:</span>
-            <span style={{ fontWeight: 800, fontSize: 22, color: 'var(--orange)' }}>⭐{priceStars}</span>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            background: 'rgba(255,107,43,.06)', borderRadius: 12, padding: '12px 14px', marginBottom: 14,
+          }}>
+            <div>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>{lang === 'ru' ? 'Итого' : 'Підсумок'}</div>
+              <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 2 }}>{smmQty} {lang === 'ru' ? 'подписчиков' : 'підписників'}</div>
+            </div>
+            <span style={{ fontWeight: 800, fontSize: 26, color: 'var(--orange)' }}>⭐{priceStars}</span>
           </div>
           {smmError && <div style={{ color: '#ff4444', fontSize: 13, marginBottom: 10 }}>❌ {smmError}</div>}
-          <button className="btn btn-primary" style={{ width: '100%' }} disabled={!canOrder} onClick={orderSmm}>
+          <button className="btn btn-primary" style={{ width: '100%', fontSize: 16 }} disabled={!canOrder} onClick={orderSmm}>
             {smmLoading ? '⏳...' : `${lang === 'ru' ? 'Заказать' : 'Замовити'} — ⭐${priceStars}`}
           </button>
         </div>
