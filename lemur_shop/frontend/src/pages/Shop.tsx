@@ -214,19 +214,23 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           <div style={{ color: '#2AABEE', fontSize: 24, fontWeight: 300 }}>›</div>
         </div>
 
-        <div style={{
-          background: 'linear-gradient(135deg, #0e1a0e 0%, #0a140a 100%)',
-          border: '1px solid rgba(95,186,71,.12)',
-          borderRadius: 16, padding: '20px 16px',
-          display: 'flex', alignItems: 'center', gap: 16,
-          opacity: 0.5,
-        }}>
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #0e1a0e 0%, #0a140a 100%)',
+            border: '1px solid rgba(95,186,71,.25)',
+            borderRadius: 16, padding: '20px 16px',
+            display: 'flex', alignItems: 'center', gap: 16,
+            cursor: 'pointer',
+            boxShadow: '0 4px 20px rgba(95,186,71,.08)',
+          }}
+          onClick={() => setView('smm_list')}
+        >
           <div className="cat-icon" style={{ background: 'linear-gradient(135deg, #5FBA47, #3a8a28)', color: '#fff', fontSize: 30 }}>👥</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_boost}</div>
             <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{T.tg_boost_desc}</div>
           </div>
-          <span className="badge badge-orange" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{T.in_dev}</span>
+          <div style={{ color: '#5FBA47', fontSize: 24, fontWeight: 300 }}>›</div>
         </div>
       <LegalFooter />
     </div>
@@ -333,41 +337,40 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           })
         )}
 
-        {/* SMM секція */}
-        {smmServices.length > 0 && (
-          <>
-            <div style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: 1, margin: '18px 0 8px 4px' }}>
-              {lang === 'ru' ? 'НАКРУТКА' : lang === 'ua' ? 'НАКРУТКА' : 'BOOST'}
-            </div>
-            {smmServices.map(svc => (
-              <div key={svc.service_id} className="card" style={{ padding: '20px 16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-                  <div style={{ fontSize: 44, flexShrink: 0, lineHeight: 1 }}>👥</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 800, fontSize: 17 }}>{svc.title}</div>
-                    <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                      {lang === 'ru' ? 'Только для групп/каналов' : lang === 'ua' ? 'Тільки для груп/каналів' : 'Groups & channels only'}
-                    </div>
-                    <div style={{ fontSize: 11, color: '#4cff8f', marginTop: 3 }}>✅ {svc.description}</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div className="price-pill" style={{ flex: 1, justifyContent: 'center', fontSize: 15, padding: '9px 12px' }}>
-                    <span style={{ fontWeight: 800 }}>⭐{svc.price_per_100_stars}</span>
-                    <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: 12, marginLeft: 6 }}>/100 шт</span>
-                  </div>
-                  <button
-                    className="btn btn-primary"
-                    style={{ width: 'auto', padding: '10px 22px', fontSize: 15 }}
-                    onClick={() => { setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(100); setView('smm') }}
-                  >{T.buy}</button>
-                </div>
-              </div>
-            ))}
-          </>
-        )}
       </div>
     </>
+  )
+
+  // ─── SMM список послуг ────────────────────────────────────────────────────
+  if (view === 'smm_list') return (
+    <div className="page">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+        <button onClick={() => setView('menu')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--orange)', fontSize: 26, lineHeight: 1 }}>‹</button>
+        <h1 style={{ margin: 0 }}>{T.tg_boost}</h1>
+      </div>
+      {smmServices.length === 0 ? (
+        <div className="card"><div className="skeleton" style={{ height: 80 }} /></div>
+      ) : smmServices.map(svc => (
+        <div key={svc.service_id} className="card" style={{ padding: '20px 16px', cursor: 'pointer' }}
+          onClick={() => { setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(100); setView('smm') }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ fontSize: 44, flexShrink: 0, lineHeight: 1 }}>👥</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: 17 }}>{svc.title}</div>
+              <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                {lang === 'ru' ? 'Только для групп/каналов' : lang === 'ua' ? 'Тільки для груп/каналів' : 'Groups & channels only'}
+              </div>
+              <div style={{ fontSize: 11, color: '#4cff8f', marginTop: 3 }}>✅ {svc.description}</div>
+            </div>
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 18, color: 'var(--orange)' }}>⭐{svc.price_per_100_stars}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)' }}>/100 шт</div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
   )
 
   // ─── SMM замовлення ────────────────────────────────────────────────────────
@@ -395,7 +398,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
         <div style={{ fontSize: 64 }}>✅</div>
         <div style={{ fontWeight: 800, fontSize: 20 }}>{lang === 'ru' ? 'Заказ принят!' : 'Замовлення прийнято!'}</div>
         <div style={{ color: 'var(--muted)', fontSize: 14 }}>#{smmDone.order_id} · ⭐{smmDone.stars_spent}</div>
-        <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => { setSmmDone(null); setView('list') }}>
+        <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => { setSmmDone(null); setView('smm_list') }}>
           {lang === 'ru' ? 'Назад' : 'Назад'}
         </button>
       </div>
@@ -404,7 +407,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
     return (
       <div className="page">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-          <button onClick={() => setView('list')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--orange)', fontSize: 26, lineHeight: 1 }}>‹</button>
+          <button onClick={() => setView('smm_list')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--orange)', fontSize: 26, lineHeight: 1 }}>‹</button>
           <h1 style={{ margin: 0 }}>👥 {svc?.title}</h1>
         </div>
         <div className="card">
