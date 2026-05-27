@@ -392,7 +392,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
 
             {/* Info */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 15 }}>{svc.title}</div>
+              <div style={{ fontWeight: 800, fontSize: 15 }}>{T.smm_subs_title}</div>
               {/* Main benefit: 365 days */}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 5, marginTop: 5,
@@ -412,10 +412,9 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
               textAlign: 'center',
               boxShadow: '0 0 22px rgba(255,180,0,.75), 0 4px 16px rgba(200,120,0,.55)',
             }}>
-              <div style={{ fontWeight: 800, fontSize: 13, color: '#fff', whiteSpace: 'nowrap', textShadow: '0 0 8px rgba(255,255,255,.4)' }}>
-                100 👥
-              </div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', margin: '3px 0' }}>——</div>
+              <div style={{ fontWeight: 900, fontSize: 18, color: '#fff', lineHeight: 1, textShadow: '0 0 10px rgba(255,255,255,.5)' }}>100</div>
+              <div style={{ fontWeight: 700, fontSize: 11, color: 'rgba(255,255,255,.85)', whiteSpace: 'nowrap', marginTop: 2 }}>{T.smm_subs_word}</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,.45)', margin: '4px 0' }}>——</div>
               <div style={{ fontWeight: 900, fontSize: 22, color: '#fff', lineHeight: 1, textShadow: '0 0 12px rgba(255,255,255,.5)' }}>⭐10</div>
             </div>
 
