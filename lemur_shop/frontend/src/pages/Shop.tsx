@@ -81,7 +81,10 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
           {cat.discount_stars ? (
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontSize: 16 }}>⭐{cat.price_stars}</span>
-              <span style={{ fontWeight: 800, fontSize: 24, color: '#ff6b2b' }}>⭐{cat.discount_stars}</span>
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                <span style={{ fontWeight: 800, fontSize: 24, color: '#ff6b2b', lineHeight: 1 }}>⭐{cat.discount_stars}</span>
+                <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--muted)' }}>(${(cat.discount_stars * 0.013).toFixed(2)})</span>
+              </span>
             </span>
           ) : (
             <span style={{ fontWeight: 800, fontSize: 24, color: 'var(--orange)' }}>
@@ -346,6 +349,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontSize: 13 }}>⭐{cat.price_stars}</span>
                         <span style={{ fontWeight: 800, color: '#ff6b2b' }}>⭐{cat.discount_stars}</span>
+                        <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: 12 }}>(${(cat.discount_stars * 0.013).toFixed(2)})</span>
                       </span>
                     ) : localPrice(cat.price_stars, cat.price_usd)}
                   </div>

@@ -308,11 +308,12 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
         uname = f"@{user.username}" if user.username else f"ID:{user.id}"
         flag = cat_info.get("flag", "")
         title = cat_info.get("title", body.category.upper())
+        stars_usd_val = shop_price_stars * settings.STAR_DISPLAY_USD
         txt = (
             f"🛒 <b>Нова покупка!</b>\n\n"
             f"👤 {uname} (<code>{user.id}</code>)\n"
             f"📦 {flag} Telegram {title}\n"
-            f"💫 Ціна: <b>⭐{shop_price_stars}</b> (${float(shop_price_usd):.2f})\n"
+            f"💫 Ціна: <b>⭐{shop_price_stars}</b> (~${stars_usd_val:.2f})\n"
             f"💸 Витрати (Lolz): ${float(lolz_cost):.2f}\n"
             f"💰 Прибуток: <b>${float(profit):.2f}</b>\n\n"
             f"📱 Номер: <code>{phone}</code>\n"
@@ -323,6 +324,39 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
                 await _bot.send_message(admin_id, txt, parse_mode="HTML")
             except Exception as e:
                 log.warning("Admin notify failed for %s: %s", admin_id, e)
+
+    # Нотифікація юзеру
+    if _bot:
+        lang = getattr(user, "lang", "ru")
+        stars_usd_val = shop_price_stars * settings.STAR_DISPLAY_USD
+        if lang == "ua":
+            user_buy_txt = (
+                f"✅ <b>Акаунт придбано!</b>\n\n"
+                f"📦 {flag} Telegram {title}\n"
+                f"💫 Списано: <b>⭐{shop_price_stars}</b> (~${stars_usd_val:.2f})\n"
+                f"📱 Номер: <code>{phone}</code>\n\n"
+                f"⬇️ Натисніть «Отримати код» у застосунку."
+            )
+        elif lang == "en":
+            user_buy_txt = (
+                f"✅ <b>Account purchased!</b>\n\n"
+                f"📦 {flag} Telegram {title}\n"
+                f"💫 Charged: <b>⭐{shop_price_stars}</b> (~${stars_usd_val:.2f})\n"
+                f"📱 Number: <code>{phone}</code>\n\n"
+                f"⬇️ Tap «Get Code» in the app."
+            )
+        else:
+            user_buy_txt = (
+                f"✅ <b>Аккаунт куплен!</b>\n\n"
+                f"📦 {flag} Telegram {title}\n"
+                f"💫 Списано: <b>⭐{shop_price_stars}</b> (~${stars_usd_val:.2f})\n"
+                f"📱 Номер: <code>{phone}</code>\n\n"
+                f"⬇️ Нажмите «Получить код» в приложении."
+            )
+        try:
+            await _bot.send_message(user.id, user_buy_txt, parse_mode="HTML")
+        except Exception:
+            pass
 
     return {"order_id": order_id, "phone": phone, "created_at": created_at.isoformat()}
 
