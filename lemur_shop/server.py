@@ -1379,30 +1379,19 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
     if settings.PREVIEW_MODE and user.id not in settings.ADMIN_IDS:
         raise HTTPException(status_code=403, detail="preview_mode")
 
-    from lemur_shop.services.smm import SMM_SERVICES, REACTION_PACK_IDS, SmmApiError, place_order
+    from lemur_shop.services.smm import SMM_SERVICES, SmmApiError, place_order
     svc = SMM_SERVICES.get(body.service_key)
     if not svc:
         raise HTTPException(400, "Unknown service")
     if body.quantity < svc["min"] or body.quantity > svc["max"]:
         raise HTTPException(400, f"Quantity must be {svc['min']}–{svc['max']}")
 
-    # reactions = two packs ordered together, price × 2
-    is_reactions = body.service_key == "tg_reactions"
     price_stars = max(1, round(body.quantity / 100 * svc["price_per_100_stars"]))
-    if is_reactions:
-        price_stars = price_stars * 2
     if user.balance_stars < price_stars:
         raise HTTPException(402, "insufficient_balance")
 
     try:
-        if is_reactions:
-            order_ids = []
-            for sid in REACTION_PACK_IDS:
-                oid = await place_order(sid, body.link, body.quantity)
-                order_ids.append(oid)
-            order_id = order_ids[0]
-        else:
-            order_id = await place_order(svc["service_id"], body.link, body.quantity)
+        order_id = await place_order(svc["service_id"], body.link, body.quantity)
     except SmmApiError as e:
         log.error("smmway error for user=%s service=%s link=%r qty=%d: %s",
                   user.id, body.service_key, body.link, body.quantity, e)

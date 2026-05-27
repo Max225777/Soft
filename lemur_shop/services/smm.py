@@ -10,8 +10,6 @@ log = logging.getLogger(__name__)
 
 SMM_API_URL = "https://smmway.ru/api/v2"
 
-# Two reaction packs — always ordered together in one click
-REACTION_PACK_IDS = [6257, 6258]   # 👍❤️🔥🎉 + 👎💩😱😢
 
 # Каталог SMM послуг
 SMM_SERVICES: dict[str, dict] = {
@@ -37,11 +35,22 @@ SMM_SERVICES: dict[str, dict] = {
         "step": 100,
         "unit_size": 1000,
     },
-    "tg_reactions": {
-        "service_id": 0,
-        "title":      "Реакції Telegram",
-        "flag":       "🔥",
-        "description": "Реакції на пост Telegram",
+    "tg_reactions_pos": {
+        "service_id": 6257,
+        "title":      "👍❤️🔥🎉 Реакції",
+        "flag":       "👍",
+        "description": "Позитивні реакції на пост",
+        "price_per_100_stars": 10,
+        "min": 15,
+        "max": 5000,
+        "step": 1,
+        "unit_size": 100,
+    },
+    "tg_reactions_neg": {
+        "service_id": 6258,
+        "title":      "👎💩😱😢 Реакції",
+        "flag":       "👎",
+        "description": "Негативні реакції на пост",
         "price_per_100_stars": 10,
         "min": 15,
         "max": 5000,

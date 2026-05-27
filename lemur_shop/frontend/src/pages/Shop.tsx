@@ -377,18 +377,18 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
         <div style={{ borderRadius: 20, height: 120 }} className="skeleton" />
       ) : smmServices.map(svc => {
         const isViews = svc.key === 'tg_views'
-        const isReactCard = svc.key === 'tg_reactions'
+        const isReactCard = svc.key === 'tg_reactions_pos' || svc.key === 'tg_reactions_neg'
         const badgeQty = isViews ? 1000 : 100
         const badgeStars = 10
         const badgeWord = isViews ? T.smm_views_word : isReactCard ? T.smm_reactions_word : T.smm_subs_word
-        const cardTitle = isViews ? T.smm_views_title : isReactCard ? T.smm_reactions_title : T.smm_subs_title
+        const cardTitle = isViews ? T.smm_views_title : isReactCard ? (svc.key === 'tg_reactions_pos' ? '👍❤️🔥🎉' : '👎💩😱😢') : T.smm_subs_title
         const cardSub = isViews
           ? <span style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, display: 'block' }}>
               {lang === 'ru' ? 'Пост канала · до нескольких часов' : lang === 'ua' ? 'Пост каналу · до кількох годин' : 'Channel post · up to a few hours'}
             </span>
           : isReactCard
             ? <span style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3, display: 'block' }}>
-                {lang === 'ru' ? 'Любой пост · мгновенно' : lang === 'ua' ? 'Будь-який пост · миттєво' : 'Any post · instantly'}
+                {lang === 'ru' ? 'Реакции на пост · мгновенно' : lang === 'ua' ? 'Реакції на пост · миттєво' : 'Post reactions · instantly'}
               </span>
             : <span style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3, display: 'block' }}>{T.smm_channels_only}</span>
         return (
@@ -404,10 +404,12 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{
                 width: 52, height: 52, borderRadius: 16, flexShrink: 0,
-                background: 'linear-gradient(135deg, #5FBA47, #2d7a1c)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 25,
-                boxShadow: '0 4px 14px rgba(95,186,71,.4)',
-              }}>{isReactions ? '🔥' : isViews ? '👁️' : '👥'}</div>
+                background: isReactCard ? 'linear-gradient(135deg, #2d2200, #3a2e00)' : 'linear-gradient(135deg, #5FBA47, #2d7a1c)',
+                border: isReactCard ? '1px solid rgba(244,169,0,.3)' : 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: isReactCard ? 18 : 25, letterSpacing: isReactCard ? 1 : 0,
+                boxShadow: isReactCard ? '0 4px 14px rgba(244,169,0,.25)' : '0 4px 14px rgba(95,186,71,.4)',
+              }}>{isReactCard ? (svc.key === 'tg_reactions_pos' ? '👍❤️' : '👎💩') : isViews ? '👁️' : '👥'}</div>
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 800, fontSize: 15 }}>{cardTitle}</div>
@@ -445,9 +447,9 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   if (view === 'smm') {
     const svc = smmServices.find(s => s.key === selectedSmmKey) ?? smmServices[0]
     const isViews = svc?.key === 'tg_views'
-    const isReactions = svc?.key === 'tg_reactions'
+    const isReactions = svc?.key === 'tg_reactions_pos' || svc?.key === 'tg_reactions_neg'
     const effectiveQty = Math.max(svc?.min ?? 10, smmQty)
-    const priceStars = svc ? Math.max(1, Math.round(effectiveQty / 100 * svc.price_per_100_stars)) * (isReactions ? 2 : 1) : 0
+    const priceStars = svc ? Math.max(1, Math.round(effectiveQty / 100 * svc.price_per_100_stars)) : 0
     const balance = me?.balance_stars ?? 0
     const canOrder = smmLink.trim().length > 0 && balance >= priceStars && !smmLoading
 
@@ -512,7 +514,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           }}>‹</button>
           <div>
             <div style={{ fontWeight: 800, fontSize: 19 }}>
-              {isReactions ? '🔥' : isViews ? '👁️' : '👥'}{' '}
+              {isReactions ? (selectedSmmKey === 'tg_reactions_pos' ? '👍❤️🔥🎉' : '👎💩😱😢') : isViews ? '👁️' : '👥'}{' '}
               {isReactions ? T.smm_reactions_title : isViews ? T.smm_views_title : T.smm_subs_title}
             </div>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>Telegram</div>
@@ -527,9 +529,11 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
               background: 'linear-gradient(135deg, #5FBA47 0%, #2d7a1c 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
               boxShadow: '0 4px 14px rgba(95,186,71,.35)',
-            }}>{isReactions ? '🔥' : isViews ? '👁️' : '👥'}</div>
+            }}>{isReactions ? (selectedSmmKey === 'tg_reactions_pos' ? '👍❤️' : '👎💩') : isViews ? '👁️' : '👥'}</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 5 }}>{isReactions ? T.smm_reactions_title : isViews ? T.smm_views_title : T.smm_subs_title}</div>
+              <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 5 }}>
+                {isReactions ? (selectedSmmKey === 'tg_reactions_pos' ? '👍❤️🔥🎉' : '👎💩😱😢') + ' ' + T.smm_reactions_title : isViews ? T.smm_views_title : T.smm_subs_title}
+              </div>
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
                 background: 'rgba(95,186,71,.15)', border: '1px solid rgba(95,186,71,.3)',
@@ -570,21 +574,6 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
         {/* Form card */}
         <div style={{ background: 'var(--card)', border: '1px solid rgba(244,169,0,.22)', borderRadius: 20, padding: '18px 16px', boxShadow: '0 0 28px rgba(244,169,0,.06)' }}>
 
-          {/* Reactions pack info */}
-          {isReactions && (
-            <div style={{
-              background: 'rgba(244,169,0,.07)', border: '1px solid rgba(244,169,0,.22)',
-              borderRadius: 14, padding: '12px 14px', marginBottom: 16,
-              display: 'flex', alignItems: 'center', gap: 12,
-            }}>
-              <div style={{ fontSize: 22, letterSpacing: 1 }}>👍❤️🔥🎉</div>
-              <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700 }}>+</div>
-              <div style={{ fontSize: 22, letterSpacing: 1 }}>👎💩😱😢</div>
-              <div style={{ flex: 1, fontSize: 11, color: 'var(--text2)', lineHeight: 1.5 }}>
-                {lang === 'ru' ? 'Оба пакета добавятся одновременно' : lang === 'ua' ? 'Обидва пакети додадуться одночасно' : 'Both packs added at once'}
-              </div>
-            </div>
-          )}
 
           {/* Link input */}
           <div style={{ marginBottom: 20 }}>
