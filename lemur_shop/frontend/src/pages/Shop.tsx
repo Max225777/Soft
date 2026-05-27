@@ -404,19 +404,19 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
               <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{T.smm_channels_only}</div>
             </div>
 
-            {/* Right price badge — solid gold */}
+            {/* Right price badge */}
             <div style={{
               flexShrink: 0,
-              background: 'linear-gradient(160deg, #E09A00, #B87000)',
-              borderRadius: 16, padding: '12px 14px',
+              background: 'linear-gradient(160deg, #F0A800, #C87800)',
+              borderRadius: 16, padding: '13px 15px',
               textAlign: 'center',
-              boxShadow: '0 4px 18px rgba(224,154,0,.6)',
+              boxShadow: '0 0 22px rgba(255,180,0,.75), 0 4px 16px rgba(200,120,0,.55)',
             }}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: 'rgba(255,255,255,.85)', whiteSpace: 'nowrap' }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: '#fff', whiteSpace: 'nowrap', textShadow: '0 0 8px rgba(255,255,255,.4)' }}>
                 100 👥
               </div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', margin: '3px 0' }}>——</div>
-              <div style={{ fontWeight: 900, fontSize: 20, color: '#fff', lineHeight: 1 }}>⭐10</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', margin: '3px 0' }}>——</div>
+              <div style={{ fontWeight: 900, fontSize: 22, color: '#fff', lineHeight: 1, textShadow: '0 0 12px rgba(255,255,255,.5)' }}>⭐10</div>
             </div>
 
             <div style={{ color: '#5FBA47', fontSize: 18, fontWeight: 300, flexShrink: 0 }}>›</div>
