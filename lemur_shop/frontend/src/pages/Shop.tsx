@@ -106,7 +106,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   const [confirmCat, setConfirmCat] = useState<Category | null>(null)
   const [smmServices, setSmmServices] = useState<SmmService[]>([])
   const [smmLink, setSmmLink] = useState('')
-  const [smmQty, setSmmQty] = useState(100)
+  const [smmQty, setSmmQty] = useState(199)
   const [smmCustom, setSmmCustom] = useState('')
   const [smmLoading, setSmmLoading] = useState(false)
   const [smmError, setSmmError] = useState<string | null>(null)
@@ -378,7 +378,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
         <div
           key={svc.service_id}
           className="smm-card"
-          onClick={() => { setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(10); setSmmCustom(''); setView('smm') }}
+          onClick={() => { setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(199); setSmmCustom(''); setView('smm') }}
           style={{ borderRadius: 20, padding: '16px', marginBottom: 10 }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -407,16 +407,16 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
             {/* Right price badge — solid gold */}
             <div style={{
               flexShrink: 0,
-              background: 'linear-gradient(160deg, #C88000, #A06000)',
-              borderRadius: 14, padding: '10px 11px',
+              background: 'linear-gradient(160deg, #E09A00, #B87000)',
+              borderRadius: 16, padding: '12px 14px',
               textAlign: 'center',
-              boxShadow: '0 3px 12px rgba(200,128,0,.45)',
+              boxShadow: '0 4px 18px rgba(224,154,0,.6)',
             }}>
-              <div style={{ fontWeight: 700, fontSize: 11, color: 'rgba(255,255,255,.75)', whiteSpace: 'nowrap' }}>
-                100 {T.smm_subs_word}
+              <div style={{ fontWeight: 700, fontSize: 12, color: 'rgba(255,255,255,.85)', whiteSpace: 'nowrap' }}>
+                100 👥
               </div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,.45)', margin: '2px 0' }}>──</div>
-              <div style={{ fontWeight: 900, fontSize: 17, color: '#fff', lineHeight: 1 }}>⭐10</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', margin: '3px 0' }}>——</div>
+              <div style={{ fontWeight: 900, fontSize: 20, color: '#fff', lineHeight: 1 }}>⭐10</div>
             </div>
 
             <div style={{ color: '#5FBA47', fontSize: 18, fontWeight: 300, flexShrink: 0 }}>›</div>
@@ -469,7 +469,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           </div>
           <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 24 }}>{T.smm_start_soon}</div>
           <button className="btn btn-secondary" style={{ width: '100%' }}
-            onClick={() => { setSmmDone(null); setSmmQty(10); setSmmCustom(''); setSmmLink('') }}>
+            onClick={() => { setSmmDone(null); setSmmQty(199); setSmmCustom(''); setSmmLink('') }}>
             {T.smm_new_order}
           </button>
         </div>
@@ -478,7 +478,6 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
 
     const infoItems = [
       { icon: '🔗', text: T.smm_info_link },
-      { icon: '🚀', text: T.smm_info_start },
       { icon: '⛔️', text: T.smm_info_drop },
       { icon: '♻️', text: T.smm_info_warranty },
     ]
