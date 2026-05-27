@@ -241,7 +241,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>{T.tg_boost_desc}</div>
             </div>
           </div>
-          <button className="btn btn-primary" onClick={() => setView('smm_list')} style={{
+          <button className="btn btn-green" onClick={() => setView('smm_list')} style={{
             width: '100%', padding: '11px', fontSize: 14, fontWeight: 700,
           }}>
             {T.boost_order_btn} →
@@ -379,44 +379,47 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           key={svc.service_id}
           className="smm-card"
           onClick={() => { setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(10); setSmmCustom(''); setView('smm') }}
-          style={{ borderRadius: 20, padding: '18px 16px', marginBottom: 10 }}
+          style={{ borderRadius: 20, padding: '16px', marginBottom: 10 }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {/* Icon */}
             <div style={{
-              width: 54, height: 54, borderRadius: 16, flexShrink: 0,
-              background: 'linear-gradient(135deg, #5FBA47 0%, #2d7a1c 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
-              boxShadow: '0 4px 16px rgba(95,186,71,.4)',
+              width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+              background: 'linear-gradient(135deg, #5FBA47, #2d7a1c)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 25,
+              boxShadow: '0 4px 14px rgba(95,186,71,.4)',
             }}>👥</div>
 
             {/* Info */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 16 }}>{svc.title}</div>
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 5,
-                background: 'rgba(95,186,71,.15)', border: '1px solid rgba(95,186,71,.3)',
-                borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 700, color: '#7FD465',
-              }}>✅ {T.smm_guarantee}</span>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>{T.smm_channels_only}</div>
+              <div style={{ fontWeight: 800, fontSize: 15 }}>{svc.title}</div>
+              {/* Main benefit: 365 days */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 5, marginTop: 5,
+                fontWeight: 700, fontSize: 12, color: '#7FD465',
+              }}>
+                <span style={{ fontSize: 14 }}>♻️</span>
+                <span>{T.smm_guarantee}</span>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{T.smm_channels_only}</div>
             </div>
 
-            {/* Right badge */}
+            {/* Right price badge — solid gold */}
             <div style={{
               flexShrink: 0,
-              background: 'linear-gradient(135deg, rgba(244,169,0,.15), rgba(200,128,0,.08))',
-              border: '1px solid rgba(244,169,0,.35)',
-              borderRadius: 14, padding: '10px 12px',
-              textAlign: 'center', minWidth: 64,
+              background: 'linear-gradient(160deg, #C88000, #A06000)',
+              borderRadius: 14, padding: '10px 11px',
+              textAlign: 'center',
+              boxShadow: '0 3px 12px rgba(200,128,0,.45)',
             }}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text2)', whiteSpace: 'nowrap' }}>
+              <div style={{ fontWeight: 700, fontSize: 11, color: 'rgba(255,255,255,.75)', whiteSpace: 'nowrap' }}>
                 100 {T.smm_subs_word}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', margin: '3px 0' }}>─</div>
-              <div style={{ fontWeight: 900, fontSize: 18, color: 'var(--orange)', lineHeight: 1 }}>⭐10</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,.45)', margin: '2px 0' }}>──</div>
+              <div style={{ fontWeight: 900, fontSize: 17, color: '#fff', lineHeight: 1 }}>⭐10</div>
             </div>
 
-            <div style={{ color: '#5FBA47', fontSize: 20, fontWeight: 300, flexShrink: 0 }}>›</div>
+            <div style={{ color: '#5FBA47', fontSize: 18, fontWeight: 300, flexShrink: 0 }}>›</div>
           </div>
         </div>
       ))}
