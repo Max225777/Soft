@@ -240,14 +240,6 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
               <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_boost}</div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>{T.tg_boost_desc}</div>
             </div>
-            {/* Promo pill */}
-            <div style={{
-              background: 'rgba(244,169,0,.15)', border: '1px solid rgba(244,169,0,.3)',
-              borderRadius: 10, padding: '5px 9px', textAlign: 'center', flexShrink: 0,
-            }}>
-              <div style={{ fontWeight: 900, fontSize: 13, color: 'var(--orange)' }}>100 👥</div>
-              <div style={{ fontWeight: 800, fontSize: 11, color: '#FFD060' }}>= ⭐10</div>
-            </div>
           </div>
           <button className="btn btn-green" onClick={() => setView('smm_list')} style={{
             width: '100%', padding: '11px', fontSize: 14, fontWeight: 700,
