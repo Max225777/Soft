@@ -265,19 +265,35 @@ code {
 }
 .btn-green:disabled { background: var(--card2); box-shadow: none; color: var(--muted); }
 
-/* ── SMM card shimmer ───────────────────── */
-@keyframes card-float {
-  0%,100% { background-position: 0% 50%; }
-  50%      { background-position: 100% 50%; }
+/* ── SMM card ───────────────────────────── */
+@keyframes smm-sweep {
+  0%   { transform: translateX(-120%) skewX(-15deg); opacity: 0; }
+  8%   { opacity: 1; }
+  35%  { transform: translateX(320%) skewX(-15deg); opacity: 0; }
+  100% { transform: translateX(320%) skewX(-15deg); opacity: 0; }
+}
+@keyframes smm-border-glow {
+  0%,100% { box-shadow: 0 4px 20px rgba(95,186,71,.08), 0 0 0 1px rgba(95,186,71,.18); }
+  50%     { box-shadow: 0 4px 32px rgba(95,186,71,.22), 0 0 0 1px rgba(95,186,71,.45); }
 }
 .smm-card {
-  background: linear-gradient(135deg, #0e1d0e 0%, #152a15 40%, #0a1a0a 70%, #112211 100%);
-  background-size: 300% 300%;
-  animation: card-float 5s ease infinite;
+  background: linear-gradient(145deg, #0f1e0f 0%, #0a1a0a 50%, #111f11 100%);
   border: 1px solid rgba(95,186,71,.22);
-  box-shadow: 0 4px 24px rgba(95,186,71,.08), inset 0 1px 0 rgba(255,255,255,.04);
+  animation: smm-border-glow 3s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform .15s;
 }
 .smm-card:active { transform: scale(.985); }
+.smm-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0;
+  width: 45%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(150,255,120,.06), transparent);
+  animation: smm-sweep 5s ease-in-out infinite;
+  pointer-events: none;
+}
 
 /* ── Gradient text ──────────────────────── */
 .text-green-grad {

@@ -164,77 +164,100 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
 
     return (
       <div className="page">
-        {/* Hero card */}
+        {/* Hero balance card */}
         <div style={{
           background: 'linear-gradient(135deg, #1E1428 0%, #1A1020 50%, #141018 100%)',
-          border: '1px solid rgba(255,107,43,.22)',
-          borderRadius: 20,
-          padding: '20px 18px',
-          marginBottom: 14,
-          position: 'relative',
-          overflow: 'hidden',
+          border: '1px solid rgba(244,169,0,.22)',
+          borderRadius: 20, padding: '20px 18px', marginBottom: 18,
+          position: 'relative', overflow: 'hidden',
         }}>
           <div style={{
-            position: 'absolute', top: -30, right: -30,
-            width: 150, height: 150, borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(255,107,43,.12) 0%, transparent 70%)',
+            position: 'absolute', top: -30, right: -30, width: 150, height: 150, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(244,169,0,.12) 0%, transparent 70%)',
             pointerEvents: 'none',
           }} />
-
-          <div>
-            <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 4 }}>
-              {T.balance.toUpperCase()}
-            </div>
-            <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1 }}>
-              <span style={{ fontWeight: 800, fontSize: 30 }}>⭐{starsBalance}</span>
-              <span style={{ fontWeight: 400, fontSize: 13, marginLeft: 7, color: 'var(--muted)' }}>(${usdDisplay})</span>
-            </div>
+          <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 4 }}>
+            {T.balance.toUpperCase()}
+          </div>
+          <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1 }}>
+            <span style={{ fontWeight: 800, fontSize: 30 }}>⭐{starsBalance}</span>
+            <span style={{ fontWeight: 400, fontSize: 13, marginLeft: 7, color: 'var(--muted)' }}>(${usdDisplay})</span>
           </div>
         </div>
 
         <h1 style={{ marginBottom: 14, fontSize: 19 }}>{T.shop}</h1>
 
-        <div
-          style={{
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-            border: '1px solid rgba(42,171,238,.2)',
-            borderRadius: 16, padding: '20px 16px',
-            display: 'flex', alignItems: 'center', gap: 16,
-            cursor: 'pointer', marginBottom: 10,
-            boxShadow: '0 4px 20px rgba(42,171,238,.1)',
-          }}
-          onClick={() => setView('list')}
-        >
-          <div className="cat-icon" style={{ background: 'linear-gradient(135deg, #2AABEE, #1178B8)', color: '#fff' }}>
-            {TG_ICON}
+        {/* TG Accounts card */}
+        <div style={{
+          background: 'linear-gradient(135deg, #0d1520 0%, #111a2e 100%)',
+          border: '1px solid rgba(42,171,238,.25)',
+          borderRadius: 20, padding: '18px 16px', marginBottom: 10,
+          boxShadow: '0 6px 28px rgba(42,171,238,.1)',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{
+            position: 'absolute', top: -20, right: -20, width: 120, height: 120,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(42,171,238,.1) 0%, transparent 70%)',
+            pointerEvents: 'none',
+          }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+              background: 'linear-gradient(135deg, #2AABEE, #1178B8)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 14px rgba(42,171,238,.35)',
+              color: '#fff',
+            }}>{TG_ICON}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_accounts}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>{T.tg_accounts_desc}</div>
+            </div>
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_accounts}</div>
-            <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{T.tg_accounts_desc}</div>
-          </div>
-          <div style={{ color: '#2AABEE', fontSize: 24, fontWeight: 300 }}>›</div>
+          <button className="btn" onClick={() => setView('list')} style={{
+            width: '100%', padding: '11px',
+            background: 'linear-gradient(135deg, #2AABEE, #1178B8)',
+            color: '#fff', fontSize: 14, fontWeight: 700,
+            boxShadow: '0 3px 14px rgba(42,171,238,.35)',
+          }}>
+            {T.buy} →
+          </button>
         </div>
 
-        <div
-          style={{
-            background: 'linear-gradient(135deg, #0e1a0e 0%, #0a140a 100%)',
-            border: '1px solid rgba(95,186,71,.25)',
-            borderRadius: 16, padding: '20px 16px',
-            display: 'flex', alignItems: 'center', gap: 16,
-            cursor: 'pointer',
-            boxShadow: '0 4px 20px rgba(95,186,71,.08)',
-          }}
-          onClick={() => setView('smm_list')}
-        >
-          <div className="cat-icon" style={{ background: 'linear-gradient(135deg, #5FBA47, #3a8a28)', color: '#fff', fontSize: 30 }}>👥</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_boost}</div>
-            <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{T.tg_boost_desc}</div>
+        {/* SMM Boost card */}
+        <div className="smm-card" style={{
+          borderRadius: 20, padding: '18px 16px',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+              background: 'linear-gradient(135deg, #5FBA47, #2d7a1c)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
+              boxShadow: '0 4px 14px rgba(95,186,71,.35)',
+            }}>👥</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_boost}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>{T.tg_boost_desc}</div>
+            </div>
+            {/* Promo pill */}
+            <div style={{
+              background: 'rgba(244,169,0,.15)', border: '1px solid rgba(244,169,0,.3)',
+              borderRadius: 10, padding: '5px 9px', textAlign: 'center', flexShrink: 0,
+            }}>
+              <div style={{ fontWeight: 900, fontSize: 13, color: 'var(--orange)' }}>100 👥</div>
+              <div style={{ fontWeight: 800, fontSize: 11, color: '#FFD060' }}>= ⭐10</div>
+            </div>
           </div>
-          <div style={{ color: '#5FBA47', fontSize: 24, fontWeight: 300 }}>›</div>
+          <button className="btn btn-green" onClick={() => setView('smm_list')} style={{
+            width: '100%', padding: '11px', fontSize: 14, fontWeight: 700,
+          }}>
+            {lang === 'ru' ? 'Заказать накрутку' : lang === 'ua' ? 'Замовити накрутку' : 'Order boost'} →
+          </button>
         </div>
-      <LegalFooter />
-    </div>
+
+        <LegalFooter />
+      </div>
     )
   }
 
@@ -358,56 +381,49 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
       </div>
 
       {smmServices.length === 0 ? (
-        <div style={{ borderRadius: 20, height: 100 }} className="skeleton" />
+        <div style={{ borderRadius: 20, height: 120 }} className="skeleton" />
       ) : smmServices.map(svc => (
         <div
           key={svc.service_id}
           className="smm-card"
           onClick={() => { setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(10); setSmmCustom(''); setView('smm') }}
-          style={{ borderRadius: 20, padding: '18px 16px', marginBottom: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14 }}
+          style={{ borderRadius: 20, padding: '18px 16px 14px', marginBottom: 10 }}
         >
-          {/* Icon */}
-          <div style={{
-            width: 56, height: 56, borderRadius: 18, flexShrink: 0,
-            background: 'linear-gradient(135deg, #5FBA47 0%, #2d7a1c 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
-            boxShadow: '0 4px 16px rgba(95,186,71,.35)',
-          }}>👥</div>
-
-          {/* Info */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 5 }}>{svc.title}</div>
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: 4,
-              background: 'rgba(95,186,71,.15)', border: '1px solid rgba(95,186,71,.3)',
-              borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 700, color: '#7FD465',
-            }}>✅ {T.smm_guarantee}</span>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>{T.smm_channels_only}</div>
+          {/* Top row: icon + info + arrow */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+            <div style={{
+              width: 54, height: 54, borderRadius: 16, flexShrink: 0,
+              background: 'linear-gradient(135deg, #5FBA47 0%, #2d7a1c 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
+              boxShadow: '0 4px 16px rgba(95,186,71,.4)',
+            }}>👥</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>{svc.title}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5, flexWrap: 'wrap', gap: '4px' }}>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                  background: 'rgba(95,186,71,.15)', border: '1px solid rgba(95,186,71,.3)',
+                  borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 700, color: '#7FD465',
+                }}>✅ {T.smm_guarantee}</span>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>{T.smm_channels_only}</div>
+            </div>
+            <div style={{ color: '#5FBA47', fontSize: 22, fontWeight: 300, flexShrink: 0 }}>›</div>
           </div>
 
-          {/* Price badge column */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
-            {/* Main price */}
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(95,186,71,.18), rgba(45,122,28,.1))',
-              border: '1px solid rgba(95,186,71,.3)',
-              borderRadius: 12, padding: '6px 10px', textAlign: 'center',
-            }}>
-              <div className="text-green-grad" style={{ fontWeight: 900, fontSize: 18, lineHeight: 1 }}>
-                ⭐{svc.price_per_100_stars}
-              </div>
-              <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>{T.smm_per_100}</div>
+          {/* Bottom price strip */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(244,169,0,.12) 0%, rgba(200,128,0,.06) 100%)',
+            border: '1px solid rgba(244,169,0,.25)',
+            borderRadius: 12, padding: '10px 14px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <div style={{ fontSize: 13, color: 'var(--text2)', fontWeight: 600 }}>
+              100 {T.smm_subs_word}
             </div>
-            {/* Promo pill */}
-            <div style={{
-              background: 'rgba(244,169,0,.12)', border: '1px solid rgba(244,169,0,.28)',
-              borderRadius: 10, padding: '4px 8px',
-              fontSize: 11, fontWeight: 800, color: 'var(--orange)',
-              whiteSpace: 'nowrap',
-            }}>
-              100 {T.smm_subs_word} = ⭐10
+            <div style={{ fontWeight: 900, fontSize: 20, color: 'var(--orange)' }}>
+              ⭐10
             </div>
-            <div style={{ fontSize: 16, color: '#5FBA47', fontWeight: 300 }}>›</div>
           </div>
         </div>
       ))}
