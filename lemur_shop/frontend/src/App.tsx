@@ -15,7 +15,15 @@ const CHANNEL_URL = `https://t.me/${CHANNEL}`
 export default function App() {
   const [tab, setTab]         = useState<Tab>('shop')
   const [me, setMe]           = useState<Me | null>(null)
-  const [lang, setLang]       = useState<Lang>(() => (localStorage.getItem(LANG_KEY) as Lang) || 'ru')
+  const [lang, setLang] = useState<Lang>(() => {
+    const saved = localStorage.getItem(LANG_KEY) as Lang | null
+    if (saved === 'ru' || saved === 'ua' || saved === 'en') return saved
+    // new user: detect from Telegram language_code
+    const tgLang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code ?? ''
+    if (tgLang.startsWith('uk')) return 'ua'
+    if (tgLang.startsWith('en')) return 'en'
+    return 'ru'
+  })
   const [subChecked, setSubChecked] = useState(false)
   const [subscribed, setSubscribed] = useState(true)
   const [checkingAgain, setCheckingAgain] = useState(false)
@@ -24,16 +32,7 @@ export default function App() {
 
   useEffect(() => {
     window.Telegram?.WebApp?.expand()
-    api.me().then(u => {
-      setMe(u)
-      prevStars.current = u.balance_stars
-      // Sync lang from server — server is source of truth
-      // (user may have bot set to RU but localStorage stale)
-      if (u.lang && u.lang !== lang) {
-        setLang(u.lang)
-        localStorage.setItem(LANG_KEY, u.lang)
-      }
-    }).catch(() => {})
+    api.me().then(u => { setMe(u); prevStars.current = u.balance_stars }).catch(() => {})
     api.checkSub().then(r => {
       setSubscribed(r.subscribed)
       setSubChecked(true)
@@ -41,7 +40,6 @@ export default function App() {
       setSubscribed(true)
       setSubChecked(true)
     })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -89,7 +87,7 @@ export default function App() {
     <>
       <div style={{ flex: 1 }}>
         {tab === 'shop'    && <Shop    key="shop"    lang={lang} me={me} onGoToBalance={() => setTab('balance')} onBuy={refreshMe} />}
-        {tab === 'profile' && <Profile key="profile" me={me} lang={lang} onChangeLang={l => { setLang(l); refreshMe() }} />}
+        {tab === 'profile' && <Profile key="profile" me={me} lang={lang} onChangeLang={l => { setLang(l); localStorage.setItem(LANG_KEY, l); refreshMe() }} />}
         {tab === 'balance' && <Balance key="balance" me={me} lang={lang} balanceDiff={balanceDiff} />}
         {tab === 'admin'   && <Admin   key="admin" />}
       </div>
