@@ -1372,13 +1372,6 @@ class SmmOrderRequest(BaseModel):
     service_key: str
     link: str
     quantity: int
-    reaction: str | None = None   # for tg_reactions
-
-
-@app.get("/api/smm/reactions")
-async def api_smm_reactions(user: User = Depends(get_current_user)):
-    from lemur_shop.services.smm import REACTION_SERVICES
-    return [{"emoji": e, "service_id": sid} for e, sid in REACTION_SERVICES.items()]
 
 
 @app.post("/api/smm/order")
@@ -1386,26 +1379,30 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
     if settings.PREVIEW_MODE and user.id not in settings.ADMIN_IDS:
         raise HTTPException(status_code=403, detail="preview_mode")
 
-    from lemur_shop.services.smm import SMM_SERVICES, REACTION_SERVICES, SmmApiError, place_order
+    from lemur_shop.services.smm import SMM_SERVICES, REACTION_PACK_IDS, SmmApiError, place_order
     svc = SMM_SERVICES.get(body.service_key)
     if not svc:
         raise HTTPException(400, "Unknown service")
     if body.quantity < svc["min"] or body.quantity > svc["max"]:
         raise HTTPException(400, f"Quantity must be {svc['min']}–{svc['max']}")
 
-    # resolve reaction service_id
-    actual_service_id = svc["service_id"]
-    if body.service_key == "tg_reactions":
-        if not body.reaction or body.reaction not in REACTION_SERVICES:
-            raise HTTPException(400, "Invalid reaction")
-        actual_service_id = REACTION_SERVICES[body.reaction]
-
+    # reactions = two packs ordered together, price × 2
+    is_reactions = body.service_key == "tg_reactions"
     price_stars = max(1, round(body.quantity / 100 * svc["price_per_100_stars"]))
+    if is_reactions:
+        price_stars = price_stars * 2
     if user.balance_stars < price_stars:
         raise HTTPException(402, "insufficient_balance")
 
     try:
-        order_id = await place_order(actual_service_id, body.link, body.quantity)
+        if is_reactions:
+            order_ids = []
+            for sid in REACTION_PACK_IDS:
+                oid = await place_order(sid, body.link, body.quantity)
+                order_ids.append(oid)
+            order_id = order_ids[0]
+        else:
+            order_id = await place_order(svc["service_id"], body.link, body.quantity)
     except SmmApiError as e:
         log.error("smmway error for user=%s service=%s link=%r qty=%d: %s",
                   user.id, body.service_key, body.link, body.quantity, e)
