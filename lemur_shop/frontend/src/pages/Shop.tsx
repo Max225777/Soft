@@ -106,7 +106,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   const [confirmCat, setConfirmCat] = useState<Category | null>(null)
   const [smmServices, setSmmServices] = useState<SmmService[]>([])
   const [smmLink, setSmmLink] = useState('')
-  const [smmQty, setSmmQty] = useState(199)
+  const [smmQty, setSmmQty] = useState(100)
   const [smmCustom, setSmmCustom] = useState('')
   const [smmLoading, setSmmLoading] = useState(false)
   const [smmError, setSmmError] = useState<string | null>(null)
@@ -378,7 +378,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
         <div
           key={svc.service_id}
           className="smm-card"
-          onClick={() => { setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(199); setSmmCustom(''); setView('smm') }}
+          onClick={() => { setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(100); setSmmCustom(''); setView('smm') }}
           style={{ borderRadius: 20, padding: '16px', marginBottom: 10 }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -469,7 +469,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           </div>
           <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 24 }}>{T.smm_start_soon}</div>
           <button className="btn btn-secondary" style={{ width: '100%' }}
-            onClick={() => { setSmmDone(null); setSmmQty(199); setSmmCustom(''); setSmmLink('') }}>
+            onClick={() => { setSmmDone(null); setSmmQty(100); setSmmCustom(''); setSmmLink('') }}>
             {T.smm_new_order}
           </button>
         </div>
