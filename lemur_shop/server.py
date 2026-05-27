@@ -223,6 +223,7 @@ async def api_me(user: User = Depends(get_current_user)):
         "rate_rub":      rub,
         "orders_count":  orders_count,
         "is_admin":      user.id in settings.ADMIN_IDS,
+        "preview_mode":  settings.PREVIEW_MODE,
     }
 
 
@@ -1357,6 +1358,59 @@ async def api_wheel_room(room_id: int, user: User = Depends(get_current_user)):
     new_balance = user.balance_stars
     return {**_room_view(room, parts, user.id), "new_balance": new_balance}
 
+
+
+@app.get("/api/smm/services")
+async def api_smm_services(user: User = Depends(get_current_user)):
+    from lemur_shop.services.smm import SMM_SERVICES
+    if settings.PREVIEW_MODE and user.id not in settings.ADMIN_IDS:
+        raise HTTPException(status_code=403, detail="preview_mode")
+    return list(SMM_SERVICES.values())
+
+
+class SmmOrderRequest(BaseModel):
+    service_key: str
+    link: str
+    quantity: int
+
+
+@app.post("/api/smm/order")
+async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_user)):
+    if settings.PREVIEW_MODE and user.id not in settings.ADMIN_IDS:
+        raise HTTPException(status_code=403, detail="preview_mode")
+
+    from lemur_shop.services.smm import SMM_SERVICES, SmmApiError, place_order
+    svc = SMM_SERVICES.get(body.service_key)
+    if not svc:
+        raise HTTPException(400, "Unknown service")
+    if body.quantity < svc["min"] or body.quantity > svc["max"] or body.quantity % svc["step"] != 0:
+        raise HTTPException(400, f"Quantity must be {svc['min']}–{svc['max']}, step {svc['step']}")
+
+    price_stars = round(body.quantity / 100 * svc["price_per_100_stars"])
+    if user.balance_stars < price_stars:
+        raise HTTPException(402, "insufficient_balance")
+
+    try:
+        order_id = await place_order(svc["service_id"], body.link, body.quantity)
+    except SmmApiError as e:
+        raise HTTPException(502, str(e))
+
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            u = await s.get(User, user.id)
+            u.balance_stars = u.balance_stars - price_stars
+
+    log.info("SMM order #%s: user=%s service=%s qty=%d stars=%d", order_id, user.id, body.service_key, body.quantity, price_stars)
+    return {"order_id": order_id, "stars_spent": price_stars}
+
+
+@app.get("/api/smm/status/{order_id}")
+async def api_smm_status(order_id: int, user: User = Depends(get_current_user)):
+    from lemur_shop.services.smm import get_order_status, SmmApiError
+    try:
+        return await get_order_status(order_id)
+    except SmmApiError as e:
+        raise HTTPException(502, str(e))
 
 
 @app.get("/{path:path}")

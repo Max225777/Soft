@@ -32,6 +32,13 @@ export const api = {
   starsBuy:     (stars: number, amount_usd: number) => req<{ ok: boolean }>('/stars/buy', { method: 'POST', body: JSON.stringify({ stars, amount_usd }) }),
 }
 
+export const smmApi = {
+  services: () => req<SmmService[]>('/smm/services'),
+  order:    (service_key: string, link: string, quantity: number) =>
+              req<{ order_id: number; stars_spent: number }>('/smm/order', { method: 'POST', body: JSON.stringify({ service_key, link, quantity }) }),
+  status:   (order_id: number) => req<{ status: string; remains: string; start_count: string }>(`/smm/status/${order_id}`),
+}
+
 export const gameApi = {
   status: () => req<{ can_play_free: boolean; min_bet: number; balance_stars: number }>('/game/status'),
   start:  (bet: number) => req<{ token: string; is_free: boolean; bet: number }>('/game/start', { method: 'POST', body: JSON.stringify({ bet }) }),
@@ -73,7 +80,11 @@ export interface Me {
   balance_stars: number
   balance_usd: number; balance_uah: number; balance_rub: number
   rate_uah: number; rate_rub: number
-  orders_count: number; is_admin: boolean
+  orders_count: number; is_admin: boolean; preview_mode: boolean
+}
+export interface SmmService {
+  service_id: number; title: string; flag: string; description: string
+  price_per_100_stars: number; min: number; max: number; step: number
 }
 export interface Category { category: string; flag: string; title: string; price_usd: number; price_stars: number; discount_stars?: number }
 export interface BuyResult { order_id: number; phone: string; created_at: string }

@@ -34,5 +34,8 @@ class Settings(BaseSettings):
 
     CRYPTOBOT_TOKEN: str = ""
 
+    SMMWAY_API_KEY: str = ""
+    PREVIEW_MODE: bool = True
+
 
 settings = Settings()

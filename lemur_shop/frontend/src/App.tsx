@@ -5,6 +5,7 @@ import Shop from './pages/Shop'
 import Profile from './pages/Profile'
 import Balance from './pages/Balance'
 import Admin from './pages/Admin'
+import Boost from './pages/Boost'
 import type { Lang } from './i18n'
 import { getT } from './i18n'
 
@@ -81,9 +82,14 @@ export default function App() {
         {tab === 'shop'    && <Shop    key="shop"    lang={lang} me={me} onGoToBalance={() => setTab('balance')} onBuy={refreshMe} />}
         {tab === 'profile' && <Profile key="profile" me={me} lang={lang} onChangeLang={l => { setLang(l); refreshMe() }} />}
         {tab === 'balance' && <Balance key="balance" me={me} lang={lang} balanceDiff={balanceDiff} />}
+        {tab === 'boost'   && <Boost   key="boost"   me={me} lang={lang} onRefresh={refreshMe} />}
         {tab === 'admin'   && <Admin   key="admin" />}
       </div>
-      <BottomNav active={tab} onChange={setTab} lang={lang} isAdmin={me?.is_admin} />
+      <BottomNav
+        active={tab} onChange={setTab} lang={lang}
+        isAdmin={me?.is_admin}
+        showBoost={me?.is_admin || !me?.preview_mode}
+      />
     </>
   )
 }
