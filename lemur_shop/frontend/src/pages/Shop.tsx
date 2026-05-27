@@ -463,9 +463,6 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
     const REACTION_BTNS: { key: string; emoji: string }[] = [
       { key: 'tg_reactions_pos', emoji: '👍❤️🔥🎉' },
       { key: 'tg_reactions_neg', emoji: '👎💩😱😢' },
-      { key: 'tg_react_heart',   emoji: '❤️' },
-      { key: 'tg_react_like',    emoji: '👍' },
-      { key: 'tg_react_dislike', emoji: '👎' },
       { key: 'tg_react_poop',    emoji: '💩' },
       { key: 'tg_react_clown',   emoji: '🤡' },
     ]
@@ -536,40 +533,21 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 10 }}>
             {T.smm_pick_reaction.toUpperCase()}
           </div>
-          {/* Packs row */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            {REACTION_BTNS.slice(0, 2).map(btn => {
+          {/* Reaction buttons */}
+          <div style={{ display: 'flex', gap: 8 }}>
+            {REACTION_BTNS.map(btn => {
               const active = selectedSmmKey === btn.key
               return (
                 <button key={btn.key} onClick={() => { setSelectedSmmKey(btn.key); setSmmQty(15); setSmmCustom('') }}
                   style={{
-                    flex: 1, padding: '14px 8px', borderRadius: 14, cursor: 'pointer',
+                    flex: 1, padding: '14px 4px', borderRadius: 14, cursor: 'pointer',
                     border: active ? '2px solid rgba(244,169,0,.7)' : '2px solid var(--border)',
                     background: active ? 'linear-gradient(135deg, rgba(244,169,0,.15), rgba(200,120,0,.08))' : 'var(--card2)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     transition: 'all .15s',
                     boxShadow: active ? '0 0 16px rgba(244,169,0,.2)' : 'none',
                   }}>
-                  <span style={{ fontSize: 20 }}>{btn.emoji}</span>
-                </button>
-              )
-            })}
-          </div>
-          {/* Individual reactions row */}
-          <div style={{ display: 'flex', gap: 8 }}>
-            {REACTION_BTNS.slice(2).map(btn => {
-              const active = selectedSmmKey === btn.key
-              return (
-                <button key={btn.key} onClick={() => { setSelectedSmmKey(btn.key); setSmmQty(15); setSmmCustom('') }}
-                  style={{
-                    flex: 1, padding: '12px 4px', borderRadius: 14, cursor: 'pointer',
-                    border: active ? '2px solid rgba(244,169,0,.7)' : '2px solid var(--border)',
-                    background: active ? 'linear-gradient(135deg, rgba(244,169,0,.15), rgba(200,120,0,.08))' : 'var(--card2)',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                    transition: 'all .15s',
-                    boxShadow: active ? '0 0 16px rgba(244,169,0,.2)' : 'none',
-                  }}>
-                  <span style={{ fontSize: 20 }}>{btn.emoji}</span>
+                  <span style={{ fontSize: btn.emoji.length > 2 ? 14 : 22 }}>{btn.emoji}</span>
                 </button>
               )
             })}
