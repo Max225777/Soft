@@ -45,9 +45,9 @@ def normalize_tg_link(link: str) -> str:
 
 
 async def smm_request(action: str, **params) -> dict:
-    data = {"key": settings.SMMWAY_API_KEY, "action": action, **params}
+    query = {"key": settings.SMMWAY_API_KEY, "action": action, **params}
     async with httpx.AsyncClient(timeout=20) as c:
-        r = await c.post(SMM_API_URL, data=data)
+        r = await c.get(SMM_API_URL, params=query)
     log.info("smmway %s → status=%d body=%s", action, r.status_code, r.text[:300])
     result = r.json()
     if "error" in result:
