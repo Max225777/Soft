@@ -17,7 +17,7 @@ SMM_SERVICES: dict[str, dict] = {
         "flag":       "📱",
         "description": "Реальні підписники, гарантія 365 днів",
         "price_per_100_stars": 10,
-        "min": 1,
+        "min": 10,
         "max": 10000,
         "step": 1,
     },
