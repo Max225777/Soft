@@ -507,7 +507,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
               boxShadow: '0 4px 14px rgba(95,186,71,.35)',
             }}>👥</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 5 }}>{svc.title}</div>
+              <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 5 }}>{T.smm_subs_title}</div>
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
                 background: 'rgba(95,186,71,.15)', border: '1px solid rgba(95,186,71,.3)',
@@ -535,7 +535,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
         </div>
 
         {/* Form card */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 20, padding: '18px 16px' }}>
+        <div style={{ background: 'var(--card)', border: '1px solid rgba(244,169,0,.22)', borderRadius: 20, padding: '18px 16px', boxShadow: '0 0 28px rgba(244,169,0,.06)' }}>
 
           {/* Link input */}
           <div style={{ marginBottom: 20 }}>
@@ -603,9 +603,10 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           {/* Total cost */}
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            background: 'linear-gradient(135deg, rgba(95,186,71,.1) 0%, rgba(45,122,28,.07) 100%)',
-            border: '1px solid rgba(95,186,71,.22)',
+            background: 'linear-gradient(135deg, rgba(244,169,0,.08) 0%, rgba(200,120,0,.05) 100%)',
+            border: '1px solid rgba(244,169,0,.3)',
             borderRadius: 16, padding: '14px 18px', marginBottom: 16,
+            boxShadow: '0 2px 16px rgba(244,169,0,.08)',
           }}>
             <div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 3 }}>{T.smm_total_label}</div>
@@ -615,7 +616,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div className="text-green-grad" style={{ fontWeight: 900, fontSize: 30, lineHeight: 1 }}>⭐{priceStars}</div>
+              <div className="text-orange-grad" style={{ fontWeight: 900, fontSize: 30, lineHeight: 1 }}>⭐{priceStars}</div>
               <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>
                 {T.smm_balance_label} ⭐{balance}
               </div>
