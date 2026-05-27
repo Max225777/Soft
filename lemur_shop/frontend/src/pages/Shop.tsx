@@ -427,7 +427,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 800, fontSize: 15 }}>{cardTitle}</div>
-                {!isReactCard && (
+                {!isReactCard && !isViews && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 5, fontWeight: 700, fontSize: 12, color: '#7FD465' }}>
                     <span style={{ fontSize: 14 }}>♻️</span>
                     <span>{T.smm_guarantee}</span>
