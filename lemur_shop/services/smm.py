@@ -10,6 +10,26 @@ log = logging.getLogger(__name__)
 
 SMM_API_URL = "https://smmway.ru/api/v2"
 
+# ⚠️ REACTION SERVICE IDs — verify each on smmway.ru/order/telegram-reakcii-lucsie-ceny-i-skorost
+# Format: emoji → smmway service_id
+REACTION_SERVICES: dict[str, int] = {
+    "👍": 6330,
+    "❤️": 6331,
+    "🔥": 6332,
+    "🥰": 6333,
+    "👏": 6334,
+    "😁": 6335,
+    "🤔": 6336,
+    "🤯": 6337,
+    "😱": 6338,
+    "🤬": 6339,
+    "😢": 6340,
+    "🎉": 6341,
+    "🤩": 6342,
+    "💯": 6343,
+    "❤️‍🔥": 6344,
+}
+
 # Каталог SMM послуг
 SMM_SERVICES: dict[str, dict] = {
     "tg_subscribers": {
@@ -33,6 +53,17 @@ SMM_SERVICES: dict[str, dict] = {
         "max": 100000,
         "step": 100,
         "unit_size": 1000,
+    },
+    "tg_reactions": {
+        "service_id": 0,
+        "title":      "Реакції Telegram",
+        "flag":       "🔥",
+        "description": "Реакції на пост Telegram",
+        "price_per_100_stars": 10,
+        "min": 15,
+        "max": 5000,
+        "step": 1,
+        "unit_size": 100,
     },
 }
 

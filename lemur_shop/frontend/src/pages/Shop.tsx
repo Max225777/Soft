@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { api, smmApi, type Category, type BuyResult, type Me, type SmmService } from '../api'
+type ReactionItem = { emoji: string; service_id: number }
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
 
 interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void; onBuy?: () => void }
 
-type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars' | 'smm'
+type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars' | 'smm' | 'smm_pick_reaction'
 
 function localPrice(stars: number, usd: number): JSX.Element {
   return (
@@ -105,7 +106,9 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   const [copied, setCopied]   = useState<'phone' | 'code' | ''>('')
   const [confirmCat, setConfirmCat] = useState<Category | null>(null)
   const [smmServices, setSmmServices] = useState<SmmService[]>([])
+  const [reactionItems, setReactionItems] = useState<ReactionItem[]>([])
   const [selectedSmmKey, setSelectedSmmKey] = useState('tg_subscribers')
+  const [selectedReaction, setSelectedReaction] = useState<string>('')
   const [smmLink, setSmmLink] = useState('')
   const [smmQty, setSmmQty] = useState(100)
   const [smmCustom, setSmmCustom] = useState('')
@@ -116,6 +119,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   useEffect(() => {
     api.categories().catch(() => []).then(setCats)
     smmApi.services().then(setSmmServices).catch(() => {})
+    smmApi.reactions().then(setReactionItems).catch(() => {})
   }, [])
 
   async function buy(cat: Category) {
@@ -377,20 +381,29 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
         <div style={{ borderRadius: 20, height: 120 }} className="skeleton" />
       ) : smmServices.map(svc => {
         const isViews = svc.key === 'tg_views'
+        const isReactCard = svc.key === 'tg_reactions'
         const badgeQty = isViews ? 1000 : 100
-        const badgeStars = isViews ? 10 : 10
-        const badgeWord = isViews ? T.smm_views_word : T.smm_subs_word
-        const cardTitle = isViews ? T.smm_views_title : T.smm_subs_title
+        const badgeStars = 10
+        const badgeWord = isViews ? T.smm_views_word : isReactCard ? T.smm_reactions_word : T.smm_subs_word
+        const cardTitle = isViews ? T.smm_views_title : isReactCard ? T.smm_reactions_title : T.smm_subs_title
         const cardSub = isViews
           ? <span style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, display: 'block' }}>
               {lang === 'ru' ? 'Пост канала · до нескольких часов' : lang === 'ua' ? 'Пост каналу · до кількох годин' : 'Channel post · up to a few hours'}
             </span>
-          : <span style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3, display: 'block' }}>{T.smm_channels_only}</span>
+          : isReactCard
+            ? <span style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3, display: 'block' }}>
+                {lang === 'ru' ? 'Любой пост · мгновенно' : lang === 'ua' ? 'Будь-який пост · миттєво' : 'Any post · instantly'}
+              </span>
+            : <span style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3, display: 'block' }}>{T.smm_channels_only}</span>
         return (
           <div
             key={svc.service_id}
             className="smm-card"
-            onClick={() => { setSelectedSmmKey(svc.key); setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(svc.min); setSmmCustom(''); setView('smm') }}
+            onClick={() => {
+              setSelectedSmmKey(svc.key); setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(svc.min); setSmmCustom('')
+              if (svc.key === 'tg_reactions') { setSelectedReaction(''); setView('smm_pick_reaction') }
+              else setView('smm')
+            }}
             style={{ borderRadius: 20, padding: '16px', marginBottom: 10 }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -399,7 +412,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
                 background: 'linear-gradient(135deg, #5FBA47, #2d7a1c)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 25,
                 boxShadow: '0 4px 14px rgba(95,186,71,.4)',
-              }}>{isViews ? '👁️' : '👥'}</div>
+              }}>{isReactions ? (selectedReaction || '🔥') : isViews ? '👁️' : '👥'}</div>
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 800, fontSize: 15 }}>{cardTitle}</div>
@@ -432,20 +445,69 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
     </div>
   )
 
+  // ─── Вибір реакції ─────────────────────────────────────────────────────────
+  if (view === 'smm_pick_reaction') {
+    return (
+      <div className="page">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <button onClick={() => setView('smm_list')} style={{
+            width: 36, height: 36, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--card2)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: 20, color: 'var(--text2)', flexShrink: 0,
+          }}>‹</button>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 19 }}>🔥 {T.smm_reactions_title}</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>{T.smm_pick_reaction}</div>
+          </div>
+        </div>
+
+        <div style={{
+          background: 'var(--card)', border: '1px solid rgba(244,169,0,.22)',
+          borderRadius: 20, padding: '18px 16px', boxShadow: '0 0 24px rgba(244,169,0,.06)',
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 14 }}>
+            {T.smm_pick_reaction.toUpperCase()}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            {reactionItems.map(r => (
+              <button
+                key={r.emoji}
+                onClick={() => { setSelectedReaction(r.emoji); setView('smm') }}
+                style={{
+                  width: 58, height: 58, borderRadius: 16, fontSize: 28,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: selectedReaction === r.emoji
+                    ? 'linear-gradient(135deg, rgba(244,169,0,.3), rgba(200,100,0,.2))'
+                    : 'var(--card2)',
+                  border: selectedReaction === r.emoji
+                    ? '2px solid rgba(244,169,0,.7)'
+                    : '1.5px solid var(--border)',
+                  cursor: 'pointer',
+                  boxShadow: selectedReaction === r.emoji ? '0 0 14px rgba(244,169,0,.35)' : 'none',
+                  transition: 'all .15s',
+                }}
+              >{r.emoji}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // ─── SMM замовлення ────────────────────────────────────────────────────────
   if (view === 'smm') {
     const svc = smmServices.find(s => s.key === selectedSmmKey) ?? smmServices[0]
     const isViews = svc?.key === 'tg_views'
+    const isReactions = svc?.key === 'tg_reactions'
     const effectiveQty = Math.max(svc?.min ?? 10, smmQty)
     const priceStars = svc ? Math.max(1, Math.round(effectiveQty / 100 * svc.price_per_100_stars)) : 0
     const balance = me?.balance_stars ?? 0
-    const canOrder = smmLink.trim().length > 0 && balance >= priceStars && !smmLoading
+    const canOrder = smmLink.trim().length > 0 && balance >= priceStars && !smmLoading && (!isReactions || !!selectedReaction)
 
     async function orderSmm() {
       if (!svc || !canOrder) return
       setSmmLoading(true); setSmmError(null)
       try {
-        const res = await smmApi.order('tg_subscribers', smmLink.trim(), effectiveQty)
+        const res = await smmApi.order(svc.key, smmLink.trim(), effectiveQty, isReactions ? selectedReaction : undefined)
         setSmmDone(res)
         onBuy?.()
       } catch (e: any) {
@@ -500,7 +562,10 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
             background: 'var(--card2)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: 20, color: 'var(--text2)', flexShrink: 0,
           }}>‹</button>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 19 }}>{isViews ? '👁️' : '👥'} {isViews ? T.smm_views_title : T.smm_subs_title}</div>
+            <div style={{ fontWeight: 800, fontSize: 19 }}>
+              {isReactions ? (selectedReaction || '🔥') : isViews ? '👁️' : '👥'}{' '}
+              {isReactions ? T.smm_reactions_title : isViews ? T.smm_views_title : T.smm_subs_title}
+            </div>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>Telegram</div>
           </div>
         </div>
@@ -513,9 +578,9 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
               background: 'linear-gradient(135deg, #5FBA47 0%, #2d7a1c 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
               boxShadow: '0 4px 14px rgba(95,186,71,.35)',
-            }}>{isViews ? '👁️' : '👥'}</div>
+            }}>{isReactions ? (selectedReaction || '🔥') : isViews ? '👁️' : '👥'}</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 5 }}>{isViews ? T.smm_views_title : T.smm_subs_title}</div>
+              <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 5 }}>{isReactions ? T.smm_reactions_title : isViews ? T.smm_views_title : T.smm_subs_title}</div>
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
                 background: 'rgba(95,186,71,.15)', border: '1px solid rgba(95,186,71,.3)',
@@ -524,7 +589,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
             </div>
             <div style={{ textAlign: 'right', flexShrink: 0 }}>
               <div className="text-green-grad" style={{ fontWeight: 900, fontSize: 20, lineHeight: 1 }}>⭐{isViews ? 10 : svc.price_per_100_stars}</div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{isViews ? T.smm_per_1000 : T.smm_per_100}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{isViews ? T.smm_per_1000 : isReactions ? T.smm_per_100 : T.smm_per_100}</div>
             </div>
           </div>
         )}
@@ -556,16 +621,39 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
         {/* Form card */}
         <div style={{ background: 'var(--card)', border: '1px solid rgba(244,169,0,.22)', borderRadius: 20, padding: '18px 16px', boxShadow: '0 0 28px rgba(244,169,0,.06)' }}>
 
+          {/* Reaction indicator */}
+          {isReactions && selectedReaction && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              background: 'rgba(244,169,0,.08)', border: '1px solid rgba(244,169,0,.25)',
+              borderRadius: 14, padding: '10px 14px', marginBottom: 16,
+            }}>
+              <span style={{ fontSize: 32 }}>{selectedReaction}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{T.smm_reactions_title}</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                  {lang === 'ru' ? 'Реакция выбрана' : lang === 'ua' ? 'Реакцію обрано' : 'Reaction selected'}
+                </div>
+              </div>
+              <button onClick={() => setView('smm_pick_reaction')} style={{
+                background: 'rgba(244,169,0,.12)', border: '1px solid rgba(244,169,0,.3)',
+                borderRadius: 10, padding: '5px 10px', color: 'var(--orange2)', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              }}>
+                {lang === 'ru' ? 'Изменить' : lang === 'ua' ? 'Змінити' : 'Change'}
+              </button>
+            </div>
+          )}
+
           {/* Link input */}
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 8 }}>
-              {(isViews ? T.smm_link_post_label : T.smm_link_label).toUpperCase()}
+              {(isReactions || isViews ? T.smm_link_post_label : T.smm_link_label).toUpperCase()}
             </div>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', fontSize: 16, pointerEvents: 'none', lineHeight: 1 }}>🔗</span>
               <input
                 type="text"
-                placeholder={isViews ? T.smm_link_post_ph : 'https://t.me/yourchannel'}
+                placeholder={isViews || isReactions ? T.smm_link_post_ph : 'https://t.me/yourchannel'}
                 value={smmLink}
                 onChange={e => setSmmLink(e.target.value)}
                 style={{
@@ -588,7 +676,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
                 {T.smm_qty_label.toUpperCase()}
               </div>
               <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--text)' }}>
-                {effectiveQty} <span style={{ fontWeight: 400, fontSize: 11, color: 'var(--muted)' }}>{isViews ? T.smm_views_word : T.smm_subs_word}</span>
+                {effectiveQty} <span style={{ fontWeight: 400, fontSize: 11, color: 'var(--muted)' }}>{isViews ? T.smm_views_word : isReactions ? T.smm_reactions_word : T.smm_subs_word}</span>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 7, marginBottom: 10 }}>
@@ -632,7 +720,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
             <div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 3 }}>{T.smm_total_label}</div>
               <div style={{ fontSize: 12, color: 'var(--text2)' }}>
-                {effectiveQty} {isViews ? T.smm_views_word : T.smm_subs_word}
+                {effectiveQty} {isViews ? T.smm_views_word : isReactions ? T.smm_reactions_word : T.smm_subs_word}
                 <span style={{ color: 'var(--muted)' }}> × ⭐{isViews ? 10 : svc?.price_per_100_stars}/{isViews ? 1000 : 100}</span>
               </div>
             </div>

@@ -1372,6 +1372,13 @@ class SmmOrderRequest(BaseModel):
     service_key: str
     link: str
     quantity: int
+    reaction: str | None = None   # for tg_reactions
+
+
+@app.get("/api/smm/reactions")
+async def api_smm_reactions(user: User = Depends(get_current_user)):
+    from lemur_shop.services.smm import REACTION_SERVICES
+    return [{"emoji": e, "service_id": sid} for e, sid in REACTION_SERVICES.items()]
 
 
 @app.post("/api/smm/order")
@@ -1379,19 +1386,26 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
     if settings.PREVIEW_MODE and user.id not in settings.ADMIN_IDS:
         raise HTTPException(status_code=403, detail="preview_mode")
 
-    from lemur_shop.services.smm import SMM_SERVICES, SmmApiError, place_order
+    from lemur_shop.services.smm import SMM_SERVICES, REACTION_SERVICES, SmmApiError, place_order
     svc = SMM_SERVICES.get(body.service_key)
     if not svc:
         raise HTTPException(400, "Unknown service")
     if body.quantity < svc["min"] or body.quantity > svc["max"]:
         raise HTTPException(400, f"Quantity must be {svc['min']}–{svc['max']}")
 
+    # resolve reaction service_id
+    actual_service_id = svc["service_id"]
+    if body.service_key == "tg_reactions":
+        if not body.reaction or body.reaction not in REACTION_SERVICES:
+            raise HTTPException(400, "Invalid reaction")
+        actual_service_id = REACTION_SERVICES[body.reaction]
+
     price_stars = max(1, round(body.quantity / 100 * svc["price_per_100_stars"]))
     if user.balance_stars < price_stars:
         raise HTTPException(402, "insufficient_balance")
 
     try:
-        order_id = await place_order(svc["service_id"], body.link, body.quantity)
+        order_id = await place_order(actual_service_id, body.link, body.quantity)
     except SmmApiError as e:
         log.error("smmway error for user=%s service=%s link=%r qty=%d: %s",
                   user.id, body.service_key, body.link, body.quantity, e)
@@ -1407,7 +1421,7 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
     # ── Admin notification ──────────────────────────────────────────────────
     if _bot and settings.ADMIN_IDS:
         uname = f"@{user.username}" if user.username else f"ID:{user.id}"
-        svc_flag = "👁️" if body.service_key == "tg_views" else "👥"
+        svc_flag = "👁️" if body.service_key == "tg_views" else (body.reaction or "🔥") if body.service_key == "tg_reactions" else "👥"
         svc_name = svc.get("title", body.service_key)
         stars_usd = price_stars * 0.013
         txt = (
@@ -1428,7 +1442,7 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
     # ── User notification ───────────────────────────────────────────────────
     if _bot:
         lang = getattr(user, "lang", "ru")
-        svc_flag = "👁️" if body.service_key == "tg_views" else "👥"
+        svc_flag = "👁️" if body.service_key == "tg_views" else (body.reaction or "🔥") if body.service_key == "tg_reactions" else "👥"
         if lang == "ua":
             user_txt = (
                 f"{svc_flag} <b>Замовлення прийнято!</b>\n\n"

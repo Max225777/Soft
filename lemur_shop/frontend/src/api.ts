@@ -33,10 +33,11 @@ export const api = {
 }
 
 export const smmApi = {
-  services: () => req<SmmService[]>('/smm/services'),
-  order:    (service_key: string, link: string, quantity: number) =>
-              req<{ order_id: number; stars_spent: number }>('/smm/order', { method: 'POST', body: JSON.stringify({ service_key, link, quantity }) }),
-  status:   (order_id: number) => req<{ status: string; remains: string; start_count: string }>(`/smm/status/${order_id}`),
+  services:  () => req<SmmService[]>('/smm/services'),
+  reactions: () => req<{ emoji: string; service_id: number }[]>('/smm/reactions'),
+  order:     (service_key: string, link: string, quantity: number, reaction?: string) =>
+               req<{ order_id: number; stars_spent: number }>('/smm/order', { method: 'POST', body: JSON.stringify({ service_key, link, quantity, reaction }) }),
+  status:    (order_id: number) => req<{ status: string; remains: string; start_count: string }>(`/smm/status/${order_id}`),
 }
 
 export const gameApi = {

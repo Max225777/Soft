@@ -94,6 +94,10 @@ const UA = {
   smm_link_post_label: 'Посилання на пост',
   smm_views_warning: '⚠️ Перегляди в Telegram оновлюються повільно — до кількох годин. Можливі затримки через обмеження Telegram. Це нормально.',
   smm_link_post_ph: 'https://t.me/channel/123',
+  smm_reactions_title: 'Накрутка реакцій',
+  smm_reactions_word:  'реакцій',
+  smm_pick_reaction:   'Оберіть реакцію',
+  smm_reactions_desc:  'Реакції на пост Telegram',
 }
 
 const RU: typeof UA = {
@@ -192,6 +196,10 @@ const RU: typeof UA = {
   smm_link_post_label: 'Ссылка на пост',
   smm_views_warning: '⚠️ Просмотры в Telegram обновляются медленно — до нескольких часов. Возможны задержки из-за ограничений Telegram. Это нормально.',
   smm_link_post_ph: 'https://t.me/channel/123',
+  smm_reactions_title: 'Накрутка реакций',
+  smm_reactions_word:  'реакций',
+  smm_pick_reaction:   'Выберите реакцию',
+  smm_reactions_desc:  'Реакции на пост Telegram',
 }
 
 const EN: typeof UA = {
@@ -290,6 +298,10 @@ const EN: typeof UA = {
   smm_link_post_label: 'Post link',
   smm_views_warning: '⚠️ Telegram view counters update slowly — up to a few hours. Delays are possible due to Telegram\'s own limitations. This is normal.',
   smm_link_post_ph: 'https://t.me/channel/123',
+  smm_reactions_title: 'Reaction Boost',
+  smm_reactions_word:  'reactions',
+  smm_pick_reaction:   'Choose reaction',
+  smm_reactions_desc:  'Reactions on a Telegram post',
 }
 
 export type Lang = 'ua' | 'ru' | 'en'
