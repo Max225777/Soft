@@ -342,23 +342,58 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
     </>
   )
 
-  // ─── SMM список послуг → одразу на форму ──────────────────────────────────
-  if (view === 'smm_list') {
-    if (smmServices.length === 0) return (
-      <div className="page">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-          <button onClick={() => setView('menu')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--orange)', fontSize: 26, lineHeight: 1 }}>‹</button>
-          <h1 style={{ margin: 0 }}>{T.tg_boost}</h1>
+  // ─── SMM список послуг ────────────────────────────────────────────────────
+  if (view === 'smm_list') return (
+    <div className="page">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+        <button onClick={() => setView('menu')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--orange)', fontSize: 26, lineHeight: 1 }}>‹</button>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 19 }}>{T.tg_boost}</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>
+            {lang === 'ru' ? 'Продвижение Telegram' : 'Просування Telegram'}
+          </div>
         </div>
-        <div className="card"><div className="skeleton" style={{ height: 80 }} /></div>
       </div>
-    )
-    // single service → go directly to form
-    const s = smmServices[0]
-    setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(10); setSmmCustom('')
-    setView('smm')
-    return null
-  }
+
+      {smmServices.length === 0 ? (
+        <>
+          <div style={{ height: 90, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 18 }} className="skeleton" />
+        </>
+      ) : smmServices.map(svc => (
+        <div
+          key={svc.service_id}
+          onClick={() => { setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(10); setSmmCustom(''); setView('smm') }}
+          style={{
+            background: 'linear-gradient(135deg, #0e1a0e 0%, #0d160d 100%)',
+            border: '1px solid rgba(95,186,71,.25)',
+            borderRadius: 18, padding: '18px 16px', marginBottom: 10,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14,
+            boxShadow: '0 4px 20px rgba(95,186,71,.07)',
+          }}
+        >
+          <div style={{
+            width: 54, height: 54, borderRadius: 16, flexShrink: 0,
+            background: 'linear-gradient(135deg, #5FBA47, #3a8a28)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
+          }}>👥</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 800, fontSize: 16 }}>{svc.title}</div>
+            <div style={{ fontSize: 12, color: '#4cff8f', marginTop: 3 }}>
+              ✅ {lang === 'ru' ? 'Гарантия 365 дней' : 'Гарантія 365 днів'}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+              {lang === 'ru' ? 'Только каналы · Старт 0–10 мин' : 'Лише канали · Старт 0–10 хв'}
+            </div>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--orange)', lineHeight: 1 }}>⭐{svc.price_per_100_stars}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>/100 шт</div>
+            <div style={{ color: '#5FBA47', fontSize: 18, fontWeight: 300, marginTop: 4 }}>›</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 
   // ─── SMM замовлення ────────────────────────────────────────────────────────
   if (view === 'smm') {
