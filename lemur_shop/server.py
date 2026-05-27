@@ -1403,6 +1403,61 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
             u.balance_stars = u.balance_stars - price_stars
 
     log.info("SMM order #%s: user=%s service=%s qty=%d stars=%d", order_id, user.id, body.service_key, body.quantity, price_stars)
+
+    # ── Admin notification ──────────────────────────────────────────────────
+    if _bot and settings.ADMIN_IDS:
+        uname = f"@{user.username}" if user.username else f"ID:{user.id}"
+        svc_flag = "👁️" if body.service_key == "tg_views" else "👥"
+        svc_name = svc.get("title", body.service_key)
+        stars_usd = price_stars * 0.013
+        txt = (
+            f"📊 <b>SMM замовлення!</b>\n\n"
+            f"👤 {uname} (<code>{user.id}</code>)\n"
+            f"{svc_flag} {svc_name}\n"
+            f"🔢 Кількість: <b>{body.quantity}</b>\n"
+            f"🔗 Посилання: <code>{body.link}</code>\n"
+            f"💫 Списано: <b>⭐{price_stars}</b> (~${stars_usd:.2f})\n"
+            f"🆔 smmway order: <code>{order_id}</code>"
+        )
+        for admin_id in settings.ADMIN_IDS:
+            try:
+                await _bot.send_message(admin_id, txt, parse_mode="HTML")
+            except Exception:
+                pass
+
+    # ── User notification ───────────────────────────────────────────────────
+    if _bot:
+        lang = getattr(user, "lang", "ru")
+        svc_flag = "👁️" if body.service_key == "tg_views" else "👥"
+        if lang == "ua":
+            user_txt = (
+                f"{svc_flag} <b>Замовлення прийнято!</b>\n\n"
+                f"🔢 Кількість: <b>{body.quantity}</b>\n"
+                f"💫 Списано: <b>⭐{price_stars}</b>\n"
+                f"🆔 Замовлення: <code>#{order_id}</code>\n\n"
+                f"⏳ Виконання розпочнеться найближчим часом."
+            )
+        elif lang == "en":
+            user_txt = (
+                f"{svc_flag} <b>Order accepted!</b>\n\n"
+                f"🔢 Quantity: <b>{body.quantity}</b>\n"
+                f"💫 Charged: <b>⭐{price_stars}</b>\n"
+                f"🆔 Order: <code>#{order_id}</code>\n\n"
+                f"⏳ Fulfillment will start shortly."
+            )
+        else:
+            user_txt = (
+                f"{svc_flag} <b>Заказ принят!</b>\n\n"
+                f"🔢 Количество: <b>{body.quantity}</b>\n"
+                f"💫 Списано: <b>⭐{price_stars}</b>\n"
+                f"🆔 Заказ: <code>#{order_id}</code>\n\n"
+                f"⏳ Выполнение начнётся в ближайшее время."
+            )
+        try:
+            await _bot.send_message(user.id, user_txt, parse_mode="HTML")
+        except Exception:
+            pass
+
     return {"order_id": order_id, "stars_spent": price_stars}
 
 
