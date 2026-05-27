@@ -1365,7 +1365,7 @@ async def api_smm_services(user: User = Depends(get_current_user)):
     from lemur_shop.services.smm import SMM_SERVICES
     if settings.PREVIEW_MODE and user.id not in settings.ADMIN_IDS:
         raise HTTPException(status_code=403, detail="preview_mode")
-    return list(SMM_SERVICES.values())
+    return [{"key": k, **v} for k, v in SMM_SERVICES.items()]
 
 
 class SmmOrderRequest(BaseModel):

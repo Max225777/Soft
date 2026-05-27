@@ -88,6 +88,12 @@ const UA = {
   smm_info_drop:   'Списання: 0–2%. При масовому бані від Telegram — шанс нульовий.',
   smm_info_warranty:'Гарантія 365 днів — відновимо, якщо спишуться.',
   boost_order_btn:  'Замовити накрутку',
+  smm_views_title:  'Накрутка переглядів',
+  smm_views_word:   'переглядів',
+  smm_per_1000:     'за 1000 шт',
+  smm_link_post_label: 'Посилання на пост',
+  smm_views_warning: '⚠️ Перегляди в Telegram оновлюються повільно — до кількох годин. Можливі затримки через обмеження Telegram. Це нормально.',
+  smm_link_post_ph: 'https://t.me/channel/123',
 }
 
 const RU: typeof UA = {
@@ -180,6 +186,12 @@ const RU: typeof UA = {
   smm_info_drop:   'Списания: 0–2%. При массовом бане от Telegram — шанс нулевой.',
   smm_info_warranty:'Гарантия: 365 дней — восстановим, если спишутся.',
   boost_order_btn:  'Заказать накрутку',
+  smm_views_title:  'Накрутка просмотров',
+  smm_views_word:   'просмотров',
+  smm_per_1000:     'за 1000 шт',
+  smm_link_post_label: 'Ссылка на пост',
+  smm_views_warning: '⚠️ Просмотры в Telegram обновляются медленно — до нескольких часов. Возможны задержки из-за ограничений Telegram. Это нормально.',
+  smm_link_post_ph: 'https://t.me/channel/123',
 }
 
 const EN: typeof UA = {
@@ -272,6 +284,12 @@ const EN: typeof UA = {
   smm_info_drop:   'Drop rate: 0–2%. Mass Telegram ban chance is near zero.',
   smm_info_warranty:'Guarantee: 365 days — we\'ll refill if any drop.',
   boost_order_btn:  'Order boost',
+  smm_views_title:  'View Boost',
+  smm_views_word:   'views',
+  smm_per_1000:     'per 1000',
+  smm_link_post_label: 'Post link',
+  smm_views_warning: '⚠️ Telegram view counters update slowly — up to a few hours. Delays are possible due to Telegram\'s own limitations. This is normal.',
+  smm_link_post_ph: 'https://t.me/channel/123',
 }
 
 export type Lang = 'ua' | 'ru' | 'en'

@@ -15,12 +15,24 @@ SMM_SERVICES: dict[str, dict] = {
     "tg_subscribers": {
         "service_id": 6322,
         "title":      "Підписники Telegram",
-        "flag":       "📱",
+        "flag":       "👥",
         "description": "Реальні підписники, гарантія 365 днів",
         "price_per_100_stars": 10,
         "min": 10,
         "max": 10000,
         "step": 1,
+        "unit_size": 100,
+    },
+    "tg_views": {
+        "service_id": 6252,
+        "title":      "Перегляди Telegram",
+        "flag":       "👁️",
+        "description": "Перегляди постів Telegram",
+        "price_per_100_stars": 1,
+        "min": 100,
+        "max": 100000,
+        "step": 100,
+        "unit_size": 1000,
     },
 }
 
