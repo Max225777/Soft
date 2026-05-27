@@ -384,7 +384,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
       ) : smmServices.filter(svc => svc.key !== 'tg_reactions_neg').map(svc => {
         const isViews = svc.key === 'tg_views'
         const isReactCard = svc.key === 'tg_reactions_pos'
-        const badgeQty = isViews ? 1000 : 100
+        const badgeQty = isViews ? 1000 : isReactCard ? 300 : 100
         const badgeStars = 10
         const badgeWord = isViews ? T.smm_views_word : isReactCard ? T.smm_reactions_word : T.smm_subs_word
         const cardTitle = isViews ? T.smm_views_title : isReactCard ? T.smm_reactions_title : T.smm_subs_title
@@ -460,14 +460,14 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
 
   // ─── Накрутка реакцій ──────────────────────────────────────────────────────
   if (view === 'smm_reactions') {
-    const REACTION_BTNS: { key: string; emoji: string; label: string }[] = [
-      { key: 'tg_reactions_pos', emoji: '👍❤️🔥🎉', label: lang === 'ru' ? 'Пак +' : lang === 'ua' ? 'Пак +' : 'Pack +' },
-      { key: 'tg_reactions_neg', emoji: '👎💩😱😢', label: lang === 'ru' ? 'Пак −' : lang === 'ua' ? 'Пак −' : 'Pack −' },
-      { key: 'tg_react_heart',   emoji: '❤️',       label: '❤️' },
-      { key: 'tg_react_like',    emoji: '👍',        label: '👍' },
-      { key: 'tg_react_dislike', emoji: '👎',        label: '👎' },
-      { key: 'tg_react_poop',    emoji: '💩',        label: '💩' },
-      { key: 'tg_react_clown',   emoji: '🤡',        label: '🤡' },
+    const REACTION_BTNS: { key: string; emoji: string }[] = [
+      { key: 'tg_reactions_pos', emoji: '👍❤️🔥🎉' },
+      { key: 'tg_reactions_neg', emoji: '👎💩😱😢' },
+      { key: 'tg_react_heart',   emoji: '❤️' },
+      { key: 'tg_react_like',    emoji: '👍' },
+      { key: 'tg_react_dislike', emoji: '👎' },
+      { key: 'tg_react_poop',    emoji: '💩' },
+      { key: 'tg_react_clown',   emoji: '🤡' },
     ]
     const svc = smmServices.find(s => s.key === selectedSmmKey) ?? smmServices.find(s => s.key === 'tg_reactions_pos')
     const effectiveQty = Math.max(svc?.min ?? 15, smmQty)
@@ -517,8 +517,6 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
       </div>
     )
 
-    const selBtn = REACTION_BTNS.find(b => b.key === selectedSmmKey)
-
     return (
       <div className="page">
         {/* Header */}
@@ -545,15 +543,14 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
               return (
                 <button key={btn.key} onClick={() => { setSelectedSmmKey(btn.key); setSmmQty(15); setSmmCustom('') }}
                   style={{
-                    flex: 1, padding: '12px 8px', borderRadius: 14, cursor: 'pointer',
+                    flex: 1, padding: '14px 8px', borderRadius: 14, cursor: 'pointer',
                     border: active ? '2px solid rgba(244,169,0,.7)' : '2px solid var(--border)',
                     background: active ? 'linear-gradient(135deg, rgba(244,169,0,.15), rgba(200,120,0,.08))' : 'var(--card2)',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                     transition: 'all .15s',
                     boxShadow: active ? '0 0 16px rgba(244,169,0,.2)' : 'none',
                   }}>
-                  <span style={{ fontSize: 18 }}>{btn.emoji}</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: active ? '#F0A800' : 'var(--muted)' }}>{btn.label}</span>
+                  <span style={{ fontSize: 20 }}>{btn.emoji}</span>
                 </button>
               )
             })}
@@ -582,15 +579,6 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
         {/* Form card */}
         <div style={{ background: 'var(--card)', border: '1px solid rgba(244,169,0,.22)', borderRadius: 20, padding: '18px 16px', boxShadow: '0 0 28px rgba(244,169,0,.06)' }}>
 
-          {/* Selected label */}
-          {selBtn && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16,
-              background: 'rgba(244,169,0,.08)', borderRadius: 12, padding: '8px 12px' }}>
-              <span style={{ fontSize: 22 }}>{selBtn.emoji}</span>
-              <span style={{ fontWeight: 700, fontSize: 14, color: '#F0A800' }}>{selBtn.label}</span>
-            </div>
-          )}
-
           {/* Post link input */}
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 8 }}>
@@ -618,7 +606,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           {/* Quantity */}
           <div style={{ marginBottom: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8 }}>{T.smm_qty_label.toUpperCase()}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8 }}>{T.smm_qty_reactions_label.toUpperCase()}</div>
               <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--text)' }}>
                 {effectiveQty} <span style={{ fontWeight: 400, fontSize: 11, color: 'var(--muted)' }}>{T.smm_reactions_word}</span>
               </div>
@@ -662,7 +650,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 3 }}>{T.smm_total_label}</div>
               <div style={{ fontSize: 12, color: 'var(--text2)' }}>
                 {effectiveQty} {T.smm_reactions_word}
-                <span style={{ color: 'var(--muted)' }}> × ⭐{svc?.price_per_100_stars ?? 10}/100</span>
+                <span style={{ color: 'var(--muted)' }}> × ⭐10/300</span>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
@@ -852,7 +840,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           <div style={{ marginBottom: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8 }}>
-                {T.smm_qty_label.toUpperCase()}
+                {(isViews ? T.smm_qty_views_label : T.smm_qty_label).toUpperCase()}
               </div>
               <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--text)' }}>
                 {effectiveQty} <span style={{ fontWeight: 400, fontSize: 11, color: 'var(--muted)' }}>{isViews ? T.smm_views_word : isReactions ? T.smm_reactions_word : T.smm_subs_word}</span>
