@@ -1383,10 +1383,10 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
     svc = SMM_SERVICES.get(body.service_key)
     if not svc:
         raise HTTPException(400, "Unknown service")
-    if body.quantity < svc["min"] or body.quantity > svc["max"] or body.quantity % svc["step"] != 0:
-        raise HTTPException(400, f"Quantity must be {svc['min']}–{svc['max']}, step {svc['step']}")
+    if body.quantity < svc["min"] or body.quantity > svc["max"]:
+        raise HTTPException(400, f"Quantity must be {svc['min']}–{svc['max']}")
 
-    price_stars = round(body.quantity / 100 * svc["price_per_100_stars"])
+    price_stars = max(1, round(body.quantity / 100 * svc["price_per_100_stars"]))
     if user.balance_stars < price_stars:
         raise HTTPException(402, "insufficient_balance")
 

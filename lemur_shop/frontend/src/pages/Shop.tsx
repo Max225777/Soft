@@ -107,6 +107,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   const [smmServices, setSmmServices] = useState<SmmService[]>([])
   const [smmLink, setSmmLink] = useState('')
   const [smmQty, setSmmQty] = useState(100)
+  const [smmCustom, setSmmCustom] = useState('')
   const [smmLoading, setSmmLoading] = useState(false)
   const [smmError, setSmmError] = useState<string | null>(null)
   const [smmDone, setSmmDone] = useState<{ order_id: number; stars_spent: number } | null>(null)
@@ -447,27 +448,28 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
               {lang === 'ru' ? 'Количество подписчиков' : 'Кількість підписників'}
             </label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-              {[100, 200, 500, 1000, 5000].map(q => (
-                <button key={q} onClick={() => setSmmQty(q)} style={{
+              {[10, 50, 100, 500, 1000].map(q => (
+                <button key={q} onClick={() => { setSmmQty(q); setSmmCustom('') }} style={{
                   padding: '7px 14px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                  background: smmQty === q ? 'var(--orange)' : 'var(--card2)',
-                  color: smmQty === q ? '#fff' : 'var(--text)',
-                  border: '1px solid ' + (smmQty === q ? 'var(--orange)' : 'var(--border)'),
+                  background: smmQty === q && !smmCustom ? 'var(--orange)' : 'var(--card2)',
+                  color: smmQty === q && !smmCustom ? '#fff' : 'var(--text)',
+                  border: '1px solid ' + (smmQty === q && !smmCustom ? 'var(--orange)' : 'var(--border)'),
                 }}>{q}</button>
               ))}
             </div>
             <input
-              type="number" min={100} max={10000} step={100}
-              value={smmQty}
+              type="number" min={1} max={10000}
+              value={smmCustom}
               onChange={e => {
-                const v = Math.max(100, Math.min(10000, Math.round(Number(e.target.value) / 100) * 100))
-                setSmmQty(v || 100)
+                setSmmCustom(e.target.value)
+                const v = Math.max(1, Math.min(10000, parseInt(e.target.value) || 1))
+                setSmmQty(v)
               }}
               style={{ width: '100%', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 12, padding: '11px 14px', color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}
-              placeholder={lang === 'ru' ? 'Или введите своё число (100–10000)' : 'Або введіть своє число (100–10000)'}
+              placeholder={lang === 'ru' ? 'Или введите своё число (1–10000)' : 'Або введіть своє число (1–10000)'}
             />
             <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>
-              {lang === 'ru' ? 'Мин. 100 · Макс. 10 000 · Кратно 100' : 'Мін. 100 · Макс. 10 000 · Кратно 100'}
+              {lang === 'ru' ? 'Мин. 1 · Макс. 10 000' : 'Мін. 1 · Макс. 10 000'}
             </div>
           </div>
           <div style={{
