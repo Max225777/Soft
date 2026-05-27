@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { api, type Category, type BuyResult, type Me } from '../api'
+import { api, smmApi, type Category, type BuyResult, type Me, type SmmService } from '../api'
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
 
 interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void; onBuy?: () => void }
 
-type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars'
+type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars' | 'smm'
 
 function localPrice(stars: number, usd: number): JSX.Element {
   return (
@@ -104,9 +104,16 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   const [gettingCode, setGettingCode] = useState(false)
   const [copied, setCopied]   = useState<'phone' | 'code' | ''>('')
   const [confirmCat, setConfirmCat] = useState<Category | null>(null)
+  const [smmServices, setSmmServices] = useState<SmmService[]>([])
+  const [smmLink, setSmmLink] = useState('')
+  const [smmQty, setSmmQty] = useState(100)
+  const [smmLoading, setSmmLoading] = useState(false)
+  const [smmError, setSmmError] = useState<string | null>(null)
+  const [smmDone, setSmmDone] = useState<{ order_id: number; stars_spent: number } | null>(null)
 
   useEffect(() => {
     api.categories().catch(() => []).then(setCats)
+    smmApi.services().then(setSmmServices).catch(() => {})
   }, [])
 
   async function buy(cat: Category) {
@@ -325,9 +332,118 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
             )
           })
         )}
+
+        {/* SMM секція */}
+        {smmServices.length > 0 && (
+          <>
+            <div style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: 1, margin: '18px 0 8px 4px' }}>
+              {lang === 'ru' ? 'НАКРУТКА' : lang === 'ua' ? 'НАКРУТКА' : 'BOOST'}
+            </div>
+            {smmServices.map(svc => (
+              <div key={svc.service_id} className="card" style={{ padding: '20px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+                  <div style={{ fontSize: 44, flexShrink: 0, lineHeight: 1 }}>👥</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 800, fontSize: 17 }}>{svc.title}</div>
+                    <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                      {lang === 'ru' ? 'Только для групп/каналов' : lang === 'ua' ? 'Тільки для груп/каналів' : 'Groups & channels only'}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#4cff8f', marginTop: 3 }}>✅ {svc.description}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="price-pill" style={{ flex: 1, justifyContent: 'center', fontSize: 15, padding: '9px 12px' }}>
+                    <span style={{ fontWeight: 800 }}>⭐{svc.price_per_100_stars}</span>
+                    <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: 12, marginLeft: 6 }}>/100 шт</span>
+                  </div>
+                  <button
+                    className="btn btn-primary"
+                    style={{ width: 'auto', padding: '10px 22px', fontSize: 15 }}
+                    onClick={() => { setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(100); setView('smm') }}
+                  >{T.buy}</button>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
       </div>
     </>
   )
+
+  // ─── SMM замовлення ────────────────────────────────────────────────────────
+  if (view === 'smm') {
+    const svc = smmServices[0]
+    const priceStars = svc ? Math.round(smmQty / 100 * svc.price_per_100_stars) : 0
+    const canOrder = smmLink.trim().length > 0 && (me?.balance_stars ?? 0) >= priceStars && !smmLoading
+
+    async function orderSmm() {
+      if (!svc || !canOrder) return
+      setSmmLoading(true); setSmmError(null)
+      try {
+        const res = await smmApi.order('tg_subscribers', smmLink.trim(), smmQty)
+        setSmmDone(res)
+        onBuy?.()
+      } catch (e: any) {
+        setSmmError(e.message === 'insufficient_balance'
+          ? (lang === 'ru' ? 'Недостаточно звёзд' : 'Недостатньо зірок')
+          : (e.message ?? 'Ошибка'))
+      } finally { setSmmLoading(false) }
+    }
+
+    if (smmDone) return (
+      <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16 }}>
+        <div style={{ fontSize: 64 }}>✅</div>
+        <div style={{ fontWeight: 800, fontSize: 20 }}>{lang === 'ru' ? 'Заказ принят!' : 'Замовлення прийнято!'}</div>
+        <div style={{ color: 'var(--muted)', fontSize: 14 }}>#{smmDone.order_id} · ⭐{smmDone.stars_spent}</div>
+        <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => { setSmmDone(null); setView('list') }}>
+          {lang === 'ru' ? 'Назад' : 'Назад'}
+        </button>
+      </div>
+    )
+
+    return (
+      <div className="page">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+          <button onClick={() => setView('list')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--orange)', fontSize: 26, lineHeight: 1 }}>‹</button>
+          <h1 style={{ margin: 0 }}>👥 {svc?.title}</h1>
+        </div>
+        <div className="card">
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 6 }}>
+              {lang === 'ru' ? 'Ссылка на группу/канал' : 'Посилання на групу/канал'}
+            </label>
+            <input type="text" placeholder="https://t.me/..." value={smmLink}
+              onChange={e => setSmmLink(e.target.value)}
+              style={{ width: '100%', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 12, padding: '11px 14px', color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}
+            />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 8 }}>
+              {lang === 'ru' ? 'Количество' : 'Кількість'}: <b style={{ color: 'var(--text)' }}>{smmQty}</b>
+            </label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[100, 200, 500, 1000, 5000].map(q => (
+                <button key={q} onClick={() => setSmmQty(q)} style={{
+                  padding: '7px 14px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                  background: smmQty === q ? 'var(--orange)' : 'var(--card2)',
+                  color: smmQty === q ? '#fff' : 'var(--text)',
+                  border: '1px solid ' + (smmQty === q ? 'var(--orange)' : 'var(--border)'),
+                }}>{q}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <span style={{ color: 'var(--muted)', fontSize: 14 }}>{lang === 'ru' ? 'Стоимость' : 'Вартість'}:</span>
+            <span style={{ fontWeight: 800, fontSize: 22, color: 'var(--orange)' }}>⭐{priceStars}</span>
+          </div>
+          {smmError && <div style={{ color: '#ff4444', fontSize: 13, marginBottom: 10 }}>❌ {smmError}</div>}
+          <button className="btn btn-primary" style={{ width: '100%' }} disabled={!canOrder} onClick={orderSmm}>
+            {smmLoading ? '⏳...' : `${lang === 'ru' ? 'Заказать' : 'Замовити'} — ⭐${priceStars}`}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   // ─── Купую ─────────────────────────────────────────────────────────────────
   if (view === 'buying') return (
