@@ -381,7 +381,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
 
       {smmServices.length === 0 ? (
         <div style={{ borderRadius: 20, height: 120 }} className="skeleton" />
-      ) : smmServices.filter(svc => svc.key !== 'tg_reactions_neg').map(svc => {
+      ) : smmServices.filter(svc => ['tg_subscribers', 'tg_views', 'tg_reactions_pos'].includes(svc.key)).map(svc => {
         const isViews = svc.key === 'tg_views'
         const isReactCard = svc.key === 'tg_reactions_pos'
         const badgeQty = isViews ? 1000 : isReactCard ? 300 : 100
