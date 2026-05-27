@@ -87,6 +87,7 @@ const UA = {
   smm_info_start:  'Старт: 0–10 хвилин',
   smm_info_drop:   'Списання: 0–2%. При масовому бані від Telegram — шанс нульовий.',
   smm_info_warranty:'Гарантія 365 днів — відновимо, якщо спишуться.',
+  boost_order_btn:  'Замовити накрутку',
 }
 
 const RU: typeof UA = {
@@ -178,6 +179,7 @@ const RU: typeof UA = {
   smm_info_start:  'Старт: 0–10 минут',
   smm_info_drop:   'Списания: 0–2%. При массовом бане от Telegram — шанс нулевой.',
   smm_info_warranty:'Гарантия: 365 дней — восстановим, если спишутся.',
+  boost_order_btn:  'Заказать накрутку',
 }
 
 const EN: typeof UA = {
@@ -269,6 +271,7 @@ const EN: typeof UA = {
   smm_info_start:  'Start: 0–10 minutes',
   smm_info_drop:   'Drop rate: 0–2%. Mass Telegram ban chance is near zero.',
   smm_info_warranty:'Guarantee: 365 days — we\'ll refill if any drop.',
+  boost_order_btn:  'Order boost',
 }
 
 export type Lang = 'ua' | 'ru' | 'en'
