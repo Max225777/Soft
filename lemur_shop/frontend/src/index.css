@@ -245,3 +245,71 @@ code {
 
 /* ── Divider ────────────────────────────── */
 .divider { height: 1px; background: var(--border); margin: 14px 0; }
+
+/* ── Green button ───────────────────────── */
+.btn-green {
+  background: linear-gradient(135deg, #5FBA47 0%, #2d7a1c 100%);
+  color: #fff;
+  box-shadow: 0 4px 22px rgba(76,186,71,.38);
+}
+.btn-green::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg,
+    transparent 30%,
+    rgba(255,255,255,.2) 50%,
+    transparent 70%);
+  transform: translateX(-100%);
+  animation: shine 2.8s ease-in-out infinite;
+}
+.btn-green:disabled { background: var(--card2); box-shadow: none; color: var(--muted); }
+
+/* ── SMM card shimmer ───────────────────── */
+@keyframes card-float {
+  0%,100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+.smm-card {
+  background: linear-gradient(135deg, #0e1d0e 0%, #152a15 40%, #0a1a0a 70%, #112211 100%);
+  background-size: 300% 300%;
+  animation: card-float 5s ease infinite;
+  border: 1px solid rgba(95,186,71,.22);
+  box-shadow: 0 4px 24px rgba(95,186,71,.08), inset 0 1px 0 rgba(255,255,255,.04);
+}
+.smm-card:active { transform: scale(.985); }
+
+/* ── Gradient text ──────────────────────── */
+.text-green-grad {
+  background: linear-gradient(135deg, #7FD465, #4CAF72);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.text-orange-grad {
+  background: linear-gradient(135deg, #FF9050, #FF6B2B);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Qty pill ───────────────────────────── */
+.qty-pill {
+  flex: 1; min-width: 44px;
+  padding: 10px 4px;
+  border-radius: 12px;
+  font-size: 14px; font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, box-shadow .15s, transform .1s;
+  border: 1.5px solid var(--border);
+  background: var(--card2);
+  color: var(--text2);
+  text-align: center;
+}
+.qty-pill:active { transform: scale(.93); }
+.qty-pill.active {
+  background: linear-gradient(135deg, #5FBA47, #2d7a1c);
+  border-color: #5FBA47;
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(95,186,71,.4);
+}

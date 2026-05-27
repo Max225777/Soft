@@ -345,50 +345,51 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   // ─── SMM список послуг ────────────────────────────────────────────────────
   if (view === 'smm_list') return (
     <div className="page">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-        <button onClick={() => setView('menu')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--orange)', fontSize: 26, lineHeight: 1 }}>‹</button>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        <button onClick={() => setView('menu')} style={{
+          width: 36, height: 36, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'var(--card2)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: 20, color: 'var(--text2)', flexShrink: 0,
+        }}>‹</button>
         <div>
-          <div style={{ fontWeight: 800, fontSize: 19 }}>{T.tg_boost}</div>
-          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>
-            {lang === 'ru' ? 'Продвижение Telegram' : 'Просування Telegram'}
-          </div>
+          <div style={{ fontWeight: 800, fontSize: 20 }}>{T.tg_boost}</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>{T.smm_promo}</div>
         </div>
       </div>
 
       {smmServices.length === 0 ? (
-        <>
-          <div style={{ height: 90, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 18 }} className="skeleton" />
-        </>
+        <div style={{ borderRadius: 20, height: 100 }} className="skeleton" />
       ) : smmServices.map(svc => (
         <div
           key={svc.service_id}
+          className="smm-card"
           onClick={() => { setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(10); setSmmCustom(''); setView('smm') }}
-          style={{
-            background: 'linear-gradient(135deg, #0e1a0e 0%, #0d160d 100%)',
-            border: '1px solid rgba(95,186,71,.25)',
-            borderRadius: 18, padding: '18px 16px', marginBottom: 10,
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14,
-            boxShadow: '0 4px 20px rgba(95,186,71,.07)',
-          }}
+          style={{ borderRadius: 20, padding: '18px 16px', marginBottom: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 16 }}
         >
+          {/* Icon */}
           <div style={{
-            width: 54, height: 54, borderRadius: 16, flexShrink: 0,
-            background: 'linear-gradient(135deg, #5FBA47, #3a8a28)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
+            width: 58, height: 58, borderRadius: 18, flexShrink: 0,
+            background: 'linear-gradient(135deg, #5FBA47 0%, #2d7a1c 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28,
+            boxShadow: '0 4px 16px rgba(95,186,71,.35)',
           }}>👥</div>
+
+          {/* Info */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 800, fontSize: 16 }}>{svc.title}</div>
-            <div style={{ fontSize: 12, color: '#4cff8f', marginTop: 3 }}>
-              ✅ {lang === 'ru' ? 'Гарантия 365 дней' : 'Гарантія 365 днів'}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-              {lang === 'ru' ? 'Только каналы · Старт 0–10 мин' : 'Лише канали · Старт 0–10 хв'}
-            </div>
+            <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>{svc.title}</div>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              background: 'rgba(95,186,71,.15)', border: '1px solid rgba(95,186,71,.3)',
+              borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 700, color: '#7FD465',
+            }}>✅ {T.smm_guarantee}</span>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>{T.smm_channels_only}</div>
           </div>
+
+          {/* Price + arrow */}
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--orange)', lineHeight: 1 }}>⭐{svc.price_per_100_stars}</div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>/100 шт</div>
-            <div style={{ color: '#5FBA47', fontSize: 18, fontWeight: 300, marginTop: 4 }}>›</div>
+            <div className="text-green-grad" style={{ fontWeight: 900, fontSize: 22, lineHeight: 1 }}>⭐{svc.price_per_100_stars}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{T.smm_per_100}</div>
+            <div style={{ fontSize: 20, color: '#5FBA47', marginTop: 6, fontWeight: 300 }}>›</div>
           </div>
         </div>
       ))}
@@ -418,36 +419,31 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
     }
 
     if (smmDone) return (
-      <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', gap: 0 }}>
-        <div style={{
-          background: 'linear-gradient(135deg, #0e1a0e 0%, #0a140a 100%)',
-          border: '1px solid rgba(95,186,71,.3)',
-          borderRadius: 24, padding: '36px 28px', textAlign: 'center', width: '100%', maxWidth: 340,
-        }}>
-          <div style={{ fontSize: 56, marginBottom: 14 }}>✅</div>
-          <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 8 }}>
-            {lang === 'ru' ? 'Заказ принят!' : 'Замовлення прийнято!'}
+      <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '72vh' }}>
+        <div className="smm-card" style={{ borderRadius: 24, padding: '40px 28px', textAlign: 'center', width: '100%' }}>
+          <div style={{ fontSize: 60, marginBottom: 16, filter: 'drop-shadow(0 0 20px rgba(95,186,71,.5))' }}>✅</div>
+          <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 6 }}>{T.smm_accepted}</div>
+          <div style={{
+            display: 'inline-flex', gap: 10, alignItems: 'center',
+            background: 'rgba(95,186,71,.12)', borderRadius: 20, padding: '5px 14px',
+            fontSize: 13, color: '#7FD465', marginBottom: 18,
+          }}>
+            <span>#{smmDone.order_id}</span><span>·</span><span>⭐{smmDone.stars_spent}</span>
           </div>
-          <div style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 20 }}>
-            #{smmDone.order_id} · ⭐{smmDone.stars_spent}
-          </div>
-          <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.55, marginBottom: 24 }}>
-            {lang === 'ru'
-              ? '🚀 Подписчики начнут поступать в течение 0–10 минут'
-              : '🚀 Підписники почнуть надходити протягом 0–10 хвилин'}
-          </div>
-          <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => { setSmmDone(null); setSmmQty(10); setSmmCustom(''); setSmmLink('') }}>
-            {lang === 'ru' ? '+ Ещё заказ' : '+ Ще замовлення'}
+          <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 24 }}>{T.smm_start_soon}</div>
+          <button className="btn btn-secondary" style={{ width: '100%' }}
+            onClick={() => { setSmmDone(null); setSmmQty(10); setSmmCustom(''); setSmmLink('') }}>
+            {T.smm_new_order}
           </button>
         </div>
       </div>
     )
 
     const infoItems = [
-      { icon: '🔗', text: lang === 'ru' ? 'Работает только с каналами (https://t.me/...)' : 'Працює лише з каналами (https://t.me/...)' },
-      { icon: '🚀', text: lang === 'ru' ? 'Старт: 0–10 минут' : 'Старт: 0–10 хвилин' },
-      { icon: '⛔️', text: lang === 'ru' ? 'Списания: 0–2%. При массовом бане от Telegram — шанс нулевой.' : 'Списання: 0–2%. При масовому бані від Telegram — шанс нульовий.' },
-      { icon: '♻️', text: lang === 'ru' ? 'Гарантия 365 дней — восстановим, если спишутся.' : 'Гарантія 365 днів — відновимо, якщо спишуться.' },
+      { icon: '🔗', text: T.smm_info_link },
+      { icon: '🚀', text: T.smm_info_start },
+      { icon: '⛔️', text: T.smm_info_drop },
+      { icon: '♻️', text: T.smm_info_warranty },
     ]
 
     const PRESETS = [10, 50, 100, 500, 1000]
@@ -455,101 +451,100 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
     return (
       <div className="page">
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-          <button onClick={() => setView('menu')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--orange)', fontSize: 26, lineHeight: 1 }}>‹</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+          <button onClick={() => setView('smm_list')} style={{
+            width: 36, height: 36, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--card2)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: 20, color: 'var(--text2)', flexShrink: 0,
+          }}>‹</button>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 19 }}>👥 {lang === 'ru' ? 'Накрутка подписчиков' : 'Накрутка підписників'}</div>
+            <div style={{ fontWeight: 800, fontSize: 19 }}>👥 {T.smm_subs_title}</div>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>Telegram</div>
           </div>
         </div>
 
-        {/* Service hero card */}
+        {/* Hero service card */}
         {svc && (
-          <div style={{
-            background: 'linear-gradient(135deg, #0e1a0e 0%, #0d180d 100%)',
-            border: '1px solid rgba(95,186,71,.3)',
-            borderRadius: 18, padding: '16px 18px', marginBottom: 14,
-            display: 'flex', alignItems: 'center', gap: 16,
-          }}>
+          <div className="smm-card" style={{ borderRadius: 20, padding: '16px 18px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{
-              width: 52, height: 52, borderRadius: 16, flexShrink: 0,
-              background: 'linear-gradient(135deg, #5FBA47, #3a8a28)',
+              width: 54, height: 54, borderRadius: 16, flexShrink: 0,
+              background: 'linear-gradient(135deg, #5FBA47 0%, #2d7a1c 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
+              boxShadow: '0 4px 14px rgba(95,186,71,.35)',
             }}>👥</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 800, fontSize: 16 }}>{svc.title}</div>
-              <div style={{ fontSize: 12, color: '#4cff8f', marginTop: 3 }}>✅ {lang === 'ru' ? 'Гарантия 365 дней' : 'Гарантія 365 днів'}</div>
+              <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 5 }}>{svc.title}</div>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                background: 'rgba(95,186,71,.15)', border: '1px solid rgba(95,186,71,.3)',
+                borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 700, color: '#7FD465',
+              }}>✅ {T.smm_guarantee}</span>
             </div>
             <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--orange)', lineHeight: 1 }}>⭐{svc.price_per_100_stars}</div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{lang === 'ru' ? 'за 100 шт' : 'за 100 шт'}</div>
+              <div className="text-green-grad" style={{ fontWeight: 900, fontSize: 20, lineHeight: 1 }}>⭐{svc.price_per_100_stars}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{T.smm_per_100}</div>
             </div>
           </div>
         )}
 
-        {/* Info */}
+        {/* Info block */}
         <div style={{
-          background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)',
-          borderRadius: 14, padding: '12px 14px', marginBottom: 16,
+          background: 'rgba(255,255,255,.025)', border: '1px solid rgba(255,255,255,.07)',
+          borderRadius: 16, padding: '14px 16px', marginBottom: 16,
         }}>
           {infoItems.map((item, i) => (
-            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: i < infoItems.length - 1 ? 9 : 0 }}>
-              <span style={{ fontSize: 15, flexShrink: 0, lineHeight: 1.4 }}>{item.icon}</span>
-              <span style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.45 }}>{item.text}</span>
+            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: i < infoItems.length - 1 ? 10 : 0 }}>
+              <span style={{ fontSize: 15, flexShrink: 0, lineHeight: 1.45 }}>{item.icon}</span>
+              <span style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.5 }}>{item.text}</span>
             </div>
           ))}
         </div>
 
-        {/* Form */}
-        <div style={{
-          background: 'var(--card)', border: '1px solid var(--border)',
-          borderRadius: 18, padding: '18px 16px',
-        }}>
-          {/* Link */}
-          <div style={{ marginBottom: 18 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', marginBottom: 8, letterSpacing: .4 }}>
-              {lang === 'ru' ? 'ССЫЛКА НА КАНАЛ' : 'ПОСИЛАННЯ НА КАНАЛ'}
+        {/* Form card */}
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 20, padding: '18px 16px' }}>
+
+          {/* Link input */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 8 }}>
+              {T.smm_link_label.toUpperCase()}
             </div>
             <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 16, pointerEvents: 'none' }}>🔗</span>
+              <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', fontSize: 16, pointerEvents: 'none', lineHeight: 1 }}>🔗</span>
               <input
                 type="text"
                 placeholder="https://t.me/yourchannel"
                 value={smmLink}
                 onChange={e => setSmmLink(e.target.value)}
                 style={{
-                  width: '100%', background: 'var(--card2)', border: '1px solid var(--border)',
-                  borderRadius: 12, padding: '12px 14px 12px 38px',
-                  color: 'var(--text)', fontSize: 14, boxSizing: 'border-box',
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'var(--card2)',
+                  border: '1.5px solid ' + (smmLink ? 'rgba(95,186,71,.45)' : 'var(--border)'),
+                  borderRadius: 14, padding: '13px 14px 13px 40px',
+                  color: 'var(--text)', fontSize: 14,
+                  transition: 'border-color .2s',
+                  outline: 'none',
                 }}
               />
             </div>
           </div>
 
           {/* Quantity */}
-          <div style={{ marginBottom: 18 }}>
+          <div style={{ marginBottom: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', letterSpacing: .4 }}>
-                {lang === 'ru' ? 'КОЛИЧЕСТВО' : 'КІЛЬКІСТЬ'}
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8 }}>
+                {T.smm_qty_label.toUpperCase()}
               </div>
-              <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>
-                {effectiveQty} <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--muted)' }}>{lang === 'ru' ? 'подп.' : 'підп.'}</span>
+              <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--text)' }}>
+                {effectiveQty} <span style={{ fontWeight: 400, fontSize: 11, color: 'var(--muted)' }}>{T.smm_subs_word}</span>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 10 }}>
-              {PRESETS.map(q => {
-                const active = effectiveQty === q && !smmCustom
-                return (
-                  <button key={q} onClick={() => { setSmmQty(q); setSmmCustom('') }} style={{
-                    flex: 1, minWidth: 46, padding: '9px 4px', borderRadius: 10, fontSize: 13,
-                    fontWeight: 700, cursor: 'pointer', transition: 'all .15s',
-                    background: active ? 'linear-gradient(135deg, #5FBA47, #3a8a28)' : 'var(--card2)',
-                    color: active ? '#fff' : 'var(--text)',
-                    border: '1px solid ' + (active ? '#5FBA47' : 'var(--border)'),
-                    boxShadow: active ? '0 2px 10px rgba(95,186,71,.3)' : 'none',
-                  }}>{q}</button>
-                )
-              })}
+            <div style={{ display: 'flex', gap: 7, marginBottom: 10 }}>
+              {PRESETS.map(q => (
+                <button
+                  key={q}
+                  className={'qty-pill' + (effectiveQty === q && !smmCustom ? ' active' : '')}
+                  onClick={() => { setSmmQty(q); setSmmCustom('') }}
+                >{q}</button>
+              ))}
             </div>
             <input
               type="number" min={10} max={10000}
@@ -560,30 +555,34 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
                 setSmmQty(v)
               }}
               style={{
-                width: '100%', background: 'var(--card2)', border: '1px solid ' + (smmCustom ? 'rgba(95,186,71,.5)' : 'var(--border)'),
-                borderRadius: 12, padding: '11px 14px', color: 'var(--text)', fontSize: 14, boxSizing: 'border-box',
+                width: '100%', boxSizing: 'border-box',
+                background: 'var(--card2)',
+                border: '1.5px solid ' + (smmCustom ? 'rgba(95,186,71,.4)' : 'var(--border)'),
+                borderRadius: 12, padding: '11px 14px', color: 'var(--text)', fontSize: 14,
+                outline: 'none', transition: 'border-color .2s',
               }}
-              placeholder={lang === 'ru' ? 'Или введите своё число (10–10 000)' : 'Або введіть своє число (10–10 000)'}
+              placeholder={T.smm_custom_ph}
             />
           </div>
 
-          {/* Total */}
+          {/* Total cost */}
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            background: 'linear-gradient(135deg, rgba(95,186,71,.1), rgba(95,186,71,.05))',
-            border: '1px solid rgba(95,186,71,.2)',
-            borderRadius: 14, padding: '14px 16px', marginBottom: 14,
+            background: 'linear-gradient(135deg, rgba(95,186,71,.1) 0%, rgba(45,122,28,.07) 100%)',
+            border: '1px solid rgba(95,186,71,.22)',
+            borderRadius: 16, padding: '14px 18px', marginBottom: 16,
           }}>
             <div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>{lang === 'ru' ? 'К оплате' : 'До сплати'}</div>
-              <div style={{ fontSize: 13, color: 'var(--text2)' }}>
-                {effectiveQty} {lang === 'ru' ? 'подписчиков' : 'підписників'} × ⭐{svc?.price_per_100_stars}/100
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 3 }}>{T.smm_total_label}</div>
+              <div style={{ fontSize: 12, color: 'var(--text2)' }}>
+                {effectiveQty} {T.smm_subs_word}
+                <span style={{ color: 'var(--muted)' }}> × ⭐{svc?.price_per_100_stars}/100</span>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontWeight: 800, fontSize: 28, color: '#5FBA47', lineHeight: 1 }}>⭐{priceStars}</div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                {lang === 'ru' ? 'Баланс:' : 'Баланс:'} ⭐{balance}
+              <div className="text-green-grad" style={{ fontWeight: 900, fontSize: 30, lineHeight: 1 }}>⭐{priceStars}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>
+                {T.smm_balance_label} ⭐{balance}
               </div>
             </div>
           </div>
@@ -591,21 +590,17 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           {smmError && (
             <div style={{
               background: 'rgba(255,68,68,.08)', border: '1px solid rgba(255,68,68,.25)',
-              borderRadius: 10, padding: '10px 12px', fontSize: 13, color: '#ff6666', marginBottom: 12,
+              borderRadius: 12, padding: '11px 14px', fontSize: 13, color: '#ff7070', marginBottom: 14,
             }}>❌ {smmError}</div>
           )}
 
           <button
-            className="btn btn-primary"
-            style={{
-              width: '100%', fontSize: 16, fontWeight: 800, padding: '14px',
-              background: canOrder ? 'linear-gradient(135deg, #5FBA47, #3a8a28)' : undefined,
-              boxShadow: canOrder ? '0 4px 20px rgba(95,186,71,.3)' : 'none',
-            }}
+            className={'btn btn-green' + (!canOrder ? ' btn-secondary' : '')}
+            style={{ width: '100%', fontSize: 16, padding: '15px' }}
             disabled={!canOrder}
             onClick={orderSmm}
           >
-            {smmLoading ? '⏳ ...' : canOrder ? `${lang === 'ru' ? 'Заказать' : 'Замовити'} — ⭐${priceStars}` : lang === 'ru' ? 'Введите ссылку на канал' : 'Введіть посилання на канал'}
+            {smmLoading ? '⏳ ...' : smmLink.trim() ? `${T.smm_order_btn} — ⭐${priceStars}` : T.smm_enter_link}
           </button>
         </div>
       </div>
