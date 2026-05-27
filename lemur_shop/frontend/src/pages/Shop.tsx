@@ -412,9 +412,16 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
         setSmmDone(res)
         onBuy?.()
       } catch (e: any) {
-        setSmmError(e.message === 'insufficient_balance'
-          ? (lang === 'ru' ? 'Недостаточно звёзд' : 'Недостатньо зірок')
-          : (e.message ?? 'Ошибка'))
+        const msg: string = e.message ?? ''
+        const smmErrMap: Record<string, Record<string, string>> = {
+          insufficient_balance: { ru: 'Недостаточно звёзд', ua: 'Недостатньо зірок', en: 'Insufficient stars' },
+          user_inactive:        { ru: 'Сервис временно недоступен — попробуйте позже', ua: 'Сервіс тимчасово недоступний — спробуйте пізніше', en: 'Service temporarily unavailable' },
+          neworder_invalid_link:{ ru: 'Неверная ссылка на канал', ua: 'Неправильне посилання на канал', en: 'Invalid channel link' },
+          invalid_link:         { ru: 'Неверная ссылка на канал', ua: 'Неправильне посилання на канал', en: 'Invalid channel link' },
+        }
+        const key = Object.keys(smmErrMap).find(k => msg.toLowerCase().includes(k.replace('_', '')))
+        const friendly = key ? (smmErrMap[key][lang] ?? smmErrMap[key]['ru']) : (lang === 'ru' ? 'Ошибка сервиса — попробуйте позже' : 'Помилка сервісу — спробуйте пізніше')
+        setSmmError(friendly)
       } finally { setSmmLoading(false) }
     }
 

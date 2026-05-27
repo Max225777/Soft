@@ -1393,6 +1393,8 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
     try:
         order_id = await place_order(svc["service_id"], body.link, body.quantity)
     except SmmApiError as e:
+        log.error("smmway error for user=%s service=%s link=%r qty=%d: %s",
+                  user.id, body.service_key, body.link, body.quantity, e)
         raise HTTPException(502, str(e))
 
     async with AsyncSessionLocal() as s:
