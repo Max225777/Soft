@@ -11,9 +11,13 @@ log = logging.getLogger(__name__)
 
 
 class LolzApiError(Exception):
-    def __init__(self, status: int, msg: str):
-        super().__init__(f"{status}: {msg}")
-        self.status = status
+    def __init__(self, msg_or_status, msg: str = ""):
+        if isinstance(msg_or_status, int):
+            super().__init__(f"{msg_or_status}: {msg}")
+            self.status = msg_or_status
+        else:
+            super().__init__(str(msg_or_status))
+            self.status = 0
 
 
 class LolzClient:
