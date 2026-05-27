@@ -394,7 +394,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
             </span>
           : isReactCard
             ? <span style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3, display: 'block' }}>
-                {lang === 'ru' ? '👍❤️🔥🎉 и 👎💩😱😢 · мгновенно' : lang === 'ua' ? '👍❤️🔥🎉 та 👎💩😱😢 · миттєво' : '👍❤️🔥🎉 and 👎💩😱😢 · instantly'}
+                {lang === 'ru' ? 'Почти мгновенная накрутка реакций' : lang === 'ua' ? 'Майже миттєва накрутка реакцій' : 'Almost instant reaction boost'}
               </span>
             : <span style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3, display: 'block' }}>{T.smm_channels_only}</span>
         return (
