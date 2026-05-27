@@ -24,7 +24,16 @@ export default function App() {
 
   useEffect(() => {
     window.Telegram?.WebApp?.expand()
-    api.me().then(u => { setMe(u); prevStars.current = u.balance_stars }).catch(() => {})
+    api.me().then(u => {
+      setMe(u)
+      prevStars.current = u.balance_stars
+      // Sync lang from server — server is source of truth
+      // (user may have bot set to RU but localStorage stale)
+      if (u.lang && u.lang !== lang) {
+        setLang(u.lang)
+        localStorage.setItem(LANG_KEY, u.lang)
+      }
+    }).catch(() => {})
     api.checkSub().then(r => {
       setSubscribed(r.subscribed)
       setSubChecked(true)
@@ -32,7 +41,8 @@ export default function App() {
       setSubscribed(true)
       setSubChecked(true)
     })
-  }, [lang])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const interval = setInterval(async () => {

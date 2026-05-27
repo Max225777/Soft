@@ -81,18 +81,29 @@ async def auto_buy_category(category: str) -> tuple[str, int, float]:
         raise LolzApiError("No accounts available in this category")
 
     items_sorted = sorted(items, key=lambda x: float(x.get("price") or x.get("price_usd") or 999))
-    item = items_sorted[0]
-    item_id = int(item.get("item_id") or item.get("id"))
-    lolz_price = float(item.get("price") or item.get("price_usd") or 0)
 
     prices = [float(i.get("price") or i.get("price_usd") or 0) for i in items_sorted[:5]]
-    log.info("Price range for %s: cheapest=%.2f, top5=%s, shop_price=%.2f, margin=%.2f",
-             category, lolz_price, prices, shop_price, shop_price - lolz_price)
+    log.info("Price range for %s: top5=%s, shop_price=%.2f", category, prices, shop_price)
 
-    if lolz_price > shop_price - 0.5:
-        raise LolzApiError(
-            f"Margin too low: cost ${lolz_price:.2f}, shop ${shop_price:.2f}, margin ${shop_price - lolz_price:.2f}"
-        )
+    SKIP_ERRORS = ("user_inactive", "already_sold", "item_sold", "not_found", "forbidden")
 
-    phone = await auto_buy(item_id, lolz_price)
-    return phone, item_id, lolz_price
+    for item in items_sorted:
+        item_id = int(item.get("item_id") or item.get("id"))
+        lolz_price = float(item.get("price") or item.get("price_usd") or 0)
+
+        if lolz_price > shop_price - 0.5:
+            raise LolzApiError(
+                f"Margin too low: cost ${lolz_price:.2f}, shop ${shop_price:.2f}"
+            )
+
+        try:
+            phone = await auto_buy(item_id, lolz_price)
+            return phone, item_id, lolz_price
+        except (LolzApiError, ValueError) as e:
+            err_text = str(e).lower()
+            if any(skip in err_text for skip in SKIP_ERRORS):
+                log.warning("Item #%s skipped (%s), trying next", item_id, e)
+                continue
+            raise
+
+    raise LolzApiError("No purchasable accounts found after trying all candidates")

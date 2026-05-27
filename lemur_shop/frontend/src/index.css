@@ -6,10 +6,10 @@
   --card:     #1A1A22;
   --card2:    #22222C;
   --border:   rgba(255,255,255,0.07);
-  --border-a: rgba(255,120,50,0.25);
-  --orange:   #FF6B2B;
-  --orange2:  #FF9050;
-  --gold:     #FFB830;
+  --border-a: rgba(240,160,0,0.28);
+  --orange:   #F4A900;
+  --orange2:  #FFBF40;
+  --gold:     #FFD700;
   --text:     #F0EDE8;
   --text2:    #C8C4BC;
   --muted:    #6A6878;
@@ -86,9 +86,9 @@ body {
 .btn:active { transform: scale(.97); opacity: .85; }
 
 .btn-primary {
-  background: linear-gradient(135deg, #FF7535 0%, #E84B10 100%);
-  color: #fff;
-  box-shadow: 0 4px 20px rgba(232,75,16,.40);
+  background: linear-gradient(135deg, #FFBF30 0%, #C88000 100%);
+  color: #1a1000;
+  box-shadow: 0 4px 20px rgba(200,128,0,.45);
 }
 .btn-primary::after {
   content: '';
@@ -227,8 +227,8 @@ code {
 
 /* ── Balance glow ───────────────────────── */
 @keyframes balance-glow {
-  0%,100% { filter: drop-shadow(0 0 6px rgba(255,107,43,.3)); }
-  50%      { filter: drop-shadow(0 0 18px rgba(255,107,43,.75)); }
+  0%,100% { filter: drop-shadow(0 0 6px rgba(244,169,0,.35)); }
+  50%      { filter: drop-shadow(0 0 20px rgba(255,191,64,.8)); }
 }
 .balance-glow { animation: balance-glow 3s ease-in-out infinite; display: inline-block; }
 
@@ -287,7 +287,7 @@ code {
   background-clip: text;
 }
 .text-orange-grad {
-  background: linear-gradient(135deg, #FF9050, #FF6B2B);
+  background: linear-gradient(135deg, #FFD060, #F4A900);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
