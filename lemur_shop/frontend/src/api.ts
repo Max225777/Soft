@@ -84,7 +84,7 @@ export interface Me {
   orders_count: number; is_admin: boolean; preview_mode: boolean
 }
 export interface SmmService {
-  key: string; service_id: number; title: string; flag: string; description: string
+  key: string; service_id: number | string; title: string; flag: string; description: string
   price_per_100_stars: number; min: number; max: number; step: number; unit_size: number
 }
 export interface Category { category: string; flag: string; title: string; price_usd: number; price_stars: number; discount_stars?: number }

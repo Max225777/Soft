@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import httpx
 import logging
 
@@ -11,7 +10,7 @@ log = logging.getLogger(__name__)
 SMM_API_URL = "https://smmway.ru/api/v2"
 
 
-# Каталог SMM послуг
+# service_id може бути int (числовий ID) або str (slug для окремих реакцій)
 SMM_SERVICES: dict[str, dict] = {
     "tg_subscribers": {
         "service_id": 6322,
@@ -57,6 +56,61 @@ SMM_SERVICES: dict[str, dict] = {
         "step": 1,
         "unit_size": 100,
     },
+    "tg_react_heart": {
+        "service_id": "telegram-reaksii-heart",
+        "title":      "❤️ Реакція",
+        "flag":       "❤️",
+        "description": "Реакція ❤️ на пост",
+        "price_per_100_stars": 10,
+        "min": 15,
+        "max": 5000,
+        "step": 1,
+        "unit_size": 100,
+    },
+    "tg_react_like": {
+        "service_id": "telegram-reaksii-like",
+        "title":      "👍 Реакція",
+        "flag":       "👍",
+        "description": "Реакція 👍 на пост",
+        "price_per_100_stars": 10,
+        "min": 15,
+        "max": 5000,
+        "step": 1,
+        "unit_size": 100,
+    },
+    "tg_react_dislike": {
+        "service_id": "telegram-reaksii-dislikee",
+        "title":      "👎 Реакція",
+        "flag":       "👎",
+        "description": "Реакція 👎 на пост",
+        "price_per_100_stars": 10,
+        "min": 15,
+        "max": 5000,
+        "step": 1,
+        "unit_size": 100,
+    },
+    "tg_react_poop": {
+        "service_id": 5450,
+        "title":      "💩 Реакція",
+        "flag":       "💩",
+        "description": "Реакція 💩 на пост",
+        "price_per_100_stars": 10,
+        "min": 15,
+        "max": 5000,
+        "step": 1,
+        "unit_size": 100,
+    },
+    "tg_react_clown": {
+        "service_id": 5465,
+        "title":      "🤡 Реакція",
+        "flag":       "🤡",
+        "description": "Реакція 🤡 на пост",
+        "price_per_100_stars": 10,
+        "min": 15,
+        "max": 5000,
+        "step": 1,
+        "unit_size": 100,
+    },
 }
 
 
@@ -69,11 +123,9 @@ def normalize_tg_link(link: str) -> str:
     link = link.strip()
     if link.startswith("@"):
         return f"t.me/{link[1:]}"
-    # strip protocol
     for prefix in ("https://", "http://"):
         if link.startswith(prefix):
             link = link[len(prefix):]
-    # ensure t.me/ prefix
     if not link.startswith("t.me/"):
         link = f"t.me/{link}"
     return link
@@ -90,9 +142,9 @@ async def smm_request(action: str, **params) -> dict:
     return result
 
 
-async def place_order(service_id: int, link: str, quantity: int) -> int:
+async def place_order(service_id: int | str, link: str, quantity: int) -> int:
     link = normalize_tg_link(link)
-    log.info("smmway place_order service=%d link=%r qty=%d", service_id, link, quantity)
+    log.info("smmway place_order service=%s link=%r qty=%d", service_id, link, quantity)
     result = await smm_request("add", service=service_id, link=link, quantity=quantity)
     return int(result["order"])
 
