@@ -115,8 +115,9 @@ async def auto_buy_category(category: str) -> tuple[str, int, float]:
         for macro in range(USA_MACRO_STEPS):
             try:
                 items = await lolz.search_telegram(
-                    country=country, pmax=USA_PMAX, pmin=pmin, count=20
-                )
+                    country=country, pmax=USA_PMAX, pmin=pmin, count=20,
+                    spam="no", password=None,
+                )  # USA: spam=no (not password=no)
             except LolzApiError:
                 items = []
 
