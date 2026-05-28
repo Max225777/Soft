@@ -102,7 +102,7 @@ async def auto_buy_category(category: str) -> tuple[str, int, float]:
         item_id = int(item.get("item_id") or item.get("id"))
         lolz_price = float(item.get("price") or item.get("price_usd") or 0)
 
-        if lolz_price > shop_price - 0.5:
+        if category != "us" and lolz_price >= shop_price:
             raise LolzApiError(
                 f"Margin too low: cost ${lolz_price:.2f}, shop ${shop_price:.2f}"
             )
