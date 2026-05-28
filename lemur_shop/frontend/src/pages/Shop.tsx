@@ -674,9 +674,9 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           )}
 
           <button
-            className={'btn btn-green' + (!canOrder ? ' btn-secondary' : '')}
+            className={'btn btn-green' + (!canOrder || smmLoading ? ' btn-secondary' : '')}
             style={{ width: '100%', fontSize: 16, padding: '15px' }}
-            disabled={!canOrder}
+            disabled={!canOrder || smmLoading}
             onClick={orderReactions}
           >
             {smmLoading ? '⏳ ...' : smmLink.trim() ? `${T.smm_order_btn} — ⭐${priceStars}` : T.smm_enter_link}
@@ -914,9 +914,9 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           )}
 
           <button
-            className={'btn btn-green' + (!canOrder ? ' btn-secondary' : '')}
+            className={'btn btn-green' + (!canOrder || smmLoading ? ' btn-secondary' : '')}
             style={{ width: '100%', fontSize: 16, padding: '15px' }}
-            disabled={!canOrder}
+            disabled={!canOrder || smmLoading}
             onClick={orderSmm}
           >
             {smmLoading ? '⏳ ...' : smmLink.trim() ? `${T.smm_order_btn} — ⭐${priceStars}` : T.smm_enter_link}
