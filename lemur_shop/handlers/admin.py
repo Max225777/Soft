@@ -71,6 +71,49 @@ async def cmd_topup(message: Message) -> None:
     )
 
 
+@router.message(Command("deduct"))
+async def cmd_deduct(message: Message) -> None:
+    if not _is_admin(message.from_user.id):
+        return
+
+    parts = (message.text or "").split()
+    if len(parts) != 3:
+        await message.answer("Використання: /deduct <user_id> <зірки>\nПриклад: /deduct 123456789 100")
+        return
+
+    try:
+        stars = int(parts[2])
+        if stars <= 0:
+            raise ValueError
+    except (ValueError, Exception):
+        await message.answer("❌ Невірний формат. Приклад: /deduct 123456789 100")
+        return
+
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            user = await _find_user(s, parts[1])
+            if not user:
+                await message.answer(f"❌ Користувача «{parts[1]}» не знайдено.")
+                return
+            if user.balance_stars < stars:
+                await message.answer(
+                    f"❌ Недостатньо зірок. Баланс: ⭐{user.balance_stars}, списати: ⭐{stars}"
+                )
+                return
+            amount_usd = Decimal(str(round(stars * settings.STAR_DISPLAY_USD, 4)))
+            user.balance_stars = user.balance_stars - stars
+            user.balance_usd   = max(Decimal(0), user.balance_usd - amount_usd)
+
+    name = user.username or str(user.id)
+    await message.answer(
+        f"✅ Баланс списано\n\n"
+        f"👤 @{name} (ID: <code>{user.id}</code>)\n"
+        f"➖ -⭐{stars} (~${float(amount_usd):.2f})\n"
+        f"💰 Новий баланс: ⭐{user.balance_stars}",
+        parse_mode="HTML"
+    )
+
+
 @router.message(Command("balance"))
 async def cmd_balance(message: Message) -> None:
     if not _is_admin(message.from_user.id):
