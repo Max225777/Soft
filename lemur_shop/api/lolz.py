@@ -44,7 +44,7 @@ class LolzClient:
             raise LolzApiError(r.status_code, r.text[:200])
         return r.json()
 
-    async def search_telegram(self, country: str, pmax: float = 2.0, count: int = 10) -> list[dict]:
+    async def search_telegram(self, country: str, pmax: float = 2.0, pmin: float | None = None, count: int = 10) -> list[dict]:
         """Пошук TG-акаунтів за країною. Повертає список item-об'єктів."""
         params: dict[str, Any] = {
             "origin[]":     ["autoreg", "self_registration"],
@@ -54,6 +54,8 @@ class LolzClient:
             "order_by":     "price_to_up",
             "count":        count,
         }
+        if pmin is not None:
+            params["pmin"] = pmin
         data = await self._get("telegram", params)
         return data.get("items") or []
 

@@ -60,18 +60,85 @@ async def auto_buy(item_id: int, price: float) -> str:
     return phone
 
 
+SKIP_ERRORS = (
+    "user_inactive", "already_sold", "item_sold", "not_found", "forbidden",
+    "invalid_account", "account_not_valid", "verification", "check_failed",
+    "account_invalid", "phone_banned", "banned", "spam", "deactivated",
+)
+
+USA_PMAX = 0.50
+USA_MACRO_STEPS = 5
+USA_MICRO_ATTEMPTS = 5
+
+
+async def _try_buy_batch(items: list[dict], max_cost: float, micro_limit: int) -> tuple[str, int, float] | None:
+    """Пробує купити з батчу акаунтів, повертає (phone, item_id, price) або None."""
+    micro = 0
+    for item in items:
+        if micro >= micro_limit:
+            break
+        item_id = int(item.get("item_id") or item.get("id"))
+        lolz_price = float(item.get("price") or item.get("price_usd") or 0)
+        if lolz_price > max_cost:
+            break
+        micro += 1
+        try:
+            phone = await auto_buy(item_id, lolz_price)
+            return phone, item_id, lolz_price
+        except (LolzApiError, ValueError) as e:
+            if any(skip in str(e).lower() for skip in SKIP_ERRORS):
+                log.warning("Item #%s skipped (%s), micro %d/%d", item_id, e, micro, micro_limit)
+                continue
+            raise
+    return None
+
+
 async def auto_buy_category(category: str) -> tuple[str, int, float]:
     """Шукає акаунт по тирам pmax, купує перший знайдений."""
     cat = CATEGORIES.get(category)
     if not cat:
         raise LolzApiError("Unknown category")
     country = cat["country"]
-    tiers: list[float] = cat.get("pmax_tiers", [2.50])
     shop_price: float = cat.get("price_usd", 9999)
 
+    # ── USA: макро-цикл з покроковим підвищенням ціни ──────────────────────────
+    if category == "us":
+        pmin: float | None = None
+        for macro in range(USA_MACRO_STEPS):
+            try:
+                items = await lolz.search_telegram(
+                    country=country, pmax=USA_PMAX, pmin=pmin, count=20
+                )
+            except LolzApiError:
+                items = []
+
+            if not items:
+                log.info("USA macro %d: no items at pmin=%s pmax=%.2f", macro, pmin, USA_PMAX)
+                break
+
+            items_sorted = sorted(items, key=lambda x: float(x.get("price") or x.get("price_usd") or 999))
+            log.info("USA macro %d: %d items, cheapest=%.2f", macro, len(items_sorted),
+                     float(items_sorted[0].get("price") or items_sorted[0].get("price_usd") or 0))
+
+            result = await _try_buy_batch(items_sorted, max_cost=USA_PMAX, micro_limit=USA_MICRO_ATTEMPTS)
+            if result:
+                return result
+
+            # усі мікро провалились — підвищуємо pmin на $0.01 від найдорожчого з батчу
+            last_price = float(items_sorted[-1].get("price") or items_sorted[-1].get("price_usd") or 0)
+            pmin = round(last_price + 0.01, 2)
+            log.info("USA macro %d exhausted, bumping pmin to %.2f", macro, pmin)
+
+        raise LolzApiError("No purchasable accounts found after trying all candidates")
+
+    # ── Інші категорії: тири pmax ───────────────────────────────────────────────
+    tiers: list[float] = cat.get("pmax_tiers", [2.50])
     items: list[dict] = []
     for pmax in tiers:
-        items = await _search_with_pmax(country, pmax, limit=50)
+        try:
+            items = await lolz.search_telegram(country=country, pmax=pmax, count=50)
+        except LolzApiError:
+            items = []
         if items:
             log.info("Found %d accounts for %s at pmax=%.2f", len(items), category, pmax)
             break
@@ -81,42 +148,11 @@ async def auto_buy_category(category: str) -> tuple[str, int, float]:
         raise LolzApiError("No accounts available in this category")
 
     items_sorted = sorted(items, key=lambda x: float(x.get("price") or x.get("price_usd") or 999))
+    log.info("Price range for %s: top5=%s", category,
+             [float(i.get("price") or i.get("price_usd") or 0) for i in items_sorted[:5]])
 
-    prices = [float(i.get("price") or i.get("price_usd") or 0) for i in items_sorted[:5]]
-    log.info("Price range for %s: top5=%s, shop_price=%.2f", category, prices, shop_price)
-
-    SKIP_ERRORS = (
-        "user_inactive", "already_sold", "item_sold", "not_found", "forbidden",
-        "invalid_account", "account_not_valid", "verification", "check_failed",
-        "account_invalid", "phone_banned", "banned", "spam", "deactivated",
-    )
-
-    attempts = 0
-    MAX_ATTEMPTS = 5
-
-    for item in items_sorted:
-        if attempts >= MAX_ATTEMPTS:
-            log.warning("Reached max %d attempts for category %s", MAX_ATTEMPTS, category)
-            break
-
-        item_id = int(item.get("item_id") or item.get("id"))
-        lolz_price = float(item.get("price") or item.get("price_usd") or 0)
-
-        max_cost = 0.50 if category == "us" else shop_price
-        if lolz_price > max_cost:
-            raise LolzApiError(
-                f"Margin too low: cost ${lolz_price:.2f}, max ${max_cost:.2f}"
-            )
-
-        attempts += 1
-        try:
-            phone = await auto_buy(item_id, lolz_price)
-            return phone, item_id, lolz_price
-        except (LolzApiError, ValueError) as e:
-            err_text = str(e).lower()
-            if any(skip in err_text for skip in SKIP_ERRORS):
-                log.warning("Item #%s skipped (%s), attempt %d/%d", item_id, e, attempts, MAX_ATTEMPTS)
-                continue
-            raise
+    result = await _try_buy_batch(items_sorted, max_cost=shop_price, micro_limit=5)
+    if result:
+        return result
 
     raise LolzApiError("No purchasable accounts found after trying all candidates")

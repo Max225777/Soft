@@ -919,6 +919,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
     <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16 }}>
       <div style={{ fontSize: 48 }}>🦎</div>
       <p style={{ fontWeight: 600, fontSize: 16 }}>{T.buying}</p>
+      <p style={{ fontSize: 13, opacity: 0.55, margin: 0 }}>{T.buying_hint}</p>
     </div>
   )
 
