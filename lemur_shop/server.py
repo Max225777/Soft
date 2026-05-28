@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+from datetime import datetime, timezone, timedelta
 import hmac
 import httpx
 import json
@@ -297,6 +298,18 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
 
     if user.balance_stars < shop_price_stars:
         raise HTTPException(status_code=402, detail="insufficient_balance")
+
+    # Захист від подвійного натискання: блокуємо повторне замовлення тієї ж категорії протягом 30 сек
+    async with AsyncSessionLocal() as s:
+        recent = await s.scalar(
+            select(Order.id).where(
+                Order.user_id == user.id,
+                Order.category == body.category,
+                Order.created_at >= datetime.now(timezone.utc) - timedelta(seconds=30),
+            ).limit(1)
+        )
+    if recent:
+        raise HTTPException(status_code=429, detail="duplicate_order")
 
     try:
         phone, lolz_item_id, lolz_price = await auto_buy_category(body.category)

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { api, smmApi, type Category, type BuyResult, type Me, type SmmService } from '../api'
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
@@ -36,6 +36,12 @@ interface ConfirmProps {
 
 function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
   const T = getT(lang)
+  const clicked = useRef(false)
+  function handleConfirm() {
+    if (clicked.current) return
+    clicked.current = true
+    onConfirm()
+  }
 
   return (
     <div style={{
@@ -96,7 +102,7 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onCancel}>{T.cancel}</button>
-          <button className="btn btn-primary" style={{ flex: 2 }} onClick={onConfirm}>{T.confirm}</button>
+          <button className="btn btn-primary" style={{ flex: 2 }} onClick={handleConfirm}>{T.confirm}</button>
         </div>
       </div>
     </div>
@@ -113,6 +119,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   const [gettingCode, setGettingCode] = useState(false)
   const [copied, setCopied]   = useState<'phone' | 'code' | ''>('')
   const [confirmCat, setConfirmCat] = useState<Category | null>(null)
+  const buyingRef = useRef(false)
   const [smmServices, setSmmServices] = useState<SmmService[]>([])
   const [selectedSmmKey, setSelectedSmmKey] = useState('tg_subscribers')
   const [smmLink, setSmmLink] = useState('')
@@ -128,6 +135,8 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   }, [])
 
   async function buy(cat: Category) {
+    if (buyingRef.current) return
+    buyingRef.current = true
     setConfirmCat(null)
     setView('buying')
     setCode('')
@@ -143,14 +152,17 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
         return
       }
       const errMap: Record<string, keyof typeof T> = {
-        no_accounts:    'err_no_accounts',
+        no_accounts:     'err_no_accounts',
         service_unavailable: 'err_service_unavail',
-        timeout:        'err_timeout',
-        buy_failed:     'err_buy_failed',
+        timeout:         'err_timeout',
+        buy_failed:      'err_buy_failed',
+        duplicate_order: 'err_duplicate_order',
       }
       const key = errMap[e.message]
       setErr(key ? String(T[key]) : T.buy_error)
       setView('error')
+    } finally {
+      buyingRef.current = false
     }
   }
 
