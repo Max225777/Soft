@@ -85,9 +85,20 @@ async def auto_buy_category(category: str) -> tuple[str, int, float]:
     prices = [float(i.get("price") or i.get("price_usd") or 0) for i in items_sorted[:5]]
     log.info("Price range for %s: top5=%s, shop_price=%.2f", category, prices, shop_price)
 
-    SKIP_ERRORS = ("user_inactive", "already_sold", "item_sold", "not_found", "forbidden")
+    SKIP_ERRORS = (
+        "user_inactive", "already_sold", "item_sold", "not_found", "forbidden",
+        "invalid_account", "account_not_valid", "verification", "check_failed",
+        "account_invalid", "phone_banned", "banned", "spam", "deactivated",
+    )
+
+    attempts = 0
+    MAX_ATTEMPTS = 5
 
     for item in items_sorted:
+        if attempts >= MAX_ATTEMPTS:
+            log.warning("Reached max %d attempts for category %s", MAX_ATTEMPTS, category)
+            break
+
         item_id = int(item.get("item_id") or item.get("id"))
         lolz_price = float(item.get("price") or item.get("price_usd") or 0)
 
@@ -96,13 +107,14 @@ async def auto_buy_category(category: str) -> tuple[str, int, float]:
                 f"Margin too low: cost ${lolz_price:.2f}, shop ${shop_price:.2f}"
             )
 
+        attempts += 1
         try:
             phone = await auto_buy(item_id, lolz_price)
             return phone, item_id, lolz_price
         except (LolzApiError, ValueError) as e:
             err_text = str(e).lower()
             if any(skip in err_text for skip in SKIP_ERRORS):
-                log.warning("Item #%s skipped (%s), trying next", item_id, e)
+                log.warning("Item #%s skipped (%s), attempt %d/%d", item_id, e, attempts, MAX_ATTEMPTS)
                 continue
             raise
 
