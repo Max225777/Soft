@@ -33,15 +33,15 @@ async def cmd_topup(message: Message) -> None:
 
     parts = (message.text or "").split()
     if len(parts) != 3:
-        await message.answer("Використання: /topup «user_id» «сума»\nПриклад: /topup 123456789 5.00", parse_mode=None)
+        await message.answer("Використання: /topup «user_id» «зірки»\nПриклад: /topup 123456789 100", parse_mode=None)
         return
 
     try:
-        amount = Decimal(parts[2])
-        if amount <= 0:
+        stars = int(parts[2])
+        if stars <= 0:
             raise ValueError
     except (ValueError, Exception):
-        await message.answer("❌ Невірний формат. Приклад: /topup 123456789 5.00", parse_mode=None)
+        await message.answer("❌ Невірний формат. Приклад: /topup 123456789 100", parse_mode=None)
         return
 
     async with AsyncSessionLocal() as s:
@@ -50,13 +50,12 @@ async def cmd_topup(message: Message) -> None:
             if not user:
                 await message.answer(f"❌ Користувача «{parts[1]}» не знайдено.")
                 return
-            from lemur_shop.config import settings
-            stars = round(float(amount) / settings.STAR_DISPLAY_USD)
-            user.balance_usd   = user.balance_usd + amount
+            amount_usd = Decimal(str(round(stars * settings.STAR_DISPLAY_USD, 4)))
             user.balance_stars = user.balance_stars + stars
+            user.balance_usd   = user.balance_usd + amount_usd
             s.add(TopUp(
                 user_id=user.id,
-                amount_usd=amount,
+                amount_usd=amount_usd,
                 amount_stars=stars,
                 admin_id=message.from_user.id,
             ))
@@ -65,7 +64,7 @@ async def cmd_topup(message: Message) -> None:
     await message.answer(
         f"✅ Баланс поповнено\n\n"
         f"👤 @{name} (ID: <code>{user.id}</code>)\n"
-        f"➕ +${amount:.2f} = +⭐{stars}\n"
+        f"➕ +⭐{stars} (~${float(amount_usd):.2f})\n"
         f"💰 Новий баланс: ⭐{user.balance_stars}",
         parse_mode="HTML"
     )
