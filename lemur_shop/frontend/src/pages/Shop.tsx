@@ -142,7 +142,14 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
         onGoToBalance()
         return
       }
-      setErr(e.message ?? T.buy_error)
+      const errMap: Record<string, keyof typeof T> = {
+        no_accounts:    'err_no_accounts',
+        service_unavailable: 'err_service_unavail',
+        timeout:        'err_timeout',
+        buy_failed:     'err_buy_failed',
+      }
+      const key = errMap[e.message]
+      setErr(key ? String(T[key]) : T.buy_error)
       setView('error')
     }
   }

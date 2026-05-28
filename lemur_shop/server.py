@@ -301,7 +301,17 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
     try:
         phone, lolz_item_id, lolz_price = await auto_buy_category(body.category)
     except (LolzApiError, ValueError, httpx.TimeoutException) as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        err = str(e).lower()
+        if "no accounts available" in err or "no purchasable" in err:
+            detail = "no_accounts"
+        elif "margin too low" in err:
+            detail = "service_unavailable"
+        elif any(k in err for k in ("timeout", "timed out", "connection")):
+            detail = "timeout"
+        else:
+            detail = "buy_failed"
+        log.warning("auto_buy_category failed for %s: %s", body.category, e)
+        raise HTTPException(status_code=502, detail=detail)
 
     lolz_cost = Decimal(str(round(lolz_price, 2)))
 
