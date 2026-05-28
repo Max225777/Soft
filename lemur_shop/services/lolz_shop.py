@@ -64,6 +64,9 @@ SKIP_ERRORS = (
     "user_inactive", "already_sold", "item_sold", "not_found", "forbidden",
     "invalid_account", "account_not_valid", "verification", "check_failed",
     "account_invalid", "phone_banned", "banned", "spam", "deactivated",
+    "проверк",       # "проверки аккаунта" — verification errors in Russian
+    "ошибок во",     # "ошибок во время проверки"
+    "более 20",      # "более 20 ошибок"
 )
 
 USA_PMAX = 0.50
@@ -86,7 +89,12 @@ async def _try_buy_batch(items: list[dict], max_cost: float, micro_limit: int) -
             phone = await auto_buy(item_id, lolz_price)
             return phone, item_id, lolz_price
         except (LolzApiError, ValueError) as e:
-            if any(skip in str(e).lower() for skip in SKIP_ERRORS):
+            err_text = str(e).lower()
+            # 403 від fast-buy = проблема з акаунтом (перевірка/заблоковано), не з API-ключем
+            is_skip = any(skip in err_text for skip in SKIP_ERRORS) or (
+                isinstance(e, LolzApiError) and e.status == 403
+            )
+            if is_skip:
                 log.warning("Item #%s skipped (%s), micro %d/%d", item_id, e, micro, micro_limit)
                 continue
             raise
