@@ -84,6 +84,31 @@ async def lifespan(app: FastAPI):
     from lemur_shop.handlers import topup as _topup_handlers
     _dp.include_router(_topup_handlers.router)
 
+    from aiogram.types import BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeChat
+
+    _public_commands = [
+        BotCommand(command="start", description="🦎 Відкрити магазин"),
+    ]
+    _admin_commands = _public_commands + [
+        BotCommand(command="balance",  description="💰 Баланс користувача"),
+        BotCommand(command="topup",    description="➕ Поповнити баланс"),
+        BotCommand(command="deduct",   description="➖ Списати зірки"),
+        BotCommand(command="ban",      description="🚫 Заблокувати"),
+        BotCommand(command="unban",    description="✅ Розблокувати"),
+        BotCommand(command="stats",    description="📊 Статистика"),
+        BotCommand(command="myid",     description="🪪 Мій ID"),
+    ]
+
+    try:
+        await _bot.set_my_commands(_public_commands, scope=BotCommandScopeAllPrivateChats())
+        for admin_id in settings.ADMIN_IDS:
+            try:
+                await _bot.set_my_commands(_admin_commands, scope=BotCommandScopeChat(chat_id=admin_id))
+            except Exception as e:
+                log.warning("set_my_commands for admin %s failed: %s", admin_id, e)
+    except Exception as e:
+        log.warning("set_my_commands failed: %s", e)
+
     webapp_url = settings.WEBAPP_URL.rstrip("/") if settings.WEBAPP_URL else ""
     use_webhook = False
 
