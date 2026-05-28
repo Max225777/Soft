@@ -305,7 +305,7 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
             select(Order.id).where(
                 Order.user_id == user.id,
                 Order.category == body.category,
-                Order.created_at >= datetime.now(timezone.utc) - timedelta(seconds=30),
+                Order.created_at >= datetime.utcnow() - timedelta(seconds=30),
             ).limit(1)
         )
     if recent:
