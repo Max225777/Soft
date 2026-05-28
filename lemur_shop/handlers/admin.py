@@ -33,7 +33,7 @@ async def cmd_topup(message: Message) -> None:
 
     parts = (message.text or "").split()
     if len(parts) != 3:
-        await message.answer("Використання: /topup <user_id> <сума>\nПриклад: /topup 123456789 5.00")
+        await message.answer("Використання: /topup «user_id» «сума»\nПриклад: /topup 123456789 5.00", parse_mode=None)
         return
 
     try:
@@ -41,7 +41,7 @@ async def cmd_topup(message: Message) -> None:
         if amount <= 0:
             raise ValueError
     except (ValueError, Exception):
-        await message.answer("❌ Невірний формат. Приклад: /topup 123456789 5.00")
+        await message.answer("❌ Невірний формат. Приклад: /topup 123456789 5.00", parse_mode=None)
         return
 
     async with AsyncSessionLocal() as s:
@@ -78,7 +78,7 @@ async def cmd_deduct(message: Message) -> None:
 
     parts = (message.text or "").split()
     if len(parts) != 3:
-        await message.answer("Використання: /deduct <user_id> <зірки>\nПриклад: /deduct 123456789 100")
+        await message.answer("Використання: /deduct «user_id» «зірки»\nПриклад: /deduct 123456789 100", parse_mode=None)
         return
 
     try:
@@ -86,7 +86,7 @@ async def cmd_deduct(message: Message) -> None:
         if stars <= 0:
             raise ValueError
     except (ValueError, Exception):
-        await message.answer("❌ Невірний формат. Приклад: /deduct 123456789 100")
+        await message.answer("❌ Невірний формат. Приклад: /deduct 123456789 100", parse_mode=None)
         return
 
     async with AsyncSessionLocal() as s:
@@ -121,7 +121,7 @@ async def cmd_balance(message: Message) -> None:
 
     parts = (message.text or "").split()
     if len(parts) != 2:
-        await message.answer("Використання: /balance <user_id>")
+        await message.answer("Використання: /balance «user_id»", parse_mode=None)
         return
 
     async with AsyncSessionLocal() as s:
@@ -207,7 +207,7 @@ async def cmd_ban(message: Message) -> None:
         return
     parts = (message.text or "").split()
     if len(parts) != 2:
-        await message.answer("Використання: /ban <user_id або @username>")
+        await message.answer("Використання: /ban «user_id або @username»", parse_mode=None)
         return
     async with AsyncSessionLocal() as s:
         async with s.begin():
@@ -226,7 +226,7 @@ async def cmd_unban(message: Message) -> None:
         return
     parts = (message.text or "").split()
     if len(parts) != 2:
-        await message.answer("Використання: /unban <user_id або @username>")
+        await message.answer("Використання: /unban «user_id або @username»", parse_mode=None)
         return
     async with AsyncSessionLocal() as s:
         async with s.begin():
