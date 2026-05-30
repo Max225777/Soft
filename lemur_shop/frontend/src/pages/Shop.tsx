@@ -484,13 +484,12 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   // ─── Накрутка реакцій ──────────────────────────────────────────────────────
   if (view === 'smm_reactions') {
     const REACTION_BTNS: { key: string; emoji: string }[] = [
-      { key: 'tg_reactions_pos', emoji: '👍❤️🔥🎉' },
-      { key: 'tg_reactions_neg', emoji: '👎💩😱😢' },
-      { key: 'tg_react_heart',   emoji: '❤️' },
-      { key: 'tg_react_like',    emoji: '👍' },
-      { key: 'tg_react_dislike', emoji: '👎' },
-      { key: 'tg_react_poop',    emoji: '💩' },
-      { key: 'tg_react_clown',   emoji: '🤡' },
+      { key: 'tg_reactions_pos',         emoji: '👍❤️🔥🎉' },
+      { key: 'tg_reactions_neg',         emoji: '👎💩😱😢' },
+      { key: 'tg_react_poop',            emoji: '💩' },
+      { key: 'tg_react_clown',           emoji: '🤡' },
+      { key: 'tg_react_middlefinger',    emoji: '🖕' },
+      { key: 'tg_react_vomit',           emoji: '🤮' },
     ]
     const svc = smmServices.find(s => s.key === selectedSmmKey) ?? smmServices.find(s => s.key === 'tg_reactions_pos')
     const effectiveQty = Math.max(svc?.min ?? 15, smmQty)
