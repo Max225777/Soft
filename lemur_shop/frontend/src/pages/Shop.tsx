@@ -404,9 +404,9 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
 
       {smmServices.length === 0 ? (
         <div style={{ borderRadius: 20, height: 120 }} className="skeleton" />
-      ) : smmServices.filter(svc => ['tg_subscribers', 'tg_views', 'tg_reactions_pos'].includes(svc.key)).map(svc => {
+      ) : smmServices.filter(svc => ['tg_subscribers', 'tg_views', 'tg_reactions'].includes(svc.key)).map(svc => {
         const isViews = svc.key === 'tg_views'
-        const isReactCard = svc.key === 'tg_reactions_pos'
+        const isReactCard = svc.key === 'tg_reactions'
         const badgeQty = isViews ? 1000 : isReactCard ? 300 : 100
         const badgeStars = 10
         const badgeWord = isViews ? T.smm_views_word : isReactCard ? T.smm_reactions_word : T.smm_subs_word
@@ -426,7 +426,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
             className="smm-card"
             onClick={() => {
               if (isReactCard) {
-                setSelectedSmmKey('tg_reactions_pos'); setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(15); setSmmCustom('')
+                setSelectedSmmKey('tg_reactions'); setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(15); setSmmCustom('')
                 setView('smm_reactions')
               } else {
                 setSelectedSmmKey(svc.key); setSmmDone(null); setSmmError(null); setSmmLink(''); setSmmQty(svc.min); setSmmCustom('')
@@ -484,14 +484,12 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   // ─── Накрутка реакцій ──────────────────────────────────────────────────────
   if (view === 'smm_reactions') {
     const REACTION_BTNS: { key: string; emoji: string }[] = [
-      { key: 'tg_reactions_pos',         emoji: '👍❤️🔥🎉' },
-      { key: 'tg_reactions_neg',         emoji: '👎💩😱😢' },
       { key: 'tg_react_poop',            emoji: '💩' },
       { key: 'tg_react_clown',           emoji: '🤡' },
       { key: 'tg_react_middlefinger',    emoji: '🖕' },
       { key: 'tg_react_vomit',           emoji: '🤮' },
     ]
-    const svc = smmServices.find(s => s.key === selectedSmmKey) ?? smmServices.find(s => s.key === 'tg_reactions_pos')
+    const svc = smmServices.find(s => s.key === selectedSmmKey) ?? smmServices.find(s => s.key === 'tg_reactions')
     const effectiveQty = Math.max(svc?.min ?? 15, smmQty)
     const priceStars = svc ? Math.max(1, Math.round(effectiveQty / 100 * svc.price_per_100_stars)) : 0
     const balance = me?.balance_stars ?? 0
@@ -689,7 +687,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   if (view === 'smm') {
     const svc = smmServices.find(s => s.key === selectedSmmKey) ?? smmServices[0]
     const isViews = svc?.key === 'tg_views'
-    const isReactions = svc?.key === 'tg_reactions_pos' || svc?.key === 'tg_reactions_neg'
+    const isReactions = svc?.key === 'tg_reactions' || svc?.key === 'tg_reactions'
     const effectiveQty = Math.max(svc?.min ?? 10, smmQty)
     const priceStars = svc ? Math.max(1, Math.round(effectiveQty / 100 * svc.price_per_100_stars)) : 0
     const balance = me?.balance_stars ?? 0
@@ -756,7 +754,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           }}>‹</button>
           <div>
             <div style={{ fontWeight: 800, fontSize: 19 }}>
-              {isReactions ? (selectedSmmKey === 'tg_reactions_pos' ? '👍❤️🔥🎉' : '👎💩😱😢') : isViews ? '👁️' : '👥'}{' '}
+              {isReactions ? (selectedSmmKey === 'tg_reactions' ? '👍❤️🔥🎉' : '👎💩😱😢') : isViews ? '👁️' : '👥'}{' '}
               {isReactions ? T.smm_reactions_title : isViews ? T.smm_views_title : T.smm_subs_title}
             </div>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>Telegram</div>
@@ -771,10 +769,10 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
               background: 'linear-gradient(135deg, #5FBA47 0%, #2d7a1c 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
               boxShadow: '0 4px 14px rgba(95,186,71,.35)',
-            }}>{isReactions ? (selectedSmmKey === 'tg_reactions_pos' ? '👍❤️' : '👎💩') : isViews ? '👁️' : '👥'}</div>
+            }}>{isReactions ? (selectedSmmKey === 'tg_reactions' ? '👍❤️' : '👎💩') : isViews ? '👁️' : '👥'}</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 5 }}>
-                {isReactions ? (selectedSmmKey === 'tg_reactions_pos' ? '👍❤️🔥🎉' : '👎💩😱😢') + ' ' + T.smm_reactions_title : isViews ? T.smm_views_title : T.smm_subs_title}
+                {isReactions ? (selectedSmmKey === 'tg_reactions' ? '👍❤️🔥🎉' : '👎💩😱😢') + ' ' + T.smm_reactions_title : isViews ? T.smm_views_title : T.smm_subs_title}
               </div>
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
