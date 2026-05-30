@@ -57,7 +57,7 @@ SMM_SERVICES: dict[str, dict] = {
         "unit_size": 100,
     },
     "tg_react_heart": {
-        "service_id": "telegram-reaksii-heart",
+        "service_id": "telegram-reakcii-lucsie-ceny-i-skorost/telegram-reaksii-heart",
         "title":      "❤️ Реакція",
         "flag":       "❤️",
         "description": "Реакція ❤️ на пост",
@@ -68,7 +68,7 @@ SMM_SERVICES: dict[str, dict] = {
         "unit_size": 100,
     },
     "tg_react_like": {
-        "service_id": "telegram-reaksii-like",
+        "service_id": "telegram-reakcii-lucsie-ceny-i-skorost/telegram-reaksii-like",
         "title":      "👍 Реакція",
         "flag":       "👍",
         "description": "Реакція 👍 на пост",
@@ -79,7 +79,7 @@ SMM_SERVICES: dict[str, dict] = {
         "unit_size": 100,
     },
     "tg_react_dislike": {
-        "service_id": "telegram-reaksii-dislikee",
+        "service_id": "telegram-reakcii-lucsie-ceny-i-skorost/telegram-reaksii-dislikee",
         "title":      "👎 Реакція",
         "flag":       "👎",
         "description": "Реакція 👎 на пост",
