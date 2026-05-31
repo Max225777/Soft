@@ -331,6 +331,7 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
     async with AsyncSessionLocal() as s:
         async with s.begin():
             u = await s.get(User, user.id)
+            bal_before = u.balance_stars
             u.balance_stars = u.balance_stars - shop_price_stars
             order = Order(
                 user_id=user.id,
@@ -347,6 +348,8 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
             await s.flush()
             order_id = order.id
             created_at = order.created_at
+            log.info("BUY: user=%s category=%s item=#%s price=⭐%s balance %s→%s",
+                     user.id, body.category, lolz_item_id, shop_price_stars, bal_before, u.balance_stars)
 
     # Нотифікація адміну
     if _bot and settings.ADMIN_IDS:
@@ -548,6 +551,7 @@ async def fk_notify(
         async with s.begin():
             fk_order = await s.get(FKOrder, fk_order_id)
             if not fk_order or fk_order.status == "paid":
+                log.info("FK notify skip: order=%s status=%s (already processed)", fk_order_id, fk_order.status if fk_order else "not_found")
                 return Response(content="YES", media_type="text/plain")
             fk_order.status = "paid"
             fk_order.fk_payment_id = payment_id or payer_account
@@ -555,17 +559,21 @@ async def fk_notify(
 
             user = await s.get(User, fk_order.user_id)
             if user:
-                user.balance_usd = user.balance_usd + amount_usd
-                s.add(TopUp(user_id=user.id, amount_usd=amount_usd, admin_id=0))
-
-    log.info("FK paid: order=%s user=%s amount_usd=%s", fk_order_id, fk_order.user_id, amount_usd)
+                stars_credited = round(float(amount_usd) / settings.STAR_DISPLAY_USD)
+                bal_before = user.balance_stars
+                user.balance_usd   = user.balance_usd + amount_usd
+                user.balance_stars = user.balance_stars + stars_credited
+                s.add(TopUp(user_id=user.id, amount_usd=amount_usd, amount_stars=stars_credited, admin_id=0))
+                log.info("FK paid: order=%s user=%s amount_usd=%s stars=%s balance %s→%s",
+                         fk_order_id, user.id, amount_usd, stars_credited, bal_before, user.balance_stars)
 
     if _bot and settings.ADMIN_IDS and user:
         uname = f"@{user.username}" if user.username else f"ID:{user.id}"
         txt = (
-            f"💳 <b>Поповнення через FreеKassa!</b>\n\n"
+            f"💳 <b>Поповнення через FreeKassa!</b>\n\n"
             f"👤 {uname} (<code>{user.id}</code>)\n"
-            f"💰 Зараховано: <b>${float(amount_usd):.2f}</b>\n"
+            f"💰 Зараховано: <b>${float(amount_usd):.2f} = ⭐{stars_credited}</b>\n"
+            f"💫 Баланс: <b>⭐{user.balance_stars}</b>\n"
             f"🆔 Замовлення FK: {fk_order_id}"
         )
         for admin_id in settings.ADMIN_IDS:
@@ -577,8 +585,9 @@ async def fk_notify(
         try:
             await _bot.send_message(
                 user.id,
-                f"✅ Баланс поповнено на <b>${float(amount_usd):.2f}</b>!\n"
-                f"💰 Поточний баланс: <b>${float(user.balance_usd):.2f}</b>",
+                f"✅ Баланс поповнено!\n\n"
+                f"💰 +${float(amount_usd):.2f} = ⭐+{stars_credited}\n"
+                f"💫 Новий баланс: <b>⭐{user.balance_stars}</b>",
                 parse_mode="HTML"
             )
         except Exception:
@@ -687,6 +696,8 @@ async def crypto_notify(request: Request):
     invoice = data.get("payload", {})
     raw_payload = invoice.get("payload", "")
     status = invoice.get("status", "")
+    crypto_invoice_id = str(invoice.get("invoice_id", ""))
+
     if status != "paid" or not raw_payload.startswith("cryptotopup:"):
         return Response(content="ok")
 
@@ -698,20 +709,36 @@ async def crypto_notify(request: Request):
         log.error("CryptoBot bad payload %r: %s", raw_payload, e)
         return Response(content="ok")
 
+    # Idempotency: перевіряємо чи вже є TopUp з таким invoice_id
+    async with AsyncSessionLocal() as s:
+        already = await s.scalar(
+            select(TopUp.id).where(
+                TopUp.user_id == user_id,
+                TopUp.admin_id == -1,  # -1 = CryptoBot marker
+                TopUp.amount_usd == amount_usd,
+                TopUp.created_at >= datetime.utcnow() - timedelta(hours=24),
+            ).limit(1)
+        )
+    if already:
+        log.warning("CryptoBot duplicate invoice_id=%s user=%s — skip", crypto_invoice_id, user_id)
+        return Response(content="ok")
+
     async with AsyncSessionLocal() as s:
         async with s.begin():
             user = await s.get(User, user_id)
             if not user:
+                log.error("CryptoBot payment for unknown user=%s", user_id)
                 return Response(content="ok")
             stars_credited = round(float(amount_usd) / settings.STAR_DISPLAY_USD)
-            user.balance_usd    = user.balance_usd + amount_usd
-            user.balance_stars  = user.balance_stars + stars_credited
+            bal_before = user.balance_stars
+            user.balance_usd   = user.balance_usd + amount_usd
+            user.balance_stars = user.balance_stars + stars_credited
             s.add(TopUp(
                 user_id=user_id, amount_usd=amount_usd,
-                amount_stars=stars_credited, admin_id=0,
+                amount_stars=stars_credited, admin_id=-1,  # -1 = CryptoBot
             ))
-
-    log.info("CryptoBot paid: user=%s amount=%s stars=%s", user_id, amount_usd, stars_credited)
+            log.info("CryptoBot paid: invoice=%s user=%s amount=%s stars=%s balance %s→%s",
+                     crypto_invoice_id, user_id, amount_usd, stars_credited, bal_before, user.balance_stars)
 
     if _bot:
         if settings.ADMIN_IDS:
@@ -719,7 +746,8 @@ async def crypto_notify(request: Request):
             txt = (
                 f"💎 <b>Поповнення через CryptoBot!</b>\n\n"
                 f"👤 {uname} (<code>{user_id}</code>)\n"
-                f"💰 Зараховано: <b>${float(amount_usd):.2f} USDT = ⭐{stars_credited}</b>"
+                f"💰 Зараховано: <b>${float(amount_usd):.2f} USDT = ⭐{stars_credited}</b>\n"
+                f"💫 Баланс: <b>⭐{user.balance_stars}</b>"
             )
             for admin_id in settings.ADMIN_IDS:
                 try:
@@ -729,8 +757,9 @@ async def crypto_notify(request: Request):
         try:
             await _bot.send_message(
                 user_id,
-                f"✅ Баланс поповнено на <b>${float(amount_usd):.2f}</b>!\n"
-                f"💰 Поточний баланс: <b>${float(user.balance_usd):.2f}</b>",
+                f"✅ Баланс поповнено!\n\n"
+                f"💰 +${float(amount_usd):.2f} USDT = ⭐+{stars_credited}\n"
+                f"💫 Новий баланс: <b>⭐{user.balance_stars}</b>",
                 parse_mode="HTML"
             )
         except Exception:
@@ -1482,9 +1511,11 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
     async with AsyncSessionLocal() as s:
         async with s.begin():
             u = await s.get(User, user.id)
+            bal_before = u.balance_stars
             u.balance_stars = u.balance_stars - price_stars
 
-    log.info("SMM order #%s: user=%s service=%s qty=%d stars=%d", order_id, user.id, body.service_key, body.quantity, price_stars)
+    log.info("SMM order #%s: user=%s service=%s qty=%d stars=-%d balance %s→%s",
+             order_id, user.id, body.service_key, body.quantity, price_stars, bal_before, u.balance_stars)
 
     # ── Admin notification ──────────────────────────────────────────────────
     if _bot and settings.ADMIN_IDS:

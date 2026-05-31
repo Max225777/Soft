@@ -40,11 +40,12 @@ async def successful_payment(message: Message) -> None:
         async with s.begin():
             user = await s.get(User, user_id)
             if not user:
-                log.error("Payment for unknown user %s", user_id)
+                log.error("Stars payment for unknown user=%s stars=%s", user_id, stars)
                 return
-            # 1:1 — зараховуємо рівно стільки Stars, скільки заплатив
+            bal_before = user.balance_stars
             user.balance_stars = user.balance_stars + stars
-            new_balance = user.balance_stars  # зберігаємо до закриття сесії
+            user.balance_usd   = user.balance_usd + amount_usd
+            new_balance = user.balance_stars
             s.add(TopUp(
                 user_id=user_id,
                 amount_usd=amount_usd,
@@ -52,7 +53,8 @@ async def successful_payment(message: Message) -> None:
                 admin_id=0,
             ))
 
-    log.info("Stars topup: user=%s stars=%s", user_id, stars)
+    log.info("Stars topup: user=%s stars=+%s balance %s→%s payload=%r",
+             user_id, stars, bal_before, new_balance, payload)
 
     uname = f"@{user.username}" if user.username else f"ID:{user_id}"
     await message.answer(
