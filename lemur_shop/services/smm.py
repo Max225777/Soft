@@ -24,11 +24,11 @@ SMM_SERVICES: dict[str, dict] = {
         "unit_size": 100,
     },
     "tg_views": {
-        "service_id": 6254,
+        "service_id": 6216,
         "title":      "Перегляди Telegram",
         "flag":       "👁️",
         "description": "Перегляди постів Telegram",
-        "price_per_100_stars": 1,
+        "price_per_100_stars": 1.5,
         "min": 100,
         "max": 100000,
         "step": 100,
