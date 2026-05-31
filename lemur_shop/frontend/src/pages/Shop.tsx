@@ -517,7 +517,14 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
     }
 
     if (smmDone) return (
-      <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '72vh' }}>
+      <div className="page">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <button onClick={() => { setSmmDone(null); setView('smm_list') }} style={{
+            width: 36, height: 36, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--card2)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: 20, color: 'var(--text2)', flexShrink: 0,
+          }}>‹</button>
+          <div style={{ fontWeight: 800, fontSize: 19 }}>{T.smm_accepted}</div>
+        </div>
         <div className="smm-card" style={{ borderRadius: 24, padding: '40px 28px', textAlign: 'center', width: '100%' }}>
           <div style={{ fontSize: 60, marginBottom: 16, filter: 'drop-shadow(0 0 20px rgba(95,186,71,.5))' }}>✅</div>
           <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 6 }}>{T.smm_accepted}</div>
@@ -716,7 +723,14 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
     }
 
     if (smmDone) return (
-      <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '72vh' }}>
+      <div className="page">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <button onClick={() => { setSmmDone(null); setView('smm_list') }} style={{
+            width: 36, height: 36, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--card2)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: 20, color: 'var(--text2)', flexShrink: 0,
+          }}>‹</button>
+          <div style={{ fontWeight: 800, fontSize: 19 }}>{T.smm_accepted}</div>
+        </div>
         <div className="smm-card" style={{ borderRadius: 24, padding: '40px 28px', textAlign: 'center', width: '100%' }}>
           <div style={{ fontSize: 60, marginBottom: 16, filter: 'drop-shadow(0 0 20px rgba(95,186,71,.5))' }}>✅</div>
           <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 6 }}>{T.smm_accepted}</div>
