@@ -27,11 +27,6 @@ class Settings(BaseSettings):
     # Stars за $1 при поповненні через бот-команду /topup
     STARS_PER_USD: int = 77
 
-    FREEKASSA_MERCHANT_ID: str = ""
-    FREEKASSA_SECRET1: str = ""
-    FREEKASSA_SECRET2: str = ""
-    FREEKASSA_API_KEY: str = ""
-
     CRYPTOBOT_TOKEN: str = ""
 
     SMMWAY_API_KEY: str = ""

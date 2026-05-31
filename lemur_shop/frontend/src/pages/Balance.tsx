@@ -5,7 +5,6 @@ import LegalFooter from '../components/LegalFooter'
 
 interface Props { me: Me | null; lang: Lang; balanceDiff?: number | null }
 
-const PRESETS_RUB = [100, 250, 500, 1000]
 const PRESETS_USD = [1, 2, 5, 10, 25, 50]
 const PRESETS_STARS = [1, 5, 10, 50, 100]
 const STARS_PER_USD = 141
@@ -50,17 +49,13 @@ function ExpandPanel({ children }: { children: React.ReactNode }) {
 
 export default function Balance({ me, lang, balanceDiff }: Props) {
   const T = getT(lang)
-  const [open, setOpen] = useState<'fk' | 'crypto' | 'stars' | null>(null)
-  const [fkAmount, setFkAmount] = useState(0)
-  const [customRub, setCustomRub] = useState('')
+  const [open, setOpen] = useState<'crypto' | 'stars' | null>(null)
   const [cryptoAmount, setCryptoAmount] = useState(0)
   const [customUsd, setCustomUsd] = useState('')
   const [starsCount, setStarsCount] = useState(0)
   const [customStars, setCustomStars] = useState('')
-  const [fkLoading, setFkLoading] = useState(false)
   const [cryptoLoading, setCryptoLoading] = useState(false)
   const [starsLoading, setStarsLoading] = useState(false)
-  const [fkError, setFkError] = useState<string | null>(null)
   const [cryptoError, setCryptoError] = useState<string | null>(null)
   const [starsError, setStarsError] = useState<string | null>(null)
   const [topupSuccess, setTopupSuccess] = useState<number | null>(null)
@@ -69,20 +64,9 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
 
   const stars = me.balance_stars
   const usdDisplay = (stars * 0.013).toFixed(2)
-  const rubRate = me.rate_rub || 90
 
   const payLabel = lang === 'ru' ? 'Пополнить' : lang === 'ua' ? 'Поповнити' : 'Pay'
   const afterLabel = lang === 'ru' ? 'Баланс зачисляется автоматически' : lang === 'ua' ? 'Баланс зараховується автоматично' : 'Balance credited automatically'
-
-  async function payFK(rub: number) {
-    if (rub < 100) return
-    setFkLoading(true); setFkError(null)
-    try {
-      const { url } = await api.fkCreate(rub / rubRate, 'USD')
-      window.location.href = url
-    } catch (e: any) { setFkError(e.message ?? 'Error') }
-    finally { setFkLoading(false) }
-  }
 
   async function payCrypto(amount: number) {
     if (amount < 0.5) return
@@ -117,10 +101,6 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
     finally { setStarsLoading(false) }
   }
 
-  function toggleFK() {
-    if (open === 'fk') { setOpen(null); return }
-    setFkError(null); setFkAmount(0); setCustomRub(''); setOpen('fk')
-  }
   function toggleCrypto() {
     if (open === 'crypto') { setOpen(null); return }
     setCryptoError(null); setCryptoAmount(0); setCustomUsd(''); setOpen('crypto')

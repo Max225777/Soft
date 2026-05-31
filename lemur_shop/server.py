@@ -483,162 +483,6 @@ async def api_referral(user: User = Depends(get_current_user)):
     }
 
 
-# ─── FreеKassa ────────────────────────────────────────────────────────────────
-
-def _fk_sign(merchant_id: str, amount: str, secret: str, currency: str, order_id: str) -> str:
-    raw = f"{merchant_id}:{amount}:{secret}:{currency}:{order_id}"
-    return hashlib.md5(raw.encode()).hexdigest()
-
-
-class FKCreateRequest(BaseModel):
-    amount_usd: float
-    currency: str = "USD"
-
-
-@app.post("/api/fk/create")
-async def api_fk_create(body: FKCreateRequest, user: User = Depends(get_current_user)):
-    if not settings.FREEKASSA_MERCHANT_ID:
-        raise HTTPException(status_code=503, detail="Payments not configured")
-    amount_usd = round(body.amount_usd, 2)
-    if amount_usd < 0.5 or amount_usd > 1000:
-        raise HTTPException(status_code=400, detail="Invalid amount")
-
-    rub_rate = await get_rate("RUB")
-    amount_rub = round(amount_usd * rub_rate)
-    currency = "RUB"
-
-    from lemur_shop.db.models import FKOrder
-    async with AsyncSessionLocal() as s:
-        async with s.begin():
-            order = FKOrder(user_id=user.id, amount_usd=Decimal(str(amount_usd)), currency=currency)
-            s.add(order)
-            await s.flush()
-            order_id = order.id
-
-    amount_str = str(amount_rub)
-    sign = _fk_sign(settings.FREEKASSA_MERCHANT_ID, amount_str, settings.FREEKASSA_SECRET1, "RUB", str(order_id))
-    url = (
-        f"https://pay.fk.money/?m={settings.FREEKASSA_MERCHANT_ID}"
-        f"&oa={amount_str}&currency=RUB&o={order_id}&s={sign}&lang=ru"
-    )
-    return {"url": url, "order_id": order_id}
-
-
-@app.get("/api/freekassa/notify")
-async def fk_notify(
-    MERCHANT_ID: str = "",
-    AMOUNT: str = "",
-    MERCHANT_ORDER_ID: str = "",
-    P_EMAIL: str = "",
-    P_PHONE: str = "",
-    CUR_ID: str = "",
-    SIGN: str = "",
-    payer_account: str = "",
-    payment_id: str = "",
-):
-    expected = hashlib.md5(f"{settings.FREEKASSA_MERCHANT_ID}:{AMOUNT}:{settings.FREEKASSA_SECRET2}:{MERCHANT_ORDER_ID}".encode()).hexdigest()
-    if SIGN != expected:
-        log.warning("FK notify bad sign order=%s", MERCHANT_ORDER_ID)
-        return Response(content="NO", media_type="text/plain")
-
-    from lemur_shop.db.models import FKOrder
-    try:
-        fk_order_id = int(MERCHANT_ORDER_ID)
-    except Exception:
-        return Response(content="NO", media_type="text/plain")
-
-    async with AsyncSessionLocal() as s:
-        async with s.begin():
-            fk_order = await s.get(FKOrder, fk_order_id)
-            if not fk_order or fk_order.status == "paid":
-                log.info("FK notify skip: order=%s status=%s (already processed)", fk_order_id, fk_order.status if fk_order else "not_found")
-                return Response(content="YES", media_type="text/plain")
-            fk_order.status = "paid"
-            fk_order.fk_payment_id = payment_id or payer_account
-            amount_usd = fk_order.amount_usd
-
-            user = await s.get(User, fk_order.user_id)
-            if user:
-                stars_credited = round(float(amount_usd) / settings.STAR_DISPLAY_USD)
-                bal_before = user.balance_stars
-                user.balance_usd   = user.balance_usd + amount_usd
-                user.balance_stars = user.balance_stars + stars_credited
-                s.add(TopUp(user_id=user.id, amount_usd=amount_usd, amount_stars=stars_credited, admin_id=0))
-                log.info("FK paid: order=%s user=%s amount_usd=%s stars=%s balance %s→%s",
-                         fk_order_id, user.id, amount_usd, stars_credited, bal_before, user.balance_stars)
-
-    if _bot and settings.ADMIN_IDS and user:
-        uname = f"@{user.username}" if user.username else f"ID:{user.id}"
-        txt = (
-            f"💳 <b>Поповнення через FreeKassa!</b>\n\n"
-            f"👤 {uname} (<code>{user.id}</code>)\n"
-            f"💰 Зараховано: <b>${float(amount_usd):.2f} = ⭐{stars_credited}</b>\n"
-            f"💫 Баланс: <b>⭐{user.balance_stars}</b>\n"
-            f"🆔 Замовлення FK: {fk_order_id}"
-        )
-        for admin_id in settings.ADMIN_IDS:
-            try:
-                await _bot.send_message(admin_id, txt, parse_mode="HTML")
-            except Exception:
-                pass
-
-        try:
-            await _bot.send_message(
-                user.id,
-                f"✅ Баланс поповнено!\n\n"
-                f"💰 +${float(amount_usd):.2f} = ⭐+{stars_credited}\n"
-                f"💫 Новий баланс: <b>⭐{user.balance_stars}</b>",
-                parse_mode="HTML"
-            )
-        except Exception:
-            pass
-
-    return Response(content="YES", media_type="text/plain")
-
-
-_PAYMENT_PAGE = """<!DOCTYPE html>
-<html><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-body{{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
-background:#0C0C10;font-family:sans-serif;color:#fff;text-align:center;padding:24px;box-sizing:border-box}}
-.icon{{font-size:64px;margin-bottom:16px}}
-h2{{margin:0 0 8px;font-size:22px}}
-p{{margin:0 0 28px;color:#888;font-size:14px}}
-a{{display:inline-block;background:linear-gradient(135deg,#FF6B2B,#e05520);color:#fff;
-text-decoration:none;border-radius:14px;padding:14px 32px;font-weight:700;font-size:15px}}
-</style></head><body>
-<div><div class="icon">{icon}</div>
-<h2>{title}</h2><p>{desc}</p>
-<a href="https://t.me/{bot}">Повернутись в Telegram</a>
-</div></body></html>"""
-
-_BOT_USERNAME: str | None = None
-
-@app.get("/api/freekassa/success")
-async def fk_success():
-    from fastapi.responses import HTMLResponse
-    bot_name = _BOT_USERNAME or "LemurShopBot"
-    html = _PAYMENT_PAGE.format(
-        icon="✅", title="Оплата успішна!",
-        desc="Баланс поповнено. Поверніться в бот.",
-        bot=bot_name,
-    )
-    return HTMLResponse(html)
-
-
-@app.get("/api/freekassa/fail")
-async def fk_fail():
-    from fastapi.responses import HTMLResponse
-    bot_name = _BOT_USERNAME or "LemurShopBot"
-    html = _PAYMENT_PAGE.format(
-        icon="❌", title="Оплата не пройшла",
-        desc="Спробуйте ще раз або оберіть інший спосіб оплати.",
-        bot=bot_name,
-    )
-    return HTMLResponse(html)
-
-
 # ─── CryptoBot ────────────────────────────────────────────────────────────────
 
 CRYPTOBOT_API = "https://pay.crypt.bot/api"
@@ -1094,12 +938,10 @@ async def api_admin_broadcast_status(admin: User = Depends(require_admin)):
 @app.post("/api/admin/reset-stats")
 async def api_admin_reset_stats(admin: User = Depends(require_admin)):
     from sqlalchemy import delete
-    from lemur_shop.db.models import FKOrder
     async with AsyncSessionLocal() as s:
         async with s.begin():
             await s.execute(delete(TopUp))
             await s.execute(delete(Order))
-            await s.execute(delete(FKOrder))
             await s.execute(
                     __import__('sqlalchemy').text(
                         "UPDATE users SET balance_stars = 0, balance_usd = 0"
