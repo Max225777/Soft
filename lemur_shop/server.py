@@ -1339,9 +1339,9 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
         raise HTTPException(400, f"Quantity must be {svc['min']}–{svc['max']}")
 
     # Блокуємо накрутку на власний канал магазину
-    normalized = normalize_tg_link(body.link)  # → t.me/username
-    slug = normalized.split("/")[-1].lstrip("@").lower()
-    if slug in {c.lower() for c in BLOCKED_SMM_CHANNELS}:
+    # Посилання може бути t.me/LEMUR_SHOP або t.me/LEMUR_SHOP/123 (пост)
+    link_lower = body.link.lower()
+    if any(c.lower() in link_lower for c in BLOCKED_SMM_CHANNELS):
         raise HTTPException(400, "blocked_channel")
 
     price_stars = max(1, round(body.quantity / 100 * svc["price_per_100_stars"]))
