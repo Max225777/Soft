@@ -1317,8 +1317,6 @@ async def api_wheel_room(room_id: int, user: User = Depends(get_current_user)):
 @app.get("/api/smm/services")
 async def api_smm_services(user: User = Depends(get_current_user)):
     from lemur_shop.services.smm import SMM_SERVICES
-    if settings.PREVIEW_MODE and user.id not in settings.ADMIN_IDS:
-        raise HTTPException(status_code=403, detail="preview_mode")
     return [{"key": k, **v} for k, v in SMM_SERVICES.items()]
 
 
@@ -1328,17 +1326,23 @@ class SmmOrderRequest(BaseModel):
     quantity: int
 
 
+BLOCKED_SMM_CHANNELS = {"lemur_shop", "LEMUR_SHOP"}
+
+
 @app.post("/api/smm/order")
 async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_user)):
-    if settings.PREVIEW_MODE and user.id not in settings.ADMIN_IDS:
-        raise HTTPException(status_code=403, detail="preview_mode")
-
-    from lemur_shop.services.smm import SMM_SERVICES, SmmApiError, place_order
+    from lemur_shop.services.smm import SMM_SERVICES, SmmApiError, place_order, normalize_tg_link
     svc = SMM_SERVICES.get(body.service_key)
     if not svc:
         raise HTTPException(400, "Unknown service")
     if body.quantity < svc["min"] or body.quantity > svc["max"]:
         raise HTTPException(400, f"Quantity must be {svc['min']}–{svc['max']}")
+
+    # Блокуємо накрутку на власний канал магазину
+    normalized = normalize_tg_link(body.link)  # → t.me/username
+    slug = normalized.split("/")[-1].lstrip("@").lower()
+    if slug in {c.lower() for c in BLOCKED_SMM_CHANNELS}:
+        raise HTTPException(400, "blocked_channel")
 
     price_stars = max(1, round(body.quantity / 100 * svc["price_per_100_stars"]))
     if user.balance_stars < price_stars:
