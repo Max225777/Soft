@@ -404,8 +404,8 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
 
       {smmServices.length === 0 ? (
         <div style={{ borderRadius: 20, height: 120 }} className="skeleton" />
-      ) : smmServices.filter(svc => ['tg_subscribers', 'tg_views', 'tg_reactions'].includes(svc.key)).map(svc => {
-        const isViews = svc.key === 'tg_views'
+      ) : smmServices.filter(svc => ['tg_subscribers', 'tg_views', 'tg_views_2', 'tg_reactions'].includes(svc.key)).map(svc => {
+        const isViews = svc.key === 'tg_views' || svc.key === 'tg_views_2'
         const isReactCard = svc.key === 'tg_reactions'
         const badgeQty = isViews ? 1000 : isReactCard ? 300 : 100
         const badgeStars = 10
@@ -686,7 +686,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   // ─── SMM замовлення ────────────────────────────────────────────────────────
   if (view === 'smm') {
     const svc = smmServices.find(s => s.key === selectedSmmKey) ?? smmServices[0]
-    const isViews = svc?.key === 'tg_views'
+    const isViews = svc?.key === 'tg_views' || svc?.key === 'tg_views_2'
     const isReactions = svc?.key === 'tg_reactions' || svc?.key === 'tg_reactions'
     const effectiveQty = Math.max(svc?.min ?? 10, smmQty)
     const priceStars = svc ? Math.max(1, Math.round(effectiveQty / 100 * svc.price_per_100_stars)) : 0
