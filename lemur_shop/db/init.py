@@ -17,6 +17,9 @@ _MIGRATIONS = [
     "INSERT INTO wheel_pot (id, stars) VALUES (1, 0) ON CONFLICT (id) DO NOTHING",
     "CREATE TABLE IF NOT EXISTS wheel_rooms (id SERIAL PRIMARY KEY, stake INT NOT NULL, max_players INT NOT NULL, status VARCHAR(16) DEFAULT 'waiting', winner_user_id BIGINT, winner_name VARCHAR(64), payout INT DEFAULT 0, created_at TIMESTAMP DEFAULT NOW())",
     "CREATE TABLE IF NOT EXISTS wheel_participants (id SERIAL PRIMARY KEY, room_id INT NOT NULL REFERENCES wheel_rooms(id), user_id BIGINT, name VARCHAR(64) NOT NULL, is_bot BOOLEAN DEFAULT FALSE, joined_at TIMESTAMP DEFAULT NOW())",
+    "ALTER TABLE topups ADD COLUMN IF NOT EXISTS method VARCHAR(16) DEFAULT 'admin'",
+    "ALTER TABLE topups ADD COLUMN IF NOT EXISTS charge_id VARCHAR(128)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uq_topups_charge_id ON topups (charge_id) WHERE charge_id IS NOT NULL",
 ]
 
 

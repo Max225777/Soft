@@ -579,7 +579,8 @@ async def crypto_notify(request: Request):
             user.balance_stars = user.balance_stars + stars_credited
             s.add(TopUp(
                 user_id=user_id, amount_usd=amount_usd,
-                amount_stars=stars_credited, admin_id=-1,  # -1 = CryptoBot
+                amount_stars=stars_credited, admin_id=-1,
+                method="crypto",
             ))
             log.info("CryptoBot paid: invoice=%s user=%s amount=%s stars=%s balance %s→%s",
                      crypto_invoice_id, user_id, amount_usd, stars_credited, bal_before, user.balance_stars)

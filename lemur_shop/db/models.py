@@ -77,6 +77,10 @@ class TopUp(Base):
     amount_usd: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     amount_stars: Mapped[int] = mapped_column(Integer, default=0)
     admin_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # метод: 'stars' | 'crypto' | 'admin'
+    method: Mapped[str] = mapped_column(String(16), default="admin")
+    # унікальний charge_id від Telegram (тільки для method='stars')
+    charge_id: Mapped[str | None] = mapped_column(String(128), nullable=True, unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
 

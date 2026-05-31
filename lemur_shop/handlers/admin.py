@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from decimal import Decimal
 
 from aiogram import Router
@@ -10,6 +11,8 @@ from sqlalchemy import func, select
 from lemur_shop.config import settings
 from lemur_shop.db.models import Order, TopUp, User
 from lemur_shop.db.session import AsyncSessionLocal
+
+log = logging.getLogger(__name__)
 
 router = Router()
 
@@ -51,6 +54,7 @@ async def cmd_topup(message: Message) -> None:
                 await message.answer(f"❌ Користувача «{parts[1]}» не знайдено.")
                 return
             amount_usd = Decimal(str(round(stars * settings.STAR_DISPLAY_USD, 4)))
+            bal_before = user.balance_stars
             user.balance_stars = user.balance_stars + stars
             user.balance_usd   = user.balance_usd + amount_usd
             s.add(TopUp(
@@ -58,7 +62,11 @@ async def cmd_topup(message: Message) -> None:
                 amount_usd=amount_usd,
                 amount_stars=stars,
                 admin_id=message.from_user.id,
+                method="admin",
             ))
+
+    log.info("ADMIN TOPUP: admin=%s user=%s stars=+%s balance %s→%s",
+             message.from_user.id, user.id, stars, bal_before, user.balance_stars)
 
     name = user.username or str(user.id)
     await message.answer(
@@ -236,6 +244,50 @@ async def cmd_unban(message: Message) -> None:
             user.is_banned = False
     name = user.username or str(user.id)
     await message.answer(f"✅ @{name} (<code>{user.id}</code>) розблоковано.", parse_mode="HTML")
+
+
+@router.message(Command("topups"))
+async def cmd_topups(message: Message) -> None:
+    if not _is_admin(message.from_user.id):
+        return
+
+    parts = (message.text or "").split()
+    if len(parts) != 2:
+        await message.answer("Використання: /topups «user_id або @username»", parse_mode=None)
+        return
+
+    async with AsyncSessionLocal() as s:
+        user = await _find_user(s, parts[1])
+        if not user:
+            await message.answer(f"❌ Користувача «{parts[1]}» не знайдено.")
+            return
+
+        rows = (await s.execute(
+            select(TopUp)
+            .where(TopUp.user_id == user.id)
+            .order_by(TopUp.created_at.desc())
+            .limit(15)
+        )).scalars().all()
+
+    name = user.username or str(user.id)
+    if not rows:
+        await message.answer(f"@{name}: поповнень немає.")
+        return
+
+    METHOD_LABELS = {"stars": "⭐ Stars", "crypto": "💎 Crypto", "admin": "👤 Адмін"}
+
+    lines = [f"📋 Поповнення @{name} (ID: <code>{user.id}</code>) — останні {len(rows)}:\n"]
+    for t in rows:
+        method_label = METHOD_LABELS.get(t.method or "admin", t.method or "?")
+        charge = f"\n   charge: <code>{t.charge_id}</code>" if t.charge_id else ""
+        admin_note = f" | admin={t.admin_id}" if t.admin_id and t.admin_id > 0 else ""
+        lines.append(
+            f"• {t.created_at.strftime('%d.%m %H:%M')} — {method_label}"
+            f" | <b>+⭐{t.amount_stars}</b>{admin_note}{charge}"
+        )
+
+    lines.append(f"\n💰 Поточний баланс: <b>⭐{user.balance_stars}</b>")
+    await message.answer("\n".join(lines), parse_mode="HTML")
 
 
 @router.message(Command("myid"))
