@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import httpx
 import logging
 
@@ -113,19 +114,19 @@ async def auto_buy_category(category: str) -> tuple[str, int, float]:
     if category == "us":
         pmin: float | None = None
         for macro in range(USA_MACRO_STEPS):
-            # Спочатку пробуємо без spam фільтра, бо Lolz API може повертати 403 на spam=no
+            # Retry пошуку: 403 від Lolz може бути тимчасовий rate-limit
             items = []
-            for spam_param in [None, "no"]:
+            for attempt in range(3):
                 try:
                     items = await lolz.search_telegram(
                         country=country, pmax=USA_PMAX, pmin=pmin, count=20,
-                        spam=spam_param, password=None,
+                        spam="no", password=None,
                     )
-                    if items:
-                        break
+                    break  # успішно — виходимо з retry
                 except LolzApiError as e:
-                    log.warning("USA macro %d search failed (spam=%s): %s", macro, spam_param, e)
-                    items = []
+                    log.warning("USA macro %d search attempt %d failed: %s", macro, attempt + 1, e)
+                    if attempt < 2:
+                        await asyncio.sleep(2)  # чекаємо перед retry
 
             if not items:
                 log.info("USA macro %d: no items at pmin=%s pmax=%.2f", macro, pmin, USA_PMAX)
