@@ -113,13 +113,19 @@ async def auto_buy_category(category: str) -> tuple[str, int, float]:
     if category == "us":
         pmin: float | None = None
         for macro in range(USA_MACRO_STEPS):
-            try:
-                items = await lolz.search_telegram(
-                    country=country, pmax=USA_PMAX, pmin=pmin, count=20,
-                    spam="no", password=None,
-                )  # USA: spam=no (not password=no)
-            except LolzApiError:
-                items = []
+            # Спочатку пробуємо без spam фільтра, бо Lolz API може повертати 403 на spam=no
+            items = []
+            for spam_param in [None, "no"]:
+                try:
+                    items = await lolz.search_telegram(
+                        country=country, pmax=USA_PMAX, pmin=pmin, count=20,
+                        spam=spam_param, password=None,
+                    )
+                    if items:
+                        break
+                except LolzApiError as e:
+                    log.warning("USA macro %d search failed (spam=%s): %s", macro, spam_param, e)
+                    items = []
 
             if not items:
                 log.info("USA macro %d: no items at pmin=%s pmax=%.2f", macro, pmin, USA_PMAX)

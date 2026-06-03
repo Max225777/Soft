@@ -80,7 +80,7 @@ class TopUp(Base):
     # метод: 'stars' | 'crypto' | 'admin'
     method: Mapped[str] = mapped_column(String(16), default="admin")
     # унікальний charge_id від Telegram (тільки для method='stars')
-    charge_id: Mapped[str | None] = mapped_column(String(128), nullable=True, unique=True)
+    charge_id: Mapped[str | None] = mapped_column(String(512), nullable=True, unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
 
