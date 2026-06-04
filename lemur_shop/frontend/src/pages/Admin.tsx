@@ -1,11 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { adminApi, type AdminStats, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type BroadcastStatus } from '../api'
 
-function useOverviewStats() {
+type DateMode = 'today' | 'all' | 'custom'
+
+function useOverviewStats(dateFrom: string, dateTo: string) {
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const reload = () => { setLoading(true); adminApi.stats().then(setStats).finally(() => setLoading(false)) }
-  useEffect(() => { reload() }, [])
+  const reload = useCallback(() => {
+    setLoading(true)
+    adminApi.stats(dateFrom || undefined, dateTo || undefined).then(setStats).finally(() => setLoading(false))
+  }, [dateFrom, dateTo])
+  useEffect(() => { reload() }, [reload])
   return { stats, loading, reload }
 }
 
@@ -48,7 +53,15 @@ function Pagination({ page, pages, onPage }: { page: number; pages: number; onPa
 
 // ── Overview ──────────────────────────────────────────────────────────────────
 function Overview() {
-  const { stats, loading, reload } = useOverviewStats()
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const [mode, setMode] = useState<DateMode>('today')
+  const [customFrom, setCustomFrom] = useState(todayStr)
+  const [customTo, setCustomTo]     = useState(todayStr)
+
+  const dateFrom = mode === 'today' ? todayStr : mode === 'custom' ? customFrom : ''
+  const dateTo   = mode === 'today' ? todayStr : mode === 'custom' ? customTo   : ''
+
+  const { stats, loading, reload } = useOverviewStats(dateFrom, dateTo)
   const [resetting, setResetting] = useState(false)
 
   async function handleReset() {
@@ -64,71 +77,100 @@ function Overview() {
     }
   }
 
-  if (loading) return <div style={{ padding: 20, textAlign: 'center', color: 'var(--muted)' }}>⏳ Завантаження...</div>
-  if (!stats) return <div style={{ padding: 20, color: 'var(--red)' }}>Помилка завантаження</div>
+  const profitColor = (v: number) => v >= 0 ? '#4CAF72' : '#ff5555'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* Today */}
-      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginBottom: -4 }}>СЬОГОДНІ</div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <StatCard label="Нових юзерів" value={stats.new_users_today} color="#4CAF72" />
-        <StatCard label="Замовлень" value={stats.orders_today} color="var(--orange)" />
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <StatCard label="Дохід" value={`$${stats.revenue_today.toFixed(2)}`} color="var(--orange)"
-          sub={`⭐${Math.round(stats.revenue_today / 0.013)}`} />
-        <StatCard label="Поповнень" value={`$${stats.topups_today.toFixed(2)}`} color="#2AABEE"
-          sub={`⭐${Math.round(stats.topups_today / 0.013)}`} />
-      </div>
 
-      {/* Funnel */}
-      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>ВОРОНКА</div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <StatCard label="Запустили бота" value={stats.total_users} color="#4CAF72" />
-        <StatCard label="Купили (унікал.)" value={stats.unique_buyers} color="var(--orange)"
-          sub={`${stats.conversion_pct}% конверсія`} />
+      {/* Date mode picker */}
+      <div style={{ display: 'flex', gap: 6 }}>
+        {(['today', 'all', 'custom'] as DateMode[]).map(m => (
+          <button key={m} onClick={() => setMode(m)} style={{
+            flex: 1, padding: '8px 4px', fontSize: 12, fontWeight: mode === m ? 700 : 500,
+            background: mode === m ? 'rgba(255,107,43,.2)' : 'var(--bg2)',
+            color: mode === m ? 'var(--orange)' : 'var(--muted)',
+            border: mode === m ? '1px solid rgba(255,107,43,.4)' : '1px solid var(--border)',
+            borderRadius: 10, cursor: 'pointer',
+          }}>
+            {m === 'today' ? '📅 Сьогодні' : m === 'all' ? '📊 Весь час' : '🗓 Дата'}
+          </button>
+        ))}
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <StatCard label="Є баланс ⭐" value={stats.users_with_balance} color="var(--gold)" />
-        <StatCard label="Сер. чек" value={`$${stats.avg_order_usd.toFixed(2)}`} color="var(--orange)"
-          sub={`⭐${Math.round(stats.avg_order_usd / 0.013)}`} />
-      </div>
-
-      {/* Conversion bar */}
-      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px' }}>
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
-          Конверсія: {stats.unique_buyers} / {stats.total_users} купили
+      {mode === 'custom' && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+            style={{ flex: 1, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', color: 'var(--text)', fontSize: 13 }} />
+          <span style={{ color: 'var(--muted)', fontSize: 13 }}>—</span>
+          <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
+            style={{ flex: 1, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', color: 'var(--text)', fontSize: 13 }} />
         </div>
-        <div style={{ height: 8, borderRadius: 4, background: 'rgba(255,255,255,.08)', overflow: 'hidden' }}>
-          <div style={{
-            height: '100%', borderRadius: 4,
-            background: 'linear-gradient(90deg, var(--orange), #ff9500)',
-            width: `${Math.min(stats.conversion_pct, 100)}%`, transition: 'width .5s',
-          }} />
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--orange)', marginTop: 4, fontWeight: 700 }}>
-          {stats.conversion_pct}%
-        </div>
-      </div>
+      )}
 
-      {/* All time */}
-      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>ЗАГАЛОМ</div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <StatCard label="Всього замовлень" value={stats.total_orders} color="var(--orange)" />
-        <StatCard label="На балансах" value={`⭐${stats.total_stars_balance}`}
-          sub={`$${(stats.total_stars_balance * 0.013).toFixed(2)}`} color="var(--gold)" />
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <StatCard label="Загальний дохід" value={`$${stats.total_revenue_usd.toFixed(2)}`}
-          sub={`⭐${Math.round(stats.total_revenue_usd / 0.013)}`} color="var(--orange)" />
-        <StatCard label="Поповнено" value={`$${stats.total_topups_usd.toFixed(2)}`}
-          sub={`⭐${Math.round(stats.total_topups_usd / 0.013)}`} color="#2AABEE" />
-      </div>
+      {loading && <div style={{ padding: 20, textAlign: 'center', color: 'var(--muted)' }}>⏳ Завантаження...</div>}
+      {!loading && !stats && <div style={{ padding: 20, color: 'var(--red)' }}>Помилка завантаження</div>}
+      {!loading && stats && (<>
 
-      {/* Categories */}
-      {stats.categories.length > 0 && (
-        <>
+        {/* Today always shown */}
+        {mode !== 'custom' && (<>
+          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginBottom: -4 }}>СЬОГОДНІ</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <StatCard label="Нових юзерів" value={stats.new_users_today} color="#4CAF72" />
+            <StatCard label="Замовлень" value={stats.orders_today} color="var(--orange)" />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <StatCard label="Дохід сьогодні" value={`$${stats.revenue_today.toFixed(2)}`} color="var(--orange)"
+              sub={`⭐${Math.round(stats.revenue_today / 0.013)}`} />
+            <StatCard label="Прибуток сьогодні" value={`$${stats.profit_today.toFixed(2)}`}
+              color={profitColor(stats.profit_today)} sub={`витрати $${stats.cost_today.toFixed(2)}`} />
+          </div>
+        </>)}
+
+        {/* Period stats */}
+        <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>
+          {mode === 'today' ? 'ЗАГАЛОМ (весь час)' : mode === 'all' ? 'ЗАГАЛОМ' : 'ЗА ОБРАНИЙ ПЕРІОД'}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <StatCard label="Замовлень" value={stats.total_orders} color="var(--orange)" />
+          <StatCard label="Поповнено" value={`$${stats.total_topups_usd.toFixed(2)}`}
+            sub={`⭐${Math.round(stats.total_topups_usd / 0.013)}`} color="#2AABEE" />
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <StatCard label="Виручка" value={`$${stats.total_revenue_usd.toFixed(2)}`}
+            sub={`⭐${Math.round(stats.total_revenue_usd / 0.013)}`} color="var(--orange)" />
+          <StatCard label="Прибуток" value={`$${stats.total_profit_usd.toFixed(2)}`}
+            sub={`витрати $${stats.total_cost_usd.toFixed(2)}`} color={profitColor(stats.total_profit_usd)} />
+        </div>
+
+        {/* Funnel — only in all-time/custom */}
+        {mode !== 'today' && (<>
+          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>ВОРОНКА</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <StatCard label="Запустили бота" value={stats.total_users} color="#4CAF72" />
+            <StatCard label="Купили (унікал.)" value={stats.unique_buyers} color="var(--orange)"
+              sub={`${stats.conversion_pct}% конверсія`} />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <StatCard label="Є баланс ⭐" value={stats.users_with_balance} color="var(--gold)" />
+            <StatCard label="На балансах" value={`⭐${stats.total_stars_balance}`}
+              sub={`$${(stats.total_stars_balance * 0.013).toFixed(2)}`} color="var(--gold)" />
+          </div>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px' }}>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
+              Конверсія: {stats.unique_buyers} / {stats.total_users} купили
+            </div>
+            <div style={{ height: 8, borderRadius: 4, background: 'rgba(255,255,255,.08)', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', borderRadius: 4,
+                background: 'linear-gradient(90deg, var(--orange), #ff9500)',
+                width: `${Math.min(stats.conversion_pct, 100)}%`, transition: 'width .5s',
+              }} />
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--orange)', marginTop: 4, fontWeight: 700 }}>{stats.conversion_pct}%</div>
+          </div>
+        </>)}
+
+        {/* Categories */}
+        {stats.categories.length > 0 && (<>
           <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>ПО КАТЕГОРІЯХ</div>
           {stats.categories.map(c => (
             <div key={c.category} style={{
@@ -141,31 +183,30 @@ function Overview() {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontWeight: 700, color: 'var(--orange)' }}>{c.count} шт</div>
-                <div style={{ fontSize: 12, color: 'var(--muted)' }}>${c.revenue_usd.toFixed(2)}</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                  виручка ${c.revenue_usd.toFixed(2)}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: profitColor(c.profit_usd) }}>
+                  прибуток ${c.profit_usd.toFixed(2)}
+                </div>
               </div>
             </div>
           ))}
-        </>
-      )}
+        </>)}
 
-      {/* Danger zone */}
-      <div style={{
-        marginTop: 8, background: 'rgba(255,60,60,.06)',
-        border: '1px solid rgba(255,60,60,.2)', borderRadius: 12, padding: '12px 14px',
-      }}>
-        <div style={{ fontSize: 12, color: '#ff5555', fontWeight: 700, marginBottom: 8 }}>⚠️ Небезпечна зона</div>
-        <button
-          className="btn"
-          disabled={resetting}
-          onClick={handleReset}
-          style={{
-            background: 'rgba(255,60,60,.15)', color: '#ff5555',
-            border: '1px solid rgba(255,60,60,.3)', fontSize: 13,
-          }}
-        >
-          {resetting ? '⏳ Скидання...' : '🗑 Скинути всі баланси і статистику'}
-        </button>
-      </div>
+        {/* Danger zone */}
+        <div style={{
+          marginTop: 8, background: 'rgba(255,60,60,.06)',
+          border: '1px solid rgba(255,60,60,.2)', borderRadius: 12, padding: '12px 14px',
+        }}>
+          <div style={{ fontSize: 12, color: '#ff5555', fontWeight: 700, marginBottom: 8 }}>⚠️ Небезпечна зона</div>
+          <button className="btn" disabled={resetting} onClick={handleReset}
+            style={{ background: 'rgba(255,60,60,.15)', color: '#ff5555', border: '1px solid rgba(255,60,60,.3)', fontSize: 13 }}>
+            {resetting ? '⏳ Скидання...' : '🗑 Скинути всі баланси і статистику'}
+          </button>
+        </div>
+
+      </>)}
     </div>
   )
 }

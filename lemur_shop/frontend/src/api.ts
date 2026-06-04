@@ -64,7 +64,13 @@ export const wheelApi = {
 }
 
 export const adminApi = {
-  stats:           () => req<AdminStats>('/admin/stats'),
+  stats:           (dateFrom?: string, dateTo?: string) => {
+    const p = new URLSearchParams()
+    if (dateFrom) p.set('date_from', dateFrom)
+    if (dateTo)   p.set('date_to', dateTo)
+    const qs = p.toString()
+    return req<AdminStats>(`/admin/stats${qs ? '?' + qs : ''}`)
+  },
   users:           (page: number, limit = 20, search = '') => req<AdminUsersPage>(`/admin/users?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`),
   userDetail:      (id: number) => req<AdminUserDetail>(`/admin/user/${id}`),
   orders:          (page: number, limit = 30) => req<AdminOrdersPage>(`/admin/orders?page=${page}&limit=${limit}`),
@@ -96,9 +102,11 @@ export interface Order {
 export interface AdminStats {
   total_users: number; unique_buyers: number; users_with_balance: number; conversion_pct: number
   total_orders: number; avg_order_usd: number
-  total_revenue_usd: number; total_topups_usd: number; total_stars_balance: number
-  new_users_today: number; orders_today: number; revenue_today: number; topups_today: number
-  categories: { category: string; count: number; revenue_usd: number }[]
+  total_revenue_usd: number; total_cost_usd: number; total_profit_usd: number
+  total_topups_usd: number; total_stars_balance: number
+  new_users_today: number; orders_today: number
+  revenue_today: number; cost_today: number; profit_today: number; topups_today: number
+  categories: { category: string; count: number; revenue_usd: number; cost_usd: number; profit_usd: number }[]
 }
 export interface BroadcastStatus {
   running: boolean; sent: number; failed: number; total: number; text: string

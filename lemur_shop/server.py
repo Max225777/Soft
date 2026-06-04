@@ -695,54 +695,95 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
 
 
 @app.get("/api/admin/stats")
-async def api_admin_stats(admin: User = Depends(require_admin)):
-    from math import ceil
-    from datetime import date
-    async with AsyncSessionLocal() as s:
-        total_users   = await s.scalar(select(func.count(User.id))) or 0
-        total_orders  = await s.scalar(select(func.count(Order.id)).where(Order.status == "delivered")) or 0
-        total_rev_usd = await s.scalar(select(func.sum(Order.price_usd)).where(Order.status == "delivered")) or 0
-        total_topups  = await s.scalar(select(func.sum(TopUp.amount_usd))) or 0
+async def api_admin_stats(
+    admin: User = Depends(require_admin),
+    date_from: str | None = None,
+    date_to: str | None = None,
+):
+    from datetime import date, datetime as dt
+    from sqlalchemy import distinct
 
-        today = date.today()
-        new_users_today  = await s.scalar(select(func.count(User.id)).where(func.date(User.created_at) == today)) or 0
-        orders_today     = await s.scalar(select(func.count(Order.id)).where(Order.status == "delivered", func.date(Order.created_at) == today)) or 0
-        revenue_today    = await s.scalar(select(func.sum(Order.price_usd)).where(Order.status == "delivered", func.date(Order.created_at) == today)) or 0
-        topups_today     = await s.scalar(select(func.sum(TopUp.amount_usd)).where(func.date(TopUp.created_at) == today)) or 0
+    # Parse date range
+    today = date.today()
+    try:
+        df = dt.strptime(date_from, "%Y-%m-%d").date() if date_from else None
+        dt2 = dt.strptime(date_to, "%Y-%m-%d").date() if date_to else None
+    except ValueError:
+        df = dt2 = None
+
+    def order_date_filter(col):
+        filters = [Order.status == "delivered"]
+        if df:
+            filters.append(func.date(col) >= df)
+        if dt2:
+            filters.append(func.date(col) <= dt2)
+        return filters
+
+    async with AsyncSessionLocal() as s:
+        total_users        = await s.scalar(select(func.count(User.id))) or 0
+        total_stars_balance = await s.scalar(select(func.sum(User.balance_stars))) or 0
+        users_with_balance = await s.scalar(select(func.count(User.id)).where(User.balance_stars > 0)) or 0
+
+        # Orders in selected range
+        ord_filters = order_date_filter(Order.created_at)
+        total_orders  = await s.scalar(select(func.count(Order.id)).where(*ord_filters)) or 0
+        total_rev_usd = await s.scalar(select(func.sum(Order.price_usd)).where(*ord_filters)) or 0
+        total_cost_usd = await s.scalar(select(func.sum(Order.cost_usd)).where(*ord_filters)) or 0
+        unique_buyers = await s.scalar(select(func.count(distinct(Order.user_id))).where(*ord_filters)) or 0
+
+        # Topups in selected range
+        top_filters = []
+        if df:
+            top_filters.append(func.date(TopUp.created_at) >= df)
+        if dt2:
+            top_filters.append(func.date(TopUp.created_at) <= dt2)
+        total_topups = await s.scalar(select(func.sum(TopUp.amount_usd)).where(*top_filters)) or 0
+
+        # Today stats (always)
+        new_users_today = await s.scalar(select(func.count(User.id)).where(func.date(User.created_at) == today)) or 0
+        orders_today    = await s.scalar(select(func.count(Order.id)).where(Order.status == "delivered", func.date(Order.created_at) == today)) or 0
+        revenue_today   = await s.scalar(select(func.sum(Order.price_usd)).where(Order.status == "delivered", func.date(Order.created_at) == today)) or 0
+        cost_today      = await s.scalar(select(func.sum(Order.cost_usd)).where(Order.status == "delivered", func.date(Order.created_at) == today)) or 0
+        topups_today    = await s.scalar(select(func.sum(TopUp.amount_usd)).where(func.date(TopUp.created_at) == today)) or 0
 
         cat_rows = (await s.execute(
-            select(Order.category, func.count(Order.id), func.sum(Order.price_usd))
-            .where(Order.status == "delivered")
+            select(Order.category, func.count(Order.id), func.sum(Order.price_usd), func.sum(Order.cost_usd))
+            .where(*ord_filters)
             .group_by(Order.category)
             .order_by(func.count(Order.id).desc())
         )).all()
 
-        total_stars_balance = await s.scalar(select(func.sum(User.balance_stars))) or 0
-
-        from sqlalchemy import distinct
-        unique_buyers      = await s.scalar(select(func.count(distinct(Order.user_id))).where(Order.status == "delivered")) or 0
-        users_with_balance = await s.scalar(select(func.count(User.id)).where(User.balance_stars > 0)) or 0
-        conversion_pct     = round(unique_buyers / total_users * 100, 1) if total_users else 0.0
-
-        # avg order value
-        avg_order_usd = float(total_rev_usd) / total_orders if total_orders else 0.0
+    conversion_pct = round(unique_buyers / total_users * 100, 1) if total_users else 0.0
+    avg_order_usd  = float(total_rev_usd) / total_orders if total_orders else 0.0
+    total_profit   = float(total_rev_usd) - float(total_cost_usd)
+    profit_today   = float(revenue_today) - float(cost_today)
 
     return {
-        "total_users":        total_users,
-        "unique_buyers":      unique_buyers,
-        "users_with_balance": users_with_balance,
-        "conversion_pct":     conversion_pct,
-        "total_orders":       total_orders,
-        "avg_order_usd":      round(avg_order_usd, 2),
-        "total_revenue_usd":  float(total_rev_usd),
-        "total_topups_usd":   float(total_topups),
+        "total_users":         total_users,
+        "unique_buyers":       unique_buyers,
+        "users_with_balance":  users_with_balance,
+        "conversion_pct":      conversion_pct,
+        "total_orders":        total_orders,
+        "avg_order_usd":       round(avg_order_usd, 2),
+        "total_revenue_usd":   float(total_rev_usd),
+        "total_cost_usd":      float(total_cost_usd),
+        "total_profit_usd":    round(total_profit, 2),
+        "total_topups_usd":    float(total_topups),
         "total_stars_balance": total_stars_balance,
-        "new_users_today":    new_users_today,
-        "orders_today":       orders_today,
-        "revenue_today":      float(revenue_today),
-        "topups_today":       float(topups_today),
+        "new_users_today":     new_users_today,
+        "orders_today":        orders_today,
+        "revenue_today":       float(revenue_today),
+        "cost_today":          float(cost_today),
+        "profit_today":        round(profit_today, 2),
+        "topups_today":        float(topups_today),
         "categories": [
-            {"category": r[0] or "?", "count": r[1], "revenue_usd": float(r[2] or 0)}
+            {
+                "category":    r[0] or "?",
+                "count":       r[1],
+                "revenue_usd": float(r[2] or 0),
+                "cost_usd":    float(r[3] or 0),
+                "profit_usd":  round(float(r[2] or 0) - float(r[3] or 0), 2),
+            }
             for r in cat_rows
         ],
     }
