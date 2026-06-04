@@ -21,6 +21,10 @@ _MIGRATIONS = [
     "ALTER TABLE topups ADD COLUMN IF NOT EXISTS charge_id VARCHAR(512)",
     "ALTER TABLE topups ALTER COLUMN charge_id TYPE VARCHAR(512)",
     "CREATE UNIQUE INDEX IF NOT EXISTS uq_topups_charge_id ON topups (charge_id) WHERE charge_id IS NOT NULL",
+    # Перераховуємо price_usd для старих USA ордерів де зберігся прайсовий $1.30 замість реального $0.325 (25 зірок)
+    "UPDATE orders SET price_usd = 0.3250 WHERE category = 'us' AND price_usd = 1.30",
+    # Перераховуємо для UA/KZ: прайс $3.25 → реальний $1.95 (150 зірок × $0.013)
+    "UPDATE orders SET price_usd = 1.9500 WHERE category IN ('ua','kz') AND price_usd = 3.25",
 ]
 
 

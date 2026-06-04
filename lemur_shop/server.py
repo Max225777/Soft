@@ -291,10 +291,10 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
     discount_stars = cat_info.get("discount_stars")
     if discount_stars:
         shop_price_stars = discount_stars
-        shop_price_usd = Decimal(str(round(discount_stars * settings.STAR_DISPLAY_USD, 4)))
     else:
         shop_price_stars = round(base_price_usd / settings.STAR_DISPLAY_USD)
-        shop_price_usd = Decimal(str(round(float(base_price_usd), 2)))
+    # price_usd завжди = реальна зірочна оплата, а не прайсова ціна
+    shop_price_usd = Decimal(str(round(shop_price_stars * settings.STAR_DISPLAY_USD, 4)))
 
     if user.balance_stars < shop_price_stars:
         raise HTTPException(status_code=402, detail="insufficient_balance")
