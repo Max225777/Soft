@@ -69,7 +69,7 @@ function GroupStats({
   profitColor: (v: number) => string
   flags: Record<string, string>
 }) {
-  if (group.count === 0) return null
+  // завжди показуємо блок
   return (
     <>
       <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>{label}</div>
@@ -252,8 +252,8 @@ function Overview() {
           </div>
         </>)}
 
-        <GroupStats label="📱 ТГ АКАУНТИ" group={stats.accounts} profitColor={profitColor} flags={CATEGORY_FLAGS} />
         <GroupStats label="📊 НАКРУТКА (SMM)" group={stats.smm} profitColor={profitColor} flags={CATEGORY_FLAGS} />
+        <GroupStats label="📱 ТГ АКАУНТИ" group={stats.accounts} profitColor={profitColor} flags={CATEGORY_FLAGS} />
 
         {/* Danger zone */}
         <div style={{
