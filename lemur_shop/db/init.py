@@ -28,11 +28,11 @@ _MIGRATIONS = [
     # Бекфілл cost_usd для SMM замовлень де cost_usd IS NULL
     # Формула: cost = (price_usd / 0.013) * (100 / price_per_100_stars) * (cost_rub_per_1000 / 1000 / 90)
     # Підписники: price_per_100_stars=10, cost_rub=41  → ratio = 100/10 * 41/117000 = 0.3504
-    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS FLOAT) * 0.3504, 6) WHERE category = 'tg_subscribers' AND (cost_usd IS NULL OR cost_usd = 0) AND status = 'delivered'",
+    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.3504, 6) WHERE category = 'tg_subscribers' AND (cost_usd IS NULL OR cost_usd = 0) AND status = 'delivered'",
     # Перегляди: price_per_100_stars=1.5, cost_rub=8.8 → ratio = 100/1.5 * 8.8/117000 = 0.5013
-    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS FLOAT) * 0.5013, 6) WHERE category = 'tg_views' AND (cost_usd IS NULL OR cost_usd = 0) AND status = 'delivered'",
+    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.5013, 6) WHERE category = 'tg_views' AND (cost_usd IS NULL OR cost_usd = 0) AND status = 'delivered'",
     # Реакції: price_per_100_stars=3.34, cost_rub=1.0 → ratio = 100/3.34 * 1/117000 = 0.000256
-    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS FLOAT) * 0.000256, 6) WHERE category IN ('tg_reactions','tg_react_poop','tg_react_clown','tg_react_middlefinger','tg_react_vomit') AND (cost_usd IS NULL OR cost_usd = 0) AND status = 'delivered'",
+    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.000256, 6) WHERE category IN ('tg_reactions','tg_react_poop','tg_react_clown','tg_react_middlefinger','tg_react_vomit') AND (cost_usd IS NULL OR cost_usd = 0) AND status = 'delivered'",
     # Додаємо колонку smm_quantity для зберігання кількості накрутки
     "ALTER TABLE orders ADD COLUMN IF NOT EXISTS smm_quantity INT DEFAULT 0",
 ]
