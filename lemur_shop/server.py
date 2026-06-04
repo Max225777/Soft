@@ -753,6 +753,28 @@ async def api_admin_stats(
             .order_by(func.count(Order.id).desc())
         )).all()
 
+    ACCOUNT_CATS = {"us", "ua", "kz"}
+
+    def _row(r) -> dict:
+        rev  = float(r[2] or 0)
+        cost = float(r[3] or 0)
+        cat  = r[0] or "?"
+        return {
+            "category":    cat,
+            "group":       "account" if cat in ACCOUNT_CATS else "smm",
+            "count":       r[1],
+            "revenue_usd": rev,
+            "cost_usd":    cost,
+            "profit_usd":  round(rev - cost, 2),
+        }
+
+    categories = [_row(r) for r in cat_rows]
+
+    def _sum(rows, key): return round(sum(r[key] for r in rows), 2)
+
+    acct_rows = [c for c in categories if c["group"] == "account"]
+    smm_rows  = [c for c in categories if c["group"] == "smm"]
+
     conversion_pct = round(unique_buyers / total_users * 100, 1) if total_users else 0.0
     avg_order_usd  = float(total_rev_usd) / total_orders if total_orders else 0.0
     total_profit   = float(total_rev_usd) - float(total_cost_usd)
@@ -776,16 +798,21 @@ async def api_admin_stats(
         "cost_today":          float(cost_today),
         "profit_today":        round(profit_today, 2),
         "topups_today":        float(topups_today),
-        "categories": [
-            {
-                "category":    r[0] or "?",
-                "count":       r[1],
-                "revenue_usd": float(r[2] or 0),
-                "cost_usd":    float(r[3] or 0),
-                "profit_usd":  round(float(r[2] or 0) - float(r[3] or 0), 2),
-            }
-            for r in cat_rows
-        ],
+        "categories":          categories,
+        "accounts": {
+            "count":       sum(c["count"] for c in acct_rows),
+            "revenue_usd": _sum(acct_rows, "revenue_usd"),
+            "cost_usd":    _sum(acct_rows, "cost_usd"),
+            "profit_usd":  _sum(acct_rows, "profit_usd"),
+            "rows":        acct_rows,
+        },
+        "smm": {
+            "count":       sum(c["count"] for c in smm_rows),
+            "revenue_usd": _sum(smm_rows, "revenue_usd"),
+            "cost_usd":    _sum(smm_rows, "cost_usd"),
+            "profit_usd":  _sum(smm_rows, "profit_usd"),
+            "rows":        smm_rows,
+        },
     }
 
 

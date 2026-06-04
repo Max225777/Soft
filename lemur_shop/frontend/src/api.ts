@@ -99,6 +99,13 @@ export interface Order {
   created_at: string; delivered_data: string | null
 }
 
+export interface StatsCatRow {
+  category: string; group: 'account' | 'smm'; count: number
+  revenue_usd: number; cost_usd: number; profit_usd: number
+}
+export interface StatsGroup {
+  count: number; revenue_usd: number; cost_usd: number; profit_usd: number; rows: StatsCatRow[]
+}
 export interface AdminStats {
   total_users: number; unique_buyers: number; users_with_balance: number; conversion_pct: number
   total_orders: number; avg_order_usd: number
@@ -106,7 +113,9 @@ export interface AdminStats {
   total_topups_usd: number; total_stars_balance: number
   new_users_today: number; orders_today: number
   revenue_today: number; cost_today: number; profit_today: number; topups_today: number
-  categories: { category: string; count: number; revenue_usd: number; cost_usd: number; profit_usd: number }[]
+  categories: StatsCatRow[]
+  accounts: StatsGroup
+  smm: StatsGroup
 }
 export interface BroadcastStatus {
   running: boolean; sent: number; failed: number; total: number; text: string

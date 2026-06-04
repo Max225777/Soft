@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { adminApi, type AdminStats, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type BroadcastStatus } from '../api'
+import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type BroadcastStatus } from '../api'
 
 type DateMode = 'today' | 'all' | 'custom'
 
@@ -48,6 +48,67 @@ function Pagination({ page, pages, onPage }: { page: number; pages: number; onPa
       <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: 13 }}
         disabled={page >= pages} onClick={() => onPage(page + 1)}>→</button>
     </div>
+  )
+}
+
+const SMM_TITLES: Record<string, string> = {
+  tg_subscribers: '👥 Підписники',
+  tg_views:       '👁️ Перегляди',
+  tg_reactions:   '❤️ Реакції',
+  tg_react_poop:  '💩 Реакції',
+  tg_react_clown: '🤡 Реакції',
+  tg_react_middlefinger: '🖕 Реакції',
+  tg_react_vomit: '🤮 Реакції',
+}
+
+function GroupStats({
+  label, group, profitColor, flags,
+}: {
+  label: string
+  group: StatsGroup
+  profitColor: (v: number) => string
+  flags: Record<string, string>
+}) {
+  if (group.count === 0) return null
+  return (
+    <>
+      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>{label}</div>
+      {/* Summary row */}
+      <div style={{
+        background: 'rgba(255,107,43,.06)', border: '1px solid rgba(255,107,43,.2)',
+        borderRadius: 12, padding: '12px 16px',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>Разом: {group.count} шт</div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 12, color: 'var(--muted)' }}>виручка ${group.revenue_usd.toFixed(2)}</div>
+          <div style={{ fontWeight: 800, fontSize: 15, color: profitColor(group.profit_usd) }}>
+            прибуток ${group.profit_usd.toFixed(2)}
+          </div>
+        </div>
+      </div>
+      {/* Per-category rows */}
+      {group.rows.map(c => (
+        <div key={c.category} style={{
+          background: 'var(--bg2)', border: '1px solid var(--border)',
+          borderRadius: 10, padding: '10px 14px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginTop: -4,
+        }}>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>
+            {flags[c.category] || SMM_TITLES[c.category]?.split(' ')[0] || '🌐'}{' '}
+            {c.group === 'account' ? c.category.toUpperCase() : (SMM_TITLES[c.category] || c.category)}
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ color: 'var(--orange)', fontWeight: 700, fontSize: 13 }}>{c.count} шт</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>${c.revenue_usd.toFixed(2)}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: profitColor(c.profit_usd) }}>
+              ${c.profit_usd.toFixed(2)}
+            </div>
+          </div>
+        </div>
+      ))}
+    </>
   )
 }
 
@@ -169,30 +230,8 @@ function Overview() {
           </div>
         </>)}
 
-        {/* Categories */}
-        {stats.categories.length > 0 && (<>
-          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>ПО КАТЕГОРІЯХ</div>
-          {stats.categories.map(c => (
-            <div key={c.category} style={{
-              background: 'var(--bg2)', border: '1px solid var(--border)',
-              borderRadius: 12, padding: '12px 16px',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>
-                {CATEGORY_FLAGS[c.category] || '🌐'} {c.category.toUpperCase()}
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontWeight: 700, color: 'var(--orange)' }}>{c.count} шт</div>
-                <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                  виручка ${c.revenue_usd.toFixed(2)}
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: profitColor(c.profit_usd) }}>
-                  прибуток ${c.profit_usd.toFixed(2)}
-                </div>
-              </div>
-            </div>
-          ))}
-        </>)}
+        <GroupStats label="📱 ТГ АКАУНТИ" group={stats.accounts} profitColor={profitColor} flags={CATEGORY_FLAGS} />
+        <GroupStats label="📊 НАКРУТКА (SMM)" group={stats.smm} profitColor={profitColor} flags={CATEGORY_FLAGS} />
 
         {/* Danger zone */}
         <div style={{
