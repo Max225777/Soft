@@ -77,13 +77,26 @@ function GroupStats({
       <div style={{
         background: 'rgba(255,107,43,.06)', border: '1px solid rgba(255,107,43,.2)',
         borderRadius: 12, padding: '12px 16px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
-        <div style={{ fontWeight: 700, fontSize: 14 }}>Разом: {group.count} шт</div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 12, color: 'var(--muted)' }}>виручка ${group.revenue_usd.toFixed(2)}</div>
-          <div style={{ fontWeight: 800, fontSize: 15, color: profitColor(group.profit_usd) }}>
-            прибуток ${group.profit_usd.toFixed(2)}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>Замовлень: {group.count}</div>
+            {group.smm_quantity > 0 && (
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+                Одиниць: {group.smm_quantity.toLocaleString()}
+              </div>
+            )}
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+              виручка <b style={{ color: 'var(--text)' }}>${group.revenue_usd.toFixed(2)}</b>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+              витрати <b style={{ color: 'var(--text)' }}>${group.cost_usd.toFixed(2)}</b>
+            </div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: profitColor(group.profit_usd), marginTop: 2 }}>
+              прибуток ${group.profit_usd.toFixed(2)}
+            </div>
           </div>
         </div>
       </div>
@@ -95,15 +108,24 @@ function GroupStats({
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           marginTop: -4,
         }}>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>
-            {flags[c.category] || SMM_TITLES[c.category]?.split(' ')[0] || '🌐'}{' '}
-            {c.group === 'account' ? c.category.toUpperCase() : (SMM_TITLES[c.category] || c.category)}
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>
+              {flags[c.category] || SMM_TITLES[c.category]?.split(' ')[0] || '🌐'}{' '}
+              {c.group === 'account' ? c.category.toUpperCase() : (SMM_TITLES[c.category] || c.category)}
+            </div>
+            {c.smm_quantity > 0 && (
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                {c.smm_quantity.toLocaleString()} од.
+              </div>
+            )}
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ color: 'var(--orange)', fontWeight: 700, fontSize: 13 }}>{c.count} шт</div>
-            <div style={{ fontSize: 11, color: 'var(--muted)' }}>${c.revenue_usd.toFixed(2)}</div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: profitColor(c.profit_usd) }}>
-              ${c.profit_usd.toFixed(2)}
+            <div style={{ color: 'var(--orange)', fontWeight: 700, fontSize: 13 }}>{c.count} замовл.</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+              ${c.revenue_usd.toFixed(2)} / -${c.cost_usd.toFixed(2)}
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: profitColor(c.profit_usd) }}>
+              =${c.profit_usd.toFixed(2)}
             </div>
           </div>
         </div>

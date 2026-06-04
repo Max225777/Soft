@@ -100,11 +100,12 @@ export interface Order {
 }
 
 export interface StatsCatRow {
-  category: string; group: 'account' | 'smm'; count: number
+  category: string; group: 'account' | 'smm'; count: number; smm_quantity: number
   revenue_usd: number; cost_usd: number; profit_usd: number
 }
 export interface StatsGroup {
-  count: number; revenue_usd: number; cost_usd: number; profit_usd: number; rows: StatsCatRow[]
+  count: number; smm_quantity: number
+  revenue_usd: number; cost_usd: number; profit_usd: number; rows: StatsCatRow[]
 }
 export interface AdminStats {
   total_users: number; unique_buyers: number; users_with_balance: number; conversion_pct: number

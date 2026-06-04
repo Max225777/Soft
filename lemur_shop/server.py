@@ -747,7 +747,13 @@ async def api_admin_stats(
         topups_today    = await s.scalar(select(func.sum(TopUp.amount_usd)).where(func.date(TopUp.created_at) == today)) or 0
 
         cat_rows = (await s.execute(
-            select(Order.category, func.count(Order.id), func.sum(Order.price_usd), func.sum(Order.cost_usd))
+            select(
+                Order.category,
+                func.count(Order.id),
+                func.sum(Order.price_usd),
+                func.sum(Order.cost_usd),
+                func.sum(Order.smm_quantity),
+            )
             .where(*ord_filters)
             .group_by(Order.category)
             .order_by(func.count(Order.id).desc())
@@ -763,6 +769,7 @@ async def api_admin_stats(
             "category":    cat,
             "group":       "account" if cat in ACCOUNT_CATS else "smm",
             "count":       r[1],
+            "smm_quantity": int(r[4] or 0),
             "revenue_usd": rev,
             "cost_usd":    cost,
             "profit_usd":  round(rev - cost, 2),
@@ -800,18 +807,20 @@ async def api_admin_stats(
         "topups_today":        float(topups_today),
         "categories":          categories,
         "accounts": {
-            "count":       sum(c["count"] for c in acct_rows),
-            "revenue_usd": _sum(acct_rows, "revenue_usd"),
-            "cost_usd":    _sum(acct_rows, "cost_usd"),
-            "profit_usd":  _sum(acct_rows, "profit_usd"),
-            "rows":        acct_rows,
+            "count":        sum(c["count"] for c in acct_rows),
+            "smm_quantity": 0,
+            "revenue_usd":  _sum(acct_rows, "revenue_usd"),
+            "cost_usd":     _sum(acct_rows, "cost_usd"),
+            "profit_usd":   _sum(acct_rows, "profit_usd"),
+            "rows":         acct_rows,
         },
         "smm": {
-            "count":       sum(c["count"] for c in smm_rows),
-            "revenue_usd": _sum(smm_rows, "revenue_usd"),
-            "cost_usd":    _sum(smm_rows, "cost_usd"),
-            "profit_usd":  _sum(smm_rows, "profit_usd"),
-            "rows":        smm_rows,
+            "count":        sum(c["count"] for c in smm_rows),
+            "smm_quantity": sum(c["smm_quantity"] for c in smm_rows),
+            "revenue_usd":  _sum(smm_rows, "revenue_usd"),
+            "cost_usd":     _sum(smm_rows, "cost_usd"),
+            "profit_usd":   _sum(smm_rows, "profit_usd"),
+            "rows":         smm_rows,
         },
     }
 
@@ -1440,6 +1449,7 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
                 category=body.service_key,
                 status="delivered",
                 delivered_data=str(order_id),
+                smm_quantity=body.quantity,
             )
             s.add(smm_order_rec)
 
