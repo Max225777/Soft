@@ -9,87 +9,108 @@ log = logging.getLogger(__name__)
 
 SMM_API_URL = "https://smmway.ru/api/v2"
 
+# Курс RUB→USD для розрахунку собівартості
+RUB_PER_USD = 90.0
 
-# service_id може бути int (числовий ID) або str (slug для окремих реакцій)
+
+def rub_to_usd(rub: float) -> float:
+    return round(rub / RUB_PER_USD, 6)
+
+
+# cost_rub_per_1000 — собівартість за 1000 одиниць в рублях
 SMM_SERVICES: dict[str, dict] = {
     "tg_subscribers": {
         "service_id": 6322,
         "title":      "Підписники Telegram",
-        "flag":       "👥",
+        "flag":       "\U0001f465",
         "description": "Реальні підписники, гарантія 365 днів",
         "price_per_100_stars": 10,
         "min": 10,
         "max": 10000,
         "step": 1,
         "unit_size": 100,
+        "cost_rub_per_1000": 41.0,
     },
     "tg_views": {
         "service_id": 6216,
         "title":      "Перегляди Telegram",
-        "flag":       "👁️",
+        "flag":       "\U0001f441️",
         "description": "Перегляди постів Telegram",
         "price_per_100_stars": 1.5,
         "min": 100,
         "max": 100000,
         "step": 100,
         "unit_size": 1000,
+        "cost_rub_per_1000": 8.8,
     },
     "tg_reactions": {
         "service_id": 6257,
         "title":      "Реакції Telegram",
-        "flag":       "💩",
-        "description": "Реакції на пост",
+        "flag":       "\U0001f4a9",
+        "description": "Реакція на пост",
         "price_per_100_stars": 3.34,
         "min": 15,
         "max": 5000,
         "step": 1,
         "unit_size": 100,
+        "cost_rub_per_1000": 1.0,
     },
     "tg_react_poop": {
         "service_id": 5450,
-        "title":      "💩 Реакція",
-        "flag":       "💩",
-        "description": "Реакція 💩 на пост",
+        "title":      "\U0001f4a9 Реакція",
+        "flag":       "\U0001f4a9",
+        "description": "Реакція \U0001f4a9 на пост",
         "price_per_100_stars": 3.34,
         "min": 15,
         "max": 5000,
         "step": 1,
         "unit_size": 100,
+        "cost_rub_per_1000": 1.0,
     },
     "tg_react_clown": {
         "service_id": 5465,
-        "title":      "🤡 Реакція",
-        "flag":       "🤡",
-        "description": "Реакція 🤡 на пост",
+        "title":      "\U0001f921 Реакція",
+        "flag":       "\U0001f921",
+        "description": "Реакція \U0001f921 на пост",
         "price_per_100_stars": 3.34,
         "min": 15,
         "max": 5000,
         "step": 1,
         "unit_size": 100,
+        "cost_rub_per_1000": 1.0,
     },
     "tg_react_middlefinger": {
         "service_id": 5437,
-        "title":      "🖕 Реакція",
-        "flag":       "🖕",
-        "description": "Реакція 🖕 на пост",
+        "title":      "\U0001f595 Реакція",
+        "flag":       "\U0001f595",
+        "description": "Реакція \U0001f595 на пост",
         "price_per_100_stars": 3.34,
         "min": 15,
         "max": 5000,
         "step": 1,
         "unit_size": 100,
+        "cost_rub_per_1000": 1.0,
     },
     "tg_react_vomit": {
         "service_id": 5452,
-        "title":      "🤮 Реакція",
-        "flag":       "🤮",
-        "description": "Реакція 🤮 на пост",
+        "title":      "\U0001f92e Реакція",
+        "flag":       "\U0001f92e",
+        "description": "Реакція \U0001f92e на пост",
         "price_per_100_stars": 3.34,
         "min": 15,
         "max": 5000,
         "step": 1,
         "unit_size": 100,
+        "cost_rub_per_1000": 1.0,
     },
 }
+
+
+def smm_cost_usd(service_key: str, quantity: int) -> float:
+    """Розраховує собівартість SMM замовлення в USD."""
+    svc = SMM_SERVICES.get(service_key, {})
+    cost_rub = svc.get("cost_rub_per_1000", 0) * quantity / 1000
+    return rub_to_usd(cost_rub)
 
 
 class SmmApiError(Exception):

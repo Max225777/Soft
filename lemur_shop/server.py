@@ -1424,7 +1424,9 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
                   user.id, body.service_key, body.link, body.quantity, e)
         raise HTTPException(502, str(e))
 
+    from lemur_shop.services.smm import smm_cost_usd
     price_usd_val = Decimal(str(round(price_stars * settings.STAR_DISPLAY_USD, 4)))
+    cost_usd_val  = Decimal(str(smm_cost_usd(body.service_key, body.quantity)))
     async with AsyncSessionLocal() as s:
         async with s.begin():
             u = await s.get(User, user.id)
@@ -1434,6 +1436,7 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
                 user_id=user.id,
                 product_id=0,
                 price_usd=price_usd_val,
+                cost_usd=cost_usd_val,
                 category=body.service_key,
                 status="delivered",
                 delivered_data=str(order_id),
