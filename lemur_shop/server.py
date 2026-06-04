@@ -700,18 +700,19 @@ async def api_admin_stats(admin: User = Depends(require_admin)):
     from datetime import date
     async with AsyncSessionLocal() as s:
         total_users   = await s.scalar(select(func.count(User.id))) or 0
-        total_orders  = await s.scalar(select(func.count(Order.id))) or 0
-        total_rev_usd = await s.scalar(select(func.sum(Order.price_usd))) or 0
+        total_orders  = await s.scalar(select(func.count(Order.id)).where(Order.status == "delivered")) or 0
+        total_rev_usd = await s.scalar(select(func.sum(Order.price_usd)).where(Order.status == "delivered")) or 0
         total_topups  = await s.scalar(select(func.sum(TopUp.amount_usd))) or 0
 
         today = date.today()
         new_users_today  = await s.scalar(select(func.count(User.id)).where(func.date(User.created_at) == today)) or 0
-        orders_today     = await s.scalar(select(func.count(Order.id)).where(func.date(Order.created_at) == today)) or 0
-        revenue_today    = await s.scalar(select(func.sum(Order.price_usd)).where(func.date(Order.created_at) == today)) or 0
+        orders_today     = await s.scalar(select(func.count(Order.id)).where(Order.status == "delivered", func.date(Order.created_at) == today)) or 0
+        revenue_today    = await s.scalar(select(func.sum(Order.price_usd)).where(Order.status == "delivered", func.date(Order.created_at) == today)) or 0
         topups_today     = await s.scalar(select(func.sum(TopUp.amount_usd)).where(func.date(TopUp.created_at) == today)) or 0
 
         cat_rows = (await s.execute(
             select(Order.category, func.count(Order.id), func.sum(Order.price_usd))
+            .where(Order.status == "delivered")
             .group_by(Order.category)
             .order_by(func.count(Order.id).desc())
         )).all()
@@ -719,7 +720,7 @@ async def api_admin_stats(admin: User = Depends(require_admin)):
         total_stars_balance = await s.scalar(select(func.sum(User.balance_stars))) or 0
 
         from sqlalchemy import distinct
-        unique_buyers      = await s.scalar(select(func.count(distinct(Order.user_id)))) or 0
+        unique_buyers      = await s.scalar(select(func.count(distinct(Order.user_id))).where(Order.status == "delivered")) or 0
         users_with_balance = await s.scalar(select(func.count(User.id)).where(User.balance_stars > 0)) or 0
         conversion_pct     = round(unique_buyers / total_users * 100, 1) if total_users else 0.0
 
@@ -1355,11 +1356,21 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
                   user.id, body.service_key, body.link, body.quantity, e)
         raise HTTPException(502, str(e))
 
+    price_usd_val = Decimal(str(round(price_stars * settings.STAR_DISPLAY_USD, 4)))
     async with AsyncSessionLocal() as s:
         async with s.begin():
             u = await s.get(User, user.id)
             bal_before = u.balance_stars
             u.balance_stars = u.balance_stars - price_stars
+            smm_order_rec = Order(
+                user_id=user.id,
+                product_id=0,
+                price_usd=price_usd_val,
+                category=body.service_key,
+                status="delivered",
+                delivered_data=str(order_id),
+            )
+            s.add(smm_order_rec)
 
     log.info("SMM order #%s: user=%s service=%s qty=%d stars=-%d balance %s→%s",
              order_id, user.id, body.service_key, body.quantity, price_stars, bal_before, u.balance_stars)
