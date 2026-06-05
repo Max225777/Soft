@@ -32,17 +32,13 @@ _MIGRATIONS = [
     "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.3504, 6) WHERE category = 'tg_subscribers' AND (cost_usd IS NULL OR cost_usd = 0) AND status = 'delivered'",
     # Перегляди: price_per_100_stars=1.5, cost_rub=8.8 → ratio = 100/1.5 * 8.8/117000 = 0.5013
     "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.5013, 6) WHERE category = 'tg_views' AND (cost_usd IS NULL OR cost_usd = 0) AND status = 'delivered'",
-    # Реакції: price_per_100_stars=3.34, cost_rub=1.0 → ratio = 100*1.0/(1000*90*3.34*0.013) = 0.02559
-    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.02559, 6) WHERE category IN ('tg_reactions','tg_react_poop','tg_react_clown','tg_react_middlefinger','tg_react_vomit') AND (cost_usd IS NULL OR cost_usd = 0) AND status = 'delivered'",
+    # Реакції: cost_rub=86.27 (rate=$0.9586/1000 × 90₽) → ratio = 100*86.27/(1000*90*3.34*0.013) = 2.208
+    # Backfill all reaction categories with correct cost ratio
+    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 2.208, 6) WHERE category IN ('tg_reactions','tg_react_poop','tg_react_clown','tg_react_middlefinger','tg_react_vomit','tg_react_nails','tg_react_crazy','tg_react_heartarrow','tg_react_monkey','tg_react_kiss','tg_react_sunglasses','tg_react_alien','tg_react_shrug','tg_react_angry','tg_react_neg_mix1','tg_react_mix_fun','tg_react_mix_ghost','tg_react_neg_mix2','tg_react_mix_scare') AND (cost_usd IS NULL OR cost_usd = 0) AND status = 'delivered'",
+    # Виправлення старих записів з неправильним ratio (< 0.1 — занадто мало)
+    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 2.208, 6) WHERE category IN ('tg_reactions','tg_react_poop','tg_react_clown','tg_react_middlefinger','tg_react_vomit') AND cost_usd > 0 AND cost_usd < 0.01 AND status = 'delivered'",
     # Додаємо колонку smm_quantity для зберігання кількості накрутки
     "ALTER TABLE orders ADD COLUMN IF NOT EXISTS smm_quantity INT DEFAULT 0",
-    # Бекфілл cost_usd для нових реакцій (❤️ 6077, 🔥 6078, мікси 6255/6256) cost=0.98₽/1000
-    # ratio = 100*0.98/(1000*90*3.34*0.013) = 0.02508
-    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.02508, 6) WHERE category IN ('tg_react_heart','tg_react_fire','tg_react_mix_pos','tg_react_mix_neg') AND (cost_usd IS NULL OR cost_usd = 0) AND status = 'delivered'",
-    # Виправлення старих реакцій де cost_usd був встановлений з неправильним ratio (0.000256 замість 0.02559)
-    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.02559, 6) WHERE category IN ('tg_reactions','tg_react_poop','tg_react_clown','tg_react_middlefinger','tg_react_vomit') AND cost_usd > 0 AND cost_usd < 0.001 AND status = 'delivered'",
-    # Бекфілл cost_usd для нових реакцій (5480-5497 group), same ratio 0.02559
-    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.02559, 6) WHERE category IN ('tg_react_nails','tg_react_crazy','tg_react_heartarrow','tg_react_monkey','tg_react_kiss','tg_react_sunglasses','tg_react_alien','tg_react_shrug','tg_react_angry','tg_react_neg_mix1','tg_react_mix_fun','tg_react_mix_ghost','tg_react_neg_mix2','tg_react_mix_scare') AND (cost_usd IS NULL OR cost_usd = 0) AND status = 'delivered'",
 ]
 
 
