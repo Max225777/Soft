@@ -10,7 +10,8 @@ _MIGRATIONS = [
     "ALTER TABLE orders ADD COLUMN IF NOT EXISTS category VARCHAR(32)",
     "ALTER TABLE topups ADD COLUMN IF NOT EXISTS method VARCHAR(16) DEFAULT 'admin'",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS balance_stars BIGINT DEFAULT 0",
-    "UPDATE users SET balance_stars = ROUND(CAST(balance_usd AS FLOAT) / 0.013) WHERE balance_stars = 0 AND CAST(balance_usd AS FLOAT) > 0.009",
+    # Одноразова конвертація USD→stars (лише для юзерів БЕЗ замовлень, щоб не відновлювати після покупок)
+    "UPDATE users SET balance_stars = ROUND(CAST(balance_usd AS NUMERIC) / 0.013) WHERE balance_stars = 0 AND CAST(balance_usd AS NUMERIC) > 0.009 AND NOT EXISTS (SELECT 1 FROM orders WHERE orders.user_id = users.id)",
     "ALTER TABLE topups ADD COLUMN IF NOT EXISTS amount_stars BIGINT DEFAULT 0",
     "CREATE TABLE IF NOT EXISTS game_plays (id SERIAL PRIMARY KEY, user_id BIGINT NOT NULL, score INT DEFAULT 0, stars_earned INT DEFAULT 0, is_free BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT NOW())",
     "CREATE TABLE IF NOT EXISTS wheel_pot (id INTEGER PRIMARY KEY DEFAULT 1, stars BIGINT DEFAULT 0)",

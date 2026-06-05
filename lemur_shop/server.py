@@ -333,6 +333,7 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
             u = await s.get(User, user.id)
             bal_before = u.balance_stars
             u.balance_stars = u.balance_stars - shop_price_stars
+            u.balance_usd   = u.balance_usd - shop_price_usd
             order = Order(
                 user_id=user.id,
                 product_id=0,
@@ -657,6 +658,7 @@ async def api_stars_buy(body: StarsBuyRequest, user: User = Depends(get_current_
             if not u or u.balance_stars < price_stars:
                 raise HTTPException(status_code=400, detail="Insufficient balance")
             u.balance_stars = u.balance_stars - price_stars
+            u.balance_usd   = u.balance_usd - Decimal(str(round(price_stars * settings.STAR_DISPLAY_USD, 4)))
 
     if _bot and settings.ADMIN_IDS:
         uname = f"@{user.username}" if user.username else f"ID:{user.id}"
@@ -1441,6 +1443,7 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
             u = await s.get(User, user.id)
             bal_before = u.balance_stars
             u.balance_stars = u.balance_stars - price_stars
+            u.balance_usd   = u.balance_usd - price_usd_val
             smm_order_rec = Order(
                 user_id=user.id,
                 product_id=0,
