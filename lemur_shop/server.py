@@ -720,6 +720,34 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+@app.get("/api/admin/smm-services-raw")
+async def api_admin_smm_services_raw(admin: User = Depends(require_admin)):
+    """Повертає всі smmway сервіси де є слово 'реакц' або 'reaction' в назві/категорії."""
+    import httpx as _httpx
+    from lemur_shop.services.smm import SMM_API_URL
+    r = await _httpx.AsyncClient(timeout=30).get(
+        SMM_API_URL,
+        params={"key": settings.SMMWAY_API_KEY, "action": "services"},
+    )
+    all_services = r.json()
+    if not isinstance(all_services, list):
+        return {"error": str(all_services)}
+    keywords = ("реакц", "reaction", "react")
+    filtered = [
+        {
+            "id": s.get("service"),
+            "name": s.get("name", ""),
+            "type": s.get("type", ""),
+            "category": s.get("category", ""),
+            "min": s.get("min"),
+            "max": s.get("max"),
+            "rate": s.get("rate"),
+        }
+        for s in all_services
+        if any(k in s.get("name", "").lower() or k in str(s.get("category", "")).lower() for k in keywords)
+    ]
+    return filtered
+
 @app.get("/api/admin/stats")
 async def api_admin_stats(
     admin: User = Depends(require_admin),
