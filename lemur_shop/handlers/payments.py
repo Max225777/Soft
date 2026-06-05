@@ -5,7 +5,8 @@ from decimal import Decimal
 
 from aiogram import F, Router
 from aiogram.types import Message, PreCheckoutQuery
-from sqlalchemy import select, text
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from lemur_shop.config import settings
 from lemur_shop.db.models import TopUp, User
@@ -40,31 +41,11 @@ async def successful_payment(message: Message) -> None:
         log.error("Stars payment bad payload %r charge_id=%s: %s", payload, charge_id, e)
         return
 
-    # Перевірка дубліката (окрема транзакція, best-effort)
-    try:
-        async with AsyncSessionLocal() as s:
-            existing = await s.scalar(
-                select(TopUp.id).where(TopUp.charge_id == charge_id).limit(1)
-            )
-        if existing:
-            log.warning("Stars payment DUPLICATE: charge_id=%s user=%s stars=%s — skip (topup_id=%s)",
-                        charge_id, user_id, stars, existing)
-            await message.answer(
-                f"ℹ️ Це поповнення вже було зараховано.\nCharge ID: <code>{charge_id}</code>",
-                parse_mode="HTML"
-            )
-            return
-    except Exception as e:
-        # charge_id колонка може ще не існувати — не блокуємо зарахування
-        log.warning("Stars dedup check failed (charge_id column may not exist): %s", e)
-
     amount_usd = Decimal(str(round(stars * settings.STAR_DISPLAY_USD, 4)))
 
-    # Основна транзакція — оновлюємо баланс (без нових колонок, завжди працює)
     bal_before = 0
     new_balance = 0
     uname = f"ID:{user_id}"
-    topup_id: int | None = None
 
     try:
         async with AsyncSessionLocal() as s:
@@ -78,15 +59,28 @@ async def successful_payment(message: Message) -> None:
                 user.balance_stars = user.balance_stars + stars
                 user.balance_usd   = user.balance_usd + amount_usd
                 new_balance = user.balance_stars
+                # charge_id зберігається в тій самій транзакції що і баланс.
+                # Unique constraint на charge_id гарантує exactly-once — якщо дублікат,
+                # IntegrityError відкатить всю транзакцію включно з нарахуванням балансу.
                 topup = TopUp(
                     user_id=user_id,
                     amount_usd=amount_usd,
                     amount_stars=stars,
                     admin_id=0,
+                    method="stars",
+                    charge_id=charge_id,
                 )
                 s.add(topup)
-                await s.flush()
-                topup_id = topup.id
+
+    except IntegrityError:
+        # charge_id вже існує в БД — це дублікат від Telegram, ігноруємо
+        log.warning("Stars payment DUPLICATE (IntegrityError): charge_id=%s user=%s stars=%s — skipped",
+                    charge_id, user_id, stars)
+        await message.answer(
+            f"ℹ️ Це поповнення вже було зараховано.\nCharge ID: <code>{charge_id}</code>",
+            parse_mode="HTML"
+        )
+        return
     except Exception as e:
         log.error("Stars payment DB error: charge_id=%s user=%s stars=%s: %s",
                   charge_id, user_id, stars, e, exc_info=True)
@@ -94,18 +88,6 @@ async def successful_payment(message: Message) -> None:
 
     log.info("Stars payment CREDITED: charge_id=%s user=%s stars=+%s balance %s→%s",
              charge_id, user_id, stars, bal_before, new_balance)
-
-    # Best-effort: зберігаємо charge_id і method (якщо колонки вже є)
-    if topup_id:
-        try:
-            async with AsyncSessionLocal() as s:
-                async with s.begin():
-                    await s.execute(
-                        text("UPDATE topups SET method='stars', charge_id=:cid WHERE id=:tid"),
-                        {"cid": charge_id, "tid": topup_id}
-                    )
-        except Exception as e:
-            log.warning("Could not set charge_id on topup_id=%s: %s", topup_id, e)
 
     await message.answer(
         f"✅ Баланс поповнено!\n\n"
