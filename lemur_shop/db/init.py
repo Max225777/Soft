@@ -36,6 +36,8 @@ _MIGRATIONS = [
     "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.000256, 6) WHERE category IN ('tg_reactions','tg_react_poop','tg_react_clown','tg_react_middlefinger','tg_react_vomit') AND (cost_usd IS NULL OR cost_usd = 0) AND status = 'delivered'",
     # Додаємо колонку smm_quantity для зберігання кількості накрутки
     "ALTER TABLE orders ADD COLUMN IF NOT EXISTS smm_quantity INT DEFAULT 0",
+    # Бекфілл cost_usd для нових реакцій (❤️ 6077, 🔥 6078, мікси 6255/6256) cost=0.98₽/1000
+    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.000251, 6) WHERE category IN ('tg_react_heart','tg_react_fire','tg_react_mix_pos','tg_react_mix_neg') AND (cost_usd IS NULL OR cost_usd = 0) AND status = 'delivered'",
 ]
 
 

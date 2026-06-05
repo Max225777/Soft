@@ -58,7 +58,11 @@ const SMM_TITLES: Record<string, string> = {
   tg_react_poop:  '💩 Реакції',
   tg_react_clown: '🤡 Реакції',
   tg_react_middlefinger: '🖕 Реакції',
-  tg_react_vomit: '🤮 Реакції',
+  tg_react_vomit:    '🤮 Реакції',
+  tg_react_heart:    '❤️ Реакції',
+  tg_react_fire:     '🔥 Реакції',
+  tg_react_mix_pos:  '👍❤️🔥🎉 Міксові реакції',
+  tg_react_mix_neg:  '👎💩😱😢 Міксові реакції',
 }
 
 function GroupStats({
