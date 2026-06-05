@@ -612,7 +612,6 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
                     boxShadow: active ? '0 0 18px rgba(244,169,0,.25)' : '0 0 0 rgba(0,0,0,0)',
                   }}>
                   <span style={{ fontSize: 18, letterSpacing: 1 }}>{btn.emoji}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: active ? 'rgba(244,169,0,.9)' : 'var(--muted)', whiteSpace: 'nowrap' }}>{btn.label}</span>
                 </button>
               )
             })}
