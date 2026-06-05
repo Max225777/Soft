@@ -76,14 +76,14 @@ async def lifespan(app: FastAPI):
         )
         _all = _r.json()
         if isinstance(_all, list):
-            keywords = ("реакц", "reaction", "like", "лайк", "heart", "сердц",
+            keywords = ("реакц", "reaction", "react", "like", "лайк", "heart", "сердц",
                         "dislike", "дизлайк", "love", "поцелу", "kiss", "fire",
-                        "огонь", "👍", "👎", "❤", "💋", "🔥")
-            _tg = [s for s in _all if any(k in s.get("name","").lower() or k in str(s.get("category","")).lower() for k in keywords)]
+                        "огонь", "👍", "👎", "❤", "💋", "🔥", "telegram react")
+            _tg = [s for s in _all if any(k in s.get("name","").lower() or k in str(s.get("category","")).lower() or k in str(s.get("type","")).lower() for k in keywords)]
             log.info("=== SMMWAY реакції (%d сервісів) ===", len(_tg))
             for s in sorted(_tg, key=lambda x: int(x.get("service", 0))):
-                log.info("  ID:%-6s | %-60s | min:%-5s max:%-7s rate:$%s",
-                         s.get("service"), s.get("name","")[:60],
+                log.info("  ID:%-6s type:%-20s | %-60s | min:%-5s max:%-7s rate:$%s",
+                         s.get("service"), s.get("type","")[:20], s.get("name","")[:60],
                          s.get("min"), s.get("max"), s.get("rate"))
             log.info("=== кінець списку smmway реакцій ===")
         else:
