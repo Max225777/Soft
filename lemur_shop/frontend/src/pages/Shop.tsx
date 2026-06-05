@@ -227,18 +227,62 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
               padding: '20px 20px 36px',
             }}>
               <div style={{ width: 40, height: 4, borderRadius: 4, background: 'rgba(255,255,255,.15)', margin: '0 auto 20px' }} />
-              <div style={{ fontSize: 28, textAlign: 'center', marginBottom: 8 }}>⭐</div>
-              <div style={{ fontWeight: 800, fontSize: 18, textAlign: 'center', marginBottom: 6 }}>+1 зірка щодня</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', marginBottom: 20, lineHeight: 1.5 }}>
-                Додай <b style={{ color: '#5fba47' }}>@LEMUR_SHOP</b> до опису свого профілю в Telegram і отримуй <b>1 зірку щодня</b> автоматично.
+              <div style={{ fontWeight: 800, fontSize: 18, textAlign: 'center', marginBottom: 6 }}>+1⭐ щодня</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', marginBottom: 16, lineHeight: 1.5 }}>
+                Додай нижче вказаний текст до <b>Біо</b> свого профілю і отримуй <b>1 зірку кожен день</b> автоматично.
               </div>
 
-              {/* Status block */}
+              {/* What to add — copyable card */}
+              <div style={{
+                background: 'rgba(95,186,71,.08)', border: '1.5px dashed rgba(95,186,71,.4)',
+                borderRadius: 14, padding: '14px 16px', marginBottom: 14,
+              }}>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6, letterSpacing: .5 }}>ДОДАЙ ЦЕ В БІО ПРОФІЛЮ:</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <code style={{
+                    fontSize: 18, fontWeight: 800, color: '#5fba47', letterSpacing: .5,
+                    background: 'rgba(95,186,71,.12)', borderRadius: 8, padding: '6px 10px', flex: 1, textAlign: 'center',
+                  }}>@LEMUR_SHOP</code>
+                  <button
+                    onClick={() => { navigator.clipboard?.writeText('@LEMUR_SHOP'); setBioPromoMsg('📋 Скопійовано!') }}
+                    style={{
+                      background: 'rgba(95,186,71,.2)', border: '1px solid rgba(95,186,71,.4)',
+                      borderRadius: 10, padding: '8px 12px', cursor: 'pointer', color: '#5fba47',
+                      fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0,
+                    }}>
+                    Копіювати
+                  </button>
+                </div>
+              </div>
+
+              {/* Steps */}
+              <div style={{
+                background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)',
+                borderRadius: 14, padding: '12px 14px', marginBottom: 14,
+              }}>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8, letterSpacing: .5 }}>ЯК ДОДАТИ:</div>
+                {[
+                  ['1', 'Telegram → Редагувати профіль'],
+                  ['2', 'Поле "Біо" → вставити @LEMUR_SHOP'],
+                  ['3', 'Зберегти → натиснути «Перевірити»'],
+                ].map(([n, t]) => (
+                  <div key={n} style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: n === '3' ? 0 : 6 }}>
+                    <div style={{
+                      width: 22, height: 22, borderRadius: 8, background: 'rgba(95,186,71,.15)',
+                      border: '1px solid rgba(95,186,71,.3)', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#5fba47', flexShrink: 0,
+                    }}>{n}</div>
+                    <div style={{ fontSize: 12, lineHeight: 1.4 }}>{t}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Status block (if already joined) */}
               {bioPromo?.joined && (
                 <div style={{
                   background: bioPromo.is_active ? 'rgba(95,186,71,.1)' : 'rgba(255,80,80,.08)',
                   border: `1px solid ${bioPromo.is_active ? 'rgba(95,186,71,.3)' : 'rgba(255,80,80,.25)'}`,
-                  borderRadius: 14, padding: '12px 14px', marginBottom: 16,
+                  borderRadius: 14, padding: '12px 14px', marginBottom: 14,
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}>
                   <div>
@@ -258,23 +302,8 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
                 </div>
               )}
 
-              {/* Instruction */}
-              {!bioPromo?.joined && (
-                <div style={{
-                  background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)',
-                  borderRadius: 14, padding: '12px 14px', marginBottom: 16,
-                }}>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Як це зробити:</div>
-                  <div style={{ fontSize: 12, lineHeight: 1.6 }}>
-                    1. Відкрий Telegram → Редагувати профіль<br/>
-                    2. В полі <b>Біо</b> напиши <b style={{ color: '#5fba47' }}>@LEMUR_SHOP</b><br/>
-                    3. Збережи та натисни «Перевірити»
-                  </div>
-                </div>
-              )}
-
               {bioPromoMsg && (
-                <div style={{ fontSize: 13, textAlign: 'center', marginBottom: 12, color: bioPromoMsg.startsWith('✅') ? '#5fba47' : bioPromoMsg.startsWith('❌') ? '#ff6060' : 'var(--muted)' }}>
+                <div style={{ fontSize: 13, textAlign: 'center', marginBottom: 12, color: bioPromoMsg.startsWith('✅') || bioPromoMsg.startsWith('📋') ? '#5fba47' : bioPromoMsg.startsWith('❌') ? '#ff6060' : 'var(--muted)' }}>
                   {bioPromoMsg}
                 </div>
               )}
