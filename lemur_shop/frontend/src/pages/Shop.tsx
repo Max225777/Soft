@@ -484,6 +484,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   // ─── Накрутка реакцій ──────────────────────────────────────────────────────
   if (view === 'smm_reactions') {
     const REACTION_BTNS: { key: string; emoji: string }[] = [
+      { key: 'tg_reactions',        emoji: '👍❤️🔥🎉' },
       { key: 'tg_react_poop',       emoji: '💩' },
       { key: 'tg_react_clown',      emoji: '🤡' },
       { key: 'tg_react_middlefinger', emoji: '🖕' },
