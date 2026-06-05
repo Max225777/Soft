@@ -193,44 +193,44 @@ function Overview() {
       {!loading && !stats && <div style={{ padding: 20, color: 'var(--red)' }}>Помилка завантаження</div>}
       {!loading && stats && (<>
 
-        {/* Today always shown */}
-        {mode !== 'custom' && (<>
-          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginBottom: -4 }}>СЬОГОДНІ</div>
+        {/* ── СЬОГОДНІ ── */}
+        {mode === 'today' && (<>
           <div style={{ display: 'flex', gap: 8 }}>
             <StatCard label="Нових юзерів" value={stats.new_users_today} color="#4CAF72" />
             <StatCard label="Замовлень" value={stats.orders_today} color="var(--orange)" />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <StatCard label="Дохід сьогодні" value={`$${stats.revenue_today.toFixed(2)}`} color="var(--orange)"
-              sub={`⭐${Math.round(stats.revenue_today / 0.013)}`} />
-            <StatCard label="Прибуток сьогодні" value={`$${stats.profit_today.toFixed(2)}`}
-              color={profitColor(stats.profit_today)} sub={`витрати $${stats.cost_today.toFixed(2)}`} />
+            <StatCard label="Виручка" value={`$${stats.revenue_today.toFixed(2)}`}
+              sub={`⭐${Math.round(stats.revenue_today / 0.013)}`} color="var(--orange)" />
+            <StatCard label="Прибуток" value={`$${stats.profit_today.toFixed(2)}`}
+              sub={`витрати $${stats.cost_today.toFixed(2)}`} color={profitColor(stats.profit_today)} />
+          </div>
+          <StatCard label="Поповнено сьогодні" value={`$${stats.topups_today.toFixed(2)}`}
+            sub={`⭐${Math.round(stats.topups_today / 0.013)}`} color="#2AABEE" />
+        </>)}
+
+        {/* ── ВЕСЬ ЧАС або ОБРАНИЙ ПЕРІОД ── */}
+        {mode !== 'today' && (<>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <StatCard label="Замовлень" value={stats.total_orders} color="var(--orange)" />
+            <StatCard label="Поповнено" value={`$${stats.total_topups_usd.toFixed(2)}`}
+              sub={`⭐${Math.round(stats.total_topups_usd / 0.013)}`} color="#2AABEE" />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <StatCard label="Виручка" value={`$${stats.total_revenue_usd.toFixed(2)}`}
+              sub={`⭐${Math.round(stats.total_revenue_usd / 0.013)}`} color="var(--orange)" />
+            <StatCard label="Прибуток" value={`$${stats.total_profit_usd.toFixed(2)}`}
+              sub={`витрати $${stats.total_cost_usd.toFixed(2)}`} color={profitColor(stats.total_profit_usd)} />
           </div>
         </>)}
 
-        {/* Period stats */}
-        <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>
-          {mode === 'today' ? 'ЗАГАЛОМ (весь час)' : mode === 'all' ? 'ЗАГАЛОМ' : 'ЗА ОБРАНИЙ ПЕРІОД'}
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <StatCard label="Замовлень" value={stats.total_orders} color="var(--orange)" />
-          <StatCard label="Поповнено" value={`$${stats.total_topups_usd.toFixed(2)}`}
-            sub={`⭐${Math.round(stats.total_topups_usd / 0.013)}`} color="#2AABEE" />
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <StatCard label="Виручка" value={`$${stats.total_revenue_usd.toFixed(2)}`}
-            sub={`⭐${Math.round(stats.total_revenue_usd / 0.013)}`} color="var(--orange)" />
-          <StatCard label="Прибуток" value={`$${stats.total_profit_usd.toFixed(2)}`}
-            sub={`витрати $${stats.total_cost_usd.toFixed(2)}`} color={profitColor(stats.total_profit_usd)} />
-        </div>
-
-        {/* Funnel — only in all-time/custom */}
-        {mode !== 'today' && (<>
+        {/* ── ВОРОНКА — тільки "весь час" ── */}
+        {mode === 'all' && (<>
           <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>ВОРОНКА</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <StatCard label="Запустили бота" value={stats.total_users} color="#4CAF72" />
-            <StatCard label="Купили (унікал.)" value={stats.unique_buyers} color="var(--orange)"
-              sub={`${stats.conversion_pct}% конверсія`} />
+            <StatCard label="Купили (унікал.)" value={stats.unique_buyers}
+              sub={`${stats.conversion_pct}% конверсія`} color="var(--orange)" />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <StatCard label="Є баланс ⭐" value={stats.users_with_balance} color="var(--gold)" />
@@ -252,20 +252,23 @@ function Overview() {
           </div>
         </>)}
 
+        {/* ── НАКРУТКА і АКАУНТИ ── */}
         <GroupStats label="📊 НАКРУТКА (SMM)" group={stats.smm} profitColor={profitColor} flags={CATEGORY_FLAGS} />
         <GroupStats label="📱 ТГ АКАУНТИ" group={stats.accounts} profitColor={profitColor} flags={CATEGORY_FLAGS} />
 
-        {/* Danger zone */}
-        <div style={{
-          marginTop: 8, background: 'rgba(255,60,60,.06)',
-          border: '1px solid rgba(255,60,60,.2)', borderRadius: 12, padding: '12px 14px',
-        }}>
-          <div style={{ fontSize: 12, color: '#ff5555', fontWeight: 700, marginBottom: 8 }}>⚠️ Небезпечна зона</div>
-          <button className="btn" disabled={resetting} onClick={handleReset}
-            style={{ background: 'rgba(255,60,60,.15)', color: '#ff5555', border: '1px solid rgba(255,60,60,.3)', fontSize: 13 }}>
-            {resetting ? '⏳ Скидання...' : '🗑 Скинути всі баланси і статистику'}
-          </button>
-        </div>
+        {/* ── Небезпечна зона ── */}
+        {mode === 'all' && (
+          <div style={{
+            marginTop: 4, background: 'rgba(255,60,60,.06)',
+            border: '1px solid rgba(255,60,60,.2)', borderRadius: 12, padding: '12px 14px',
+          }}>
+            <div style={{ fontSize: 12, color: '#ff5555', fontWeight: 700, marginBottom: 8 }}>⚠️ Небезпечна зона</div>
+            <button className="btn" disabled={resetting} onClick={handleReset}
+              style={{ background: 'rgba(255,60,60,.15)', color: '#ff5555', border: '1px solid rgba(255,60,60,.3)', fontSize: 13 }}>
+              {resetting ? '⏳ Скидання...' : '🗑 Скинути всі баланси і статистику'}
+            </button>
+          </div>
+        )}
 
       </>)}
     </div>
