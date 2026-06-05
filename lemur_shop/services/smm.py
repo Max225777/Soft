@@ -114,6 +114,7 @@ SMM_SERVICES: dict[str, dict] = {
         "step": 1,
         "unit_size": 100,
         "cost_rub_per_1000": 0.98,
+        "api_type": "posts",
     },
     "tg_react_fire": {
         "service_id": 6078,
@@ -126,6 +127,7 @@ SMM_SERVICES: dict[str, dict] = {
         "step": 1,
         "unit_size": 100,
         "cost_rub_per_1000": 0.98,
+        "api_type": "posts",
     },
     "tg_react_mix_pos": {
         "service_id": 6255,
@@ -138,6 +140,7 @@ SMM_SERVICES: dict[str, dict] = {
         "step": 1,
         "unit_size": 100,
         "cost_rub_per_1000": 0.98,
+        "api_type": "posts",
     },
     "tg_react_mix_neg": {
         "service_id": 6256,
@@ -150,6 +153,7 @@ SMM_SERVICES: dict[str, dict] = {
         "step": 1,
         "unit_size": 100,
         "cost_rub_per_1000": 0.98,
+        "api_type": "posts",
     },
 }
 
@@ -189,10 +193,13 @@ async def smm_request(action: str, **params) -> dict:
     return result
 
 
-async def place_order(service_id: int | str, link: str, quantity: int) -> int:
+async def place_order(service_id: int | str, link: str, quantity: int, api_type: str = "link") -> int:
     link = normalize_tg_link(link)
-    log.info("smmway place_order service=%s link=%r qty=%d", service_id, link, quantity)
-    result = await smm_request("add", service=service_id, link=link, quantity=quantity)
+    log.info("smmway place_order service=%s link=%r qty=%d api_type=%s", service_id, link, quantity, api_type)
+    if api_type == "posts":
+        result = await smm_request("add", service=service_id, posts=link, min=quantity, max=quantity)
+    else:
+        result = await smm_request("add", service=service_id, link=link, quantity=quantity)
     return int(result["order"])
 
 

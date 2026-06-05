@@ -1453,7 +1453,7 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
         raise HTTPException(402, "insufficient_balance")
 
     try:
-        order_id = await place_order(svc["service_id"], body.link, body.quantity)
+        order_id = await place_order(svc["service_id"], body.link, body.quantity, svc.get("api_type", "link"))
     except SmmApiError as e:
         log.error("smmway error for user=%s service=%s link=%r qty=%d: %s",
                   user.id, body.service_key, body.link, body.quantity, e)
