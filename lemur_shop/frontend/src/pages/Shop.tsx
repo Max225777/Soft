@@ -484,22 +484,17 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   // ─── Накрутка реакцій ──────────────────────────────────────────────────────
   if (view === 'smm_reactions') {
     const REACTION_BTNS: { key: string; emoji: string }[] = [
-      { key: 'tg_reactions',        emoji: '👍❤️🔥🎉' },
-      { key: 'tg_react_poop',       emoji: '💩' },
-      { key: 'tg_react_clown',      emoji: '🤡' },
+      { key: 'tg_reactions',          emoji: '👍❤️🔥🎉' },
+      { key: 'tg_react_heart',        emoji: '❤️' },
+      { key: 'tg_react_fire',         emoji: '🔥' },
+      { key: 'tg_react_poop',         emoji: '💩' },
+      { key: 'tg_react_clown',        emoji: '🤡' },
       { key: 'tg_react_middlefinger', emoji: '🖕' },
-      { key: 'tg_react_vomit',      emoji: '🤮' },
-      { key: 'tg_react_angry',      emoji: '😡' },
-      { key: 'tg_react_kiss',       emoji: '😘' },
-      { key: 'tg_react_sunglasses', emoji: '😎' },
-      { key: 'tg_react_crazy',      emoji: '🤪' },
-      { key: 'tg_react_nails',      emoji: '💅' },
-      { key: 'tg_react_heartarrow', emoji: '💘' },
-      { key: 'tg_react_monkey',     emoji: '🙉' },
-      { key: 'tg_react_alien',      emoji: '👾' },
-      { key: 'tg_react_shrug',      emoji: '🤷' },
-      { key: 'tg_react_neg_mix1',   emoji: '👎😁😢💩' },
-      { key: 'tg_react_neg_mix2',   emoji: '👎💩😱😢' },
+      { key: 'tg_react_vomit',        emoji: '🤮' },
+      { key: 'tg_react_angry',        emoji: '😡' },
+      { key: 'tg_react_sunglasses',   emoji: '😎' },
+      { key: 'tg_react_neg_mix1',     emoji: '👎😁😢💩' },
+      { key: 'tg_react_neg_mix2',     emoji: '👎💩😱😢' },
     ]
     const svc = smmServices.find(s => s.key === selectedSmmKey) ?? smmServices.find(s => s.key === 'tg_reactions')
     const effectiveQty = Math.max(svc?.min ?? 15, smmQty)

@@ -34,7 +34,7 @@ _MIGRATIONS = [
     "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.6447, 6) WHERE category = 'tg_views' AND (cost_usd IS NULL OR cost_usd = 0) AND status = 'delivered'",
     # Реакції: 0.9*100/(1000*70*3.34*0.013) = 90/3039.4 = 0.02962
     # Безумовно виправляємо ВСІ reaction замовлення
-    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.02962, 6) WHERE category IN ('tg_reactions','tg_react_poop','tg_react_clown','tg_react_middlefinger','tg_react_vomit','tg_react_nails','tg_react_crazy','tg_react_heartarrow','tg_react_monkey','tg_react_kiss','tg_react_sunglasses','tg_react_alien','tg_react_shrug','tg_react_angry','tg_react_neg_mix1','tg_react_mix_fun','tg_react_mix_ghost','tg_react_neg_mix2','tg_react_mix_scare') AND status = 'delivered'",
+    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.02962, 6) WHERE category IN ('tg_reactions','tg_react_heart','tg_react_fire','tg_react_poop','tg_react_clown','tg_react_middlefinger','tg_react_vomit','tg_react_nails','tg_react_crazy','tg_react_heartarrow','tg_react_monkey','tg_react_kiss','tg_react_sunglasses','tg_react_alien','tg_react_shrug','tg_react_angry','tg_react_neg_mix1','tg_react_mix_fun','tg_react_mix_ghost','tg_react_neg_mix2','tg_react_mix_scare') AND status = 'delivered'",
     # Додаємо колонку smm_quantity для зберігання кількості накрутки
     "ALTER TABLE orders ADD COLUMN IF NOT EXISTS smm_quantity INT DEFAULT 0",
 ]
