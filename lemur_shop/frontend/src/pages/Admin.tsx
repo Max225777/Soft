@@ -55,6 +55,8 @@ const SMM_TITLES: Record<string, string> = {
   tg_subscribers: '👥 Підписники',
   tg_views:       '👁️ Перегляди',
   tg_reactions:   '👍❤️🔥🎉 Мікс',
+  tg_react_like:        '👍 Реакція',
+  tg_react_dislike:     '👎 Реакція',
   tg_react_heart:       '❤️ Реакція',
   tg_react_fire:        '🔥 Реакція',
   tg_react_poop:  '💩 Реакція',
