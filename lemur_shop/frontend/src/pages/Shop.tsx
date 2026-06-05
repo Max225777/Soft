@@ -499,9 +499,6 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
       { key: 'tg_react_shrug',      emoji: '🤷' },
       { key: 'tg_react_neg_mix1',   emoji: '👎😁😢💩' },
       { key: 'tg_react_neg_mix2',   emoji: '👎💩😱😢' },
-      { key: 'tg_react_mix_scare',  emoji: '😨🤯😱🤮' },
-      { key: 'tg_react_mix_fun',    emoji: '🕊🦄🍓🎄' },
-      { key: 'tg_react_mix_ghost',  emoji: '🐳🍾👻🎃' },
     ]
     const svc = smmServices.find(s => s.key === selectedSmmKey) ?? smmServices.find(s => s.key === 'tg_reactions')
     const effectiveQty = Math.max(svc?.min ?? 15, smmQty)
