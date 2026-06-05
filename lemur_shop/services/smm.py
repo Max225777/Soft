@@ -108,7 +108,6 @@ SMM_SERVICES: dict[str, dict] = {
     "tg_react_sunglasses": {"service_id": 5486, "title": "😎 Реакція", "flag": "😎", "description": "Реакція 😎 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 0.9},
     "tg_react_angry":    {"service_id": 5489, "title": "😡 Реакція", "flag": "😡", "description": "Реакція 😡 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 0.9},
     "tg_react_neg_mix1": {"service_id": 5493, "title": "👎😁😢💩 Мікс", "flag": "👎", "description": "Мікс негативних реакцій 👎😁😢💩 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 0.9},
-    "tg_react_neg_mix2": {"service_id": 5496, "title": "👎💩😱😢 Мікс", "flag": "😱", "description": "Мікс реакцій 👎💩😱😢 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 0.9},
 }
 
 

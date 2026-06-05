@@ -64,7 +64,6 @@ const SMM_TITLES: Record<string, string> = {
   tg_react_sunglasses: '😎 Реакція',
   tg_react_angry:      '😡 Реакція',
   tg_react_neg_mix1:   '👎😁😢💩 Мікс',
-  tg_react_neg_mix2:   '👎💩😱😢 Мікс',
 }
 
 function GroupStats({
