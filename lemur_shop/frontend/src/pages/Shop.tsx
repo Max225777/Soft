@@ -483,7 +483,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
 
   // ─── Накрутка реакцій ──────────────────────────────────────────────────────
   if (view === 'smm_reactions') {
-    const REACTION_BTNS: { key: string; emoji: string }[] = [
+    const INDIVIDUAL_BTNS: { key: string; emoji: string }[] = [
       { key: 'tg_react_heart',        emoji: '❤️' },
       { key: 'tg_react_fire',         emoji: '🔥' },
       { key: 'tg_react_poop',         emoji: '💩' },
@@ -492,8 +492,10 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
       { key: 'tg_react_vomit',        emoji: '🤮' },
       { key: 'tg_react_angry',        emoji: '😡' },
       { key: 'tg_react_sunglasses',   emoji: '😎' },
-      { key: 'tg_reactions',          emoji: '👍❤️🔥🎉' },
-      { key: 'tg_react_neg_mix1',     emoji: '👎😁😢💩' },
+    ]
+    const PACK_BTNS: { key: string; emoji: string; label: string }[] = [
+      { key: 'tg_reactions',      emoji: '👍❤️🔥🎉', label: 'Позитивний пак' },
+      { key: 'tg_react_neg_mix1', emoji: '👎😁😢💩', label: 'Негативний пак' },
     ]
     const svc = smmServices.find(s => s.key === selectedSmmKey) ?? smmServices.find(s => s.key === 'tg_reactions')
     const effectiveQty = Math.max(svc?.min ?? 15, smmQty)
@@ -570,28 +572,49 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 10 }}>
             {T.smm_pick_reaction.toUpperCase()}
           </div>
-          {/* Reaction buttons — 4 per row */}
-          {Array.from({ length: Math.ceil(REACTION_BTNS.length / 4) }, (_, i) => REACTION_BTNS.slice(i * 4, i * 4 + 4)).map((row, ri, rows) => (
-            <div key={ri} style={{ display: 'flex', gap: 6, marginBottom: ri < rows.length - 1 ? 6 : 0 }}>
+          {/* Individual reactions — 4 per row */}
+          {Array.from({ length: Math.ceil(INDIVIDUAL_BTNS.length / 4) }, (_, i) => INDIVIDUAL_BTNS.slice(i * 4, i * 4 + 4)).map((row, ri) => (
+            <div key={ri} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
               {row.map(btn => {
                 const active = selectedSmmKey === btn.key
-                const isPack = btn.emoji.length > 2
                 return (
                   <button key={btn.key} onClick={() => { setSelectedSmmKey(btn.key); setSmmQty(15); setSmmCustom('') }}
                     style={{
-                      flex: 1, padding: isPack ? '12px 8px' : '12px 4px', borderRadius: 14, cursor: 'pointer',
+                      flex: 1, padding: '12px 4px', borderRadius: 14, cursor: 'pointer',
                       border: active ? '2px solid rgba(244,169,0,.7)' : '2px solid var(--border)',
                       background: active ? 'linear-gradient(135deg, rgba(244,169,0,.15), rgba(200,120,0,.08))' : 'var(--card2)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       transition: 'all .15s',
                       boxShadow: active ? '0 0 16px rgba(244,169,0,.2)' : 'none',
                     }}>
-                    <span style={{ fontSize: isPack ? 16 : 22 }}>{btn.emoji}</span>
+                    <span style={{ fontSize: 22 }}>{btn.emoji}</span>
                   </button>
                 )
               })}
             </div>
           ))}
+          {/* Packs — 2 per row, visually distinct */}
+          <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+            {PACK_BTNS.map(btn => {
+              const active = selectedSmmKey === btn.key
+              return (
+                <button key={btn.key} onClick={() => { setSelectedSmmKey(btn.key); setSmmQty(15); setSmmCustom('') }}
+                  style={{
+                    flex: 1, padding: '10px 10px', borderRadius: 14, cursor: 'pointer',
+                    border: active ? '2px solid rgba(244,169,0,.8)' : '2px solid rgba(255,255,255,.12)',
+                    background: active
+                      ? 'linear-gradient(135deg, rgba(244,169,0,.18), rgba(200,120,0,.10))'
+                      : 'linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.02))',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    transition: 'all .15s',
+                    boxShadow: active ? '0 0 18px rgba(244,169,0,.25)' : '0 0 0 rgba(0,0,0,0)',
+                  }}>
+                  <span style={{ fontSize: 18, letterSpacing: 1 }}>{btn.emoji}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: active ? 'rgba(244,169,0,.9)' : 'var(--muted)', whiteSpace: 'nowrap' }}>{btn.label}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {/* Form card */}
