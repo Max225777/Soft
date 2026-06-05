@@ -197,7 +197,8 @@ async def place_order(service_id: int | str, link: str, quantity: int, api_type:
     link = normalize_tg_link(link)
     log.info("smmway place_order service=%s link=%r qty=%d api_type=%s", service_id, link, quantity, api_type)
     if api_type == "posts":
-        result = await smm_request("add", service=service_id, link=link, min=quantity, max=quantity)
+        # smmway reaction services: posts=count, link=url, min/max range (max must be > min)
+        result = await smm_request("add", service=service_id, posts=1, link=link, min=quantity, max=quantity + 1)
     else:
         result = await smm_request("add", service=service_id, link=link, quantity=quantity)
     return int(result["order"])
