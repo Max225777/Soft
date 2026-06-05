@@ -484,10 +484,10 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   // ─── Накрутка реакцій ──────────────────────────────────────────────────────
   if (view === 'smm_reactions') {
     const REACTION_BTNS: { key: string; emoji: string }[] = [
-      { key: 'tg_react_heart',           emoji: '❤️' },
-      { key: 'tg_react_fire',            emoji: '🔥' },
       { key: 'tg_react_mix_pos',         emoji: '👍❤️🔥🎉' },
       { key: 'tg_react_mix_neg',         emoji: '👎💩😱😢' },
+      { key: 'tg_react_heart',           emoji: '❤️' },
+      { key: 'tg_react_fire',            emoji: '🔥' },
       { key: 'tg_react_poop',            emoji: '💩' },
       { key: 'tg_react_clown',           emoji: '🤡' },
       { key: 'tg_react_middlefinger',    emoji: '🖕' },
