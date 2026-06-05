@@ -196,11 +196,11 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
     try {
       const res = await bioPromoApi.check()
       setBioPromo(res)
-      if (res.rewarded) setBioPromoMsg('✅ +1⭐ зараховано!')
-      else if (!res.is_active) setBioPromoMsg('❌ @LEMUR_SHOP не знайдено в біо')
-      else if ((res.hours_until_next ?? 0) > 0) setBioPromoMsg(`⏳ Наступне нарахування через ${res.hours_until_next} год`)
-      else setBioPromoMsg('✅ Біо активне!')
-    } catch { setBioPromoMsg('Помилка перевірки') }
+      if (res.rewarded) setBioPromoMsg(T.bio_promo_rewarded)
+      else if (!res.is_active) setBioPromoMsg(T.bio_promo_not_active)
+      else if ((res.hours_until_next ?? 0) > 0) setBioPromoMsg(T.bio_promo_wait(res.hours_until_next!))
+      else setBioPromoMsg(T.bio_promo_ok)
+    } catch { setBioPromoMsg(T.bio_promo_error) }
     setBioPromoLoading(false)
   }
 
@@ -227,9 +227,9 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
               padding: '20px 20px 36px',
             }}>
               <div style={{ width: 40, height: 4, borderRadius: 4, background: 'rgba(255,255,255,.15)', margin: '0 auto 20px' }} />
-              <div style={{ fontWeight: 800, fontSize: 18, textAlign: 'center', marginBottom: 6 }}>+1⭐ щодня</div>
+              <div style={{ fontWeight: 800, fontSize: 18, textAlign: 'center', marginBottom: 6 }}>{T.bio_promo_title}</div>
               <div style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', marginBottom: 16, lineHeight: 1.5 }}>
-                Додай нижче вказаний текст до <b>Біо</b> свого профілю і отримуй <b>1 зірку кожен день</b> автоматично.
+                {T.bio_promo_desc}
               </div>
 
               {/* What to add — copyable card */}
@@ -237,20 +237,20 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
                 background: 'rgba(95,186,71,.08)', border: '1.5px dashed rgba(95,186,71,.4)',
                 borderRadius: 14, padding: '14px 16px', marginBottom: 14,
               }}>
-                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6, letterSpacing: .5 }}>ДОДАЙ ЦЕ В БІО ПРОФІЛЮ:</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6, letterSpacing: .5 }}>{T.bio_promo_add_label}</div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                   <code style={{
                     fontSize: 18, fontWeight: 800, color: '#5fba47', letterSpacing: .5,
                     background: 'rgba(95,186,71,.12)', borderRadius: 8, padding: '6px 10px', flex: 1, textAlign: 'center',
                   }}>@LEMUR_SHOP</code>
                   <button
-                    onClick={() => { navigator.clipboard?.writeText('@LEMUR_SHOP'); setBioPromoMsg('📋 Скопійовано!') }}
+                    onClick={() => { navigator.clipboard?.writeText('@LEMUR_SHOP'); setBioPromoMsg('📋 ' + T.copied) }}
                     style={{
                       background: 'rgba(95,186,71,.2)', border: '1px solid rgba(95,186,71,.4)',
                       borderRadius: 10, padding: '8px 12px', cursor: 'pointer', color: '#5fba47',
                       fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0,
                     }}>
-                    Копіювати
+                    {T.copy}
                   </button>
                 </div>
               </div>
@@ -260,12 +260,12 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
                 background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)',
                 borderRadius: 14, padding: '12px 14px', marginBottom: 14,
               }}>
-                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8, letterSpacing: .5 }}>ЯК ДОДАТИ:</div>
-                {[
-                  ['1', 'Telegram → Редагувати профіль'],
-                  ['2', 'Поле "Біо" → вставити @LEMUR_SHOP'],
-                  ['3', 'Зберегти → натиснути «Перевірити»'],
-                ].map(([n, t]) => (
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8, letterSpacing: .5 }}>{T.bio_promo_how_label}</div>
+                {([
+                  ['1', T.bio_promo_step1],
+                  ['2', T.bio_promo_step2],
+                  ['3', T.bio_promo_step3],
+                ] as [string, string][]).map(([n, t]) => (
                   <div key={n} style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: n === '3' ? 0 : 6 }}>
                     <div style={{
                       width: 22, height: 22, borderRadius: 8, background: 'rgba(95,186,71,.15)',
@@ -287,17 +287,17 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
                 }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 13 }}>
-                      {bioPromo.is_active ? '✅ Активно' : '❌ Не знайдено в біо'}
+                      {bioPromo.is_active ? T.bio_promo_active : T.bio_promo_inactive}
                     </div>
                     {bioPromo.hours_until_next !== null && bioPromo.hours_until_next > 0 && (
                       <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                        Наступне нарахування через {bioPromo.hours_until_next} год
+                        {T.bio_promo_next_hrs(bioPromo.hours_until_next)}
                       </div>
                     )}
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--orange)' }}>⭐{bioPromo.total_rewarded}</div>
-                    <div style={{ fontSize: 10, color: 'var(--muted)' }}>зароблено</div>
+                    <div style={{ fontSize: 10, color: 'var(--muted)' }}>{T.bio_promo_earned}</div>
                   </div>
                 </div>
               )}
@@ -314,7 +314,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
                 disabled={bioPromoLoading}
                 onClick={doBioPromoCheck}
               >
-                {bioPromoLoading ? '⏳ Перевіряємо...' : bioPromo?.joined ? 'Перевірити зараз' : '✅ Я додав — перевірити'}
+                {bioPromoLoading ? T.bio_promo_checking : bioPromo?.joined ? T.bio_promo_recheck : T.bio_promo_check_btn}
               </button>
             </div>
           </div>
@@ -351,7 +351,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
               }}>
               <span style={{ fontSize: 13, fontWeight: 800, color: bioPromo?.is_active ? '#5fba47' : 'var(--orange)' }}>+1⭐</span>
-              <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 600 }}>щодня</span>
+              <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 600 }}>{T.bio_promo_daily}</span>
             </button>
           </div>
         </div>
