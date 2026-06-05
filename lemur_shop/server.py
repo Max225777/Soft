@@ -26,7 +26,7 @@ from sqlalchemy import func, select
 from lemur_shop.api.lolz import LolzApiError
 from lemur_shop.config import settings
 from lemur_shop.db.init import create_tables
-from lemur_shop.db.models import Order, ReferralPayout, TopUp, User
+from lemur_shop.db.models import BioPromo, Order, ReferralPayout, TopUp, User
 from lemur_shop.db.session import AsyncSessionLocal
 from decimal import Decimal
 
@@ -40,6 +40,74 @@ _bot: Bot | None = None
 _dp: Dispatcher | None = None
 _polling_task: asyncio.Task | None = None
 _keepalive_task: asyncio.Task | None = None
+_bio_promo_task: asyncio.Task | None = None
+
+
+async def _check_bio_has_promo(user_id: int) -> bool:
+    """Check if user's Telegram bio contains the channel username."""
+    if not _bot:
+        return False
+    try:
+        chat = await _bot.get_chat(user_id)
+        bio = (chat.bio or "").lower()
+        needle = settings.CHANNEL_USERNAME.lower().lstrip("@")
+        return f"@{needle}" in bio or needle in bio
+    except Exception as e:
+        log.debug("bio check failed for %s: %s", user_id, e)
+        return False
+
+
+async def _bio_promo_daily_checker() -> None:
+    """Background task: every hour check all participants, reward once per 24h."""
+    from datetime import timedelta
+    await asyncio.sleep(120)  # wait for bot init
+    while True:
+        try:
+            now = datetime.utcnow()
+            cutoff_check = now - timedelta(hours=23)
+            async with AsyncSessionLocal() as s:
+                result = await s.execute(
+                    select(BioPromo).where(
+                        (BioPromo.last_check_at == None) | (BioPromo.last_check_at < cutoff_check)
+                    )
+                )
+                promos = result.scalars().all()
+
+            log.info("bio_promo checker: processing %d participants", len(promos))
+            for promo in promos:
+                try:
+                    has_bio = await _check_bio_has_promo(promo.user_id)
+                    reward_given = False
+                    async with AsyncSessionLocal() as s:
+                        p = await s.get(BioPromo, promo.user_id)
+                        if not p:
+                            continue
+                        p.is_active = has_bio
+                        p.last_check_at = now
+                        if has_bio and (p.last_rewarded_at is None or (now - p.last_rewarded_at).total_seconds() >= 86400):
+                            user = await s.get(User, p.user_id)
+                            if user and not user.is_banned:
+                                user.balance_stars += 1
+                                p.last_rewarded_at = now
+                                p.total_rewarded += 1
+                                reward_given = True
+                        await s.commit()
+                    if reward_given and _bot:
+                        try:
+                            await _bot.send_message(
+                                promo.user_id,
+                                "⭐ <b>+1 зірка за промо!</b>\n\nВаш профіль містить @LEMUR_SHOP — вам нараховано 1 зірку.",
+                            )
+                        except Exception:
+                            pass
+                except Exception as e:
+                    log.warning("bio_promo check error for user %s: %s", promo.user_id, e)
+                await asyncio.sleep(0.5)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            log.warning("bio_promo_daily_checker error: %s", e)
+        await asyncio.sleep(3600)
 
 
 async def _keepalive(url: str) -> None:
@@ -160,6 +228,8 @@ async def lifespan(app: FastAPI):
     if webapp_url.startswith("https://"):
         _keepalive_task = asyncio.create_task(_keepalive(webapp_url + "/health"))
 
+    _bio_promo_task = asyncio.create_task(_bio_promo_daily_checker())
+
     log.info("🦎 Лемур бот запущено (%s)", "webhook" if use_webhook else "polling")
     yield
 
@@ -167,6 +237,12 @@ async def lifespan(app: FastAPI):
         _keepalive_task.cancel()
         try:
             await _keepalive_task
+        except asyncio.CancelledError:
+            pass
+    if _bio_promo_task:
+        _bio_promo_task.cancel()
+        try:
+            await _bio_promo_task
         except asyncio.CancelledError:
             pass
     if _polling_task:
@@ -793,6 +869,11 @@ async def api_admin_stats(
             top_filters.append(func.date(TopUp.created_at) <= dt2)
         total_topups = await s.scalar(select(func.sum(TopUp.amount_usd)).where(*top_filters)) or 0
 
+        # Bio promo stats
+        bio_promo_total  = await s.scalar(select(func.count(BioPromo.user_id))) or 0
+        bio_promo_active = await s.scalar(select(func.count(BioPromo.user_id)).where(BioPromo.is_active == True)) or 0
+        bio_promo_stars  = await s.scalar(select(func.sum(BioPromo.total_rewarded))) or 0
+
         # Today stats (always)
         new_users_today = await s.scalar(select(func.count(User.id)).where(func.date(User.created_at) == today)) or 0
         orders_today    = await s.scalar(select(func.count(Order.id)).where(Order.status == "delivered", func.date(Order.created_at) == today)) or 0
@@ -859,6 +940,9 @@ async def api_admin_stats(
         "cost_today":          float(cost_today),
         "profit_today":        round(profit_today, 2),
         "topups_today":        float(topups_today),
+        "bio_promo_total":     bio_promo_total,
+        "bio_promo_active":    bio_promo_active,
+        "bio_promo_stars":     int(bio_promo_stars),
         "categories":          categories,
         "accounts": {
             "count":        sum(c["count"] for c in acct_rows),
@@ -1444,6 +1528,66 @@ async def api_wheel_room(room_id: int, user: User = Depends(get_current_user)):
     new_balance = user.balance_stars
     return {**_room_view(room, parts, user.id), "new_balance": new_balance}
 
+
+
+@app.get("/api/bio-promo/status")
+async def bio_promo_status(user: User = Depends(get_current_user)):
+    async with AsyncSessionLocal() as s:
+        promo = await s.get(BioPromo, user.id)
+    if not promo:
+        return {"joined": False, "is_active": False, "total_rewarded": 0, "hours_until_next": None}
+    now = datetime.utcnow()
+    hours_until_next: int | None = None
+    if promo.last_rewarded_at:
+        delta = 24 - (now - promo.last_rewarded_at).total_seconds() / 3600
+        hours_until_next = max(0, round(delta))
+    return {
+        "joined": True,
+        "is_active": promo.is_active,
+        "total_rewarded": promo.total_rewarded,
+        "last_rewarded_at": promo.last_rewarded_at.isoformat() if promo.last_rewarded_at else None,
+        "hours_until_next": hours_until_next,
+    }
+
+
+@app.post("/api/bio-promo/check")
+async def bio_promo_check(user: User = Depends(get_current_user)):
+    """User-triggered check. Joins the promo if not joined, verifies bio, rewards if eligible."""
+    from datetime import timedelta
+    now = datetime.utcnow()
+    async with AsyncSessionLocal() as s:
+        promo = await s.get(BioPromo, user.id)
+        if not promo:
+            promo = BioPromo(user_id=user.id)
+            s.add(promo)
+            await s.flush()
+
+        has_bio = await _check_bio_has_promo(user.id)
+        promo.is_active = has_bio
+        promo.last_check_at = now
+
+        rewarded = False
+        if has_bio and (promo.last_rewarded_at is None or (now - promo.last_rewarded_at).total_seconds() >= 86400):
+            u = await s.get(User, user.id)
+            if u and not u.is_banned:
+                u.balance_stars += 1
+                promo.last_rewarded_at = now
+                promo.total_rewarded += 1
+                rewarded = True
+        await s.commit()
+
+    hours_until_next: int | None = None
+    if promo.last_rewarded_at:
+        delta = 24 - (now - promo.last_rewarded_at).total_seconds() / 3600
+        hours_until_next = max(0, round(delta))
+
+    return {
+        "joined": True,
+        "is_active": has_bio,
+        "rewarded": rewarded,
+        "total_rewarded": promo.total_rewarded,
+        "hours_until_next": hours_until_next,
+    }
 
 
 @app.get("/api/smm/services")

@@ -119,7 +119,15 @@ class GamePlay(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
 
-class WheelRoom(Base):
+class BioPromo(Base):
+    __tablename__ = "bio_promos"
+
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), primary_key=True)
+    joined_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    last_check_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_rewarded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=False)
+    total_rewarded: Mapped[int] = mapped_column(Integer, default=0)
     __tablename__ = "wheel_rooms"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     stake: Mapped[int] = mapped_column(Integer, nullable=False)

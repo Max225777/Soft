@@ -233,6 +233,14 @@ function Overview() {
 
         {/* ── ВОРОНКА — тільки "весь час" ── */}
         {mode === 'all' && (<>
+          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>ПРОМО В БІО</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <StatCard label="Учасники" value={stats.bio_promo_total} color="#5fba47" />
+            <StatCard label="Активні (з біо)" value={stats.bio_promo_active}
+              sub={stats.bio_promo_total ? `${Math.round(stats.bio_promo_active/stats.bio_promo_total*100)}%` : '0%'} color="#5fba47" />
+            <StatCard label="Зірок видано" value={`⭐${stats.bio_promo_stars}`} color="var(--gold)" />
+          </div>
+
           <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>ВОРОНКА</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <StatCard label="Запустили бота" value={stats.total_users} color="#4CAF72" />

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { api, smmApi, type Category, type BuyResult, type Me, type SmmService } from '../api'
+import { api, smmApi, bioPromoApi, type Category, type BuyResult, type Me, type SmmService, type BioPromoStatus } from '../api'
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
 
@@ -118,6 +118,10 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   const [code, setCode]       = useState('')
   const [gettingCode, setGettingCode] = useState(false)
   const [copied, setCopied]   = useState<'phone' | 'code' | ''>('')
+  const [bioPromo, setBioPromo]       = useState<BioPromoStatus | null>(null)
+  const [bioPromoOpen, setBioPromoOpen] = useState(false)
+  const [bioPromoLoading, setBioPromoLoading] = useState(false)
+  const [bioPromoMsg, setBioPromoMsg]   = useState('')
   const [confirmCat, setConfirmCat] = useState<Category | null>(null)
   const buyingRef = useRef(false)
   const [smmServices, setSmmServices] = useState<SmmService[]>([])
@@ -132,6 +136,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   useEffect(() => {
     api.categories().catch(() => []).then(setCats)
     smmApi.services().then(setSmmServices).catch(() => {})
+    bioPromoApi.status().then(setBioPromo).catch(() => {})
   }, [])
 
   async function buy(cat: Category) {
@@ -186,6 +191,19 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
     })
   }
 
+  async function doBioPromoCheck() {
+    setBioPromoLoading(true); setBioPromoMsg('')
+    try {
+      const res = await bioPromoApi.check()
+      setBioPromo(res)
+      if (res.rewarded) setBioPromoMsg('✅ +1⭐ зараховано!')
+      else if (!res.is_active) setBioPromoMsg('❌ @LEMUR_SHOP не знайдено в біо')
+      else if ((res.hours_until_next ?? 0) > 0) setBioPromoMsg(`⏳ Наступне нарахування через ${res.hours_until_next} год`)
+      else setBioPromoMsg('✅ Біо активне!')
+    } catch { setBioPromoMsg('Помилка перевірки') }
+    setBioPromoLoading(false)
+  }
+
   // ─── Головне меню ─────────────────────────────────────────────────────────
   if (view === 'menu') {
     const starsBalance = me?.balance_stars ?? 0
@@ -193,6 +211,86 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
 
     return (
       <div className="page">
+        {/* Bio promo modal */}
+        {bioPromoOpen && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,.78)',
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+            backdropFilter: 'blur(6px)',
+          }} onClick={() => { setBioPromoOpen(false); setBioPromoMsg('') }}>
+            <div onClick={e => e.stopPropagation()} style={{
+              width: '100%', maxWidth: 480,
+              background: 'linear-gradient(160deg, #1A2018 0%, #141018 100%)',
+              border: '1px solid rgba(95,186,71,.25)',
+              borderRadius: '24px 24px 0 0',
+              padding: '20px 20px 36px',
+            }}>
+              <div style={{ width: 40, height: 4, borderRadius: 4, background: 'rgba(255,255,255,.15)', margin: '0 auto 20px' }} />
+              <div style={{ fontSize: 28, textAlign: 'center', marginBottom: 8 }}>⭐</div>
+              <div style={{ fontWeight: 800, fontSize: 18, textAlign: 'center', marginBottom: 6 }}>+1 зірка щодня</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', marginBottom: 20, lineHeight: 1.5 }}>
+                Додай <b style={{ color: '#5fba47' }}>@LEMUR_SHOP</b> до опису свого профілю в Telegram і отримуй <b>1 зірку щодня</b> автоматично.
+              </div>
+
+              {/* Status block */}
+              {bioPromo?.joined && (
+                <div style={{
+                  background: bioPromo.is_active ? 'rgba(95,186,71,.1)' : 'rgba(255,80,80,.08)',
+                  border: `1px solid ${bioPromo.is_active ? 'rgba(95,186,71,.3)' : 'rgba(255,80,80,.25)'}`,
+                  borderRadius: 14, padding: '12px 14px', marginBottom: 16,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>
+                      {bioPromo.is_active ? '✅ Активно' : '❌ Не знайдено в біо'}
+                    </div>
+                    {bioPromo.hours_until_next !== null && bioPromo.hours_until_next > 0 && (
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                        Наступне нарахування через {bioPromo.hours_until_next} год
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--orange)' }}>⭐{bioPromo.total_rewarded}</div>
+                    <div style={{ fontSize: 10, color: 'var(--muted)' }}>зароблено</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Instruction */}
+              {!bioPromo?.joined && (
+                <div style={{
+                  background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)',
+                  borderRadius: 14, padding: '12px 14px', marginBottom: 16,
+                }}>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Як це зробити:</div>
+                  <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+                    1. Відкрий Telegram → Редагувати профіль<br/>
+                    2. В полі <b>Біо</b> напиши <b style={{ color: '#5fba47' }}>@LEMUR_SHOP</b><br/>
+                    3. Збережи та натисни «Перевірити»
+                  </div>
+                </div>
+              )}
+
+              {bioPromoMsg && (
+                <div style={{ fontSize: 13, textAlign: 'center', marginBottom: 12, color: bioPromoMsg.startsWith('✅') ? '#5fba47' : bioPromoMsg.startsWith('❌') ? '#ff6060' : 'var(--muted)' }}>
+                  {bioPromoMsg}
+                </div>
+              )}
+
+              <button
+                className="btn btn-primary"
+                style={{ width: '100%', opacity: bioPromoLoading ? .6 : 1 }}
+                disabled={bioPromoLoading}
+                onClick={doBioPromoCheck}
+              >
+                {bioPromoLoading ? '⏳ Перевіряємо...' : bioPromo?.joined ? 'Перевірити зараз' : '✅ Я додав — перевірити'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Hero balance card */}
         <div style={{
           background: 'linear-gradient(135deg, #1E1428 0%, #1A1020 50%, #141018 100%)',
@@ -208,9 +306,24 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 4 }}>
             {T.balance.toUpperCase()}
           </div>
-          <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1 }}>
-            <span style={{ fontWeight: 800, fontSize: 30 }}>⭐{starsBalance}</span>
-            <span style={{ fontWeight: 400, fontSize: 13, marginLeft: 7, color: 'var(--muted)' }}>(${usdDisplay})</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1 }}>
+              <span style={{ fontWeight: 800, fontSize: 30 }}>⭐{starsBalance}</span>
+              <span style={{ fontWeight: 400, fontSize: 13, marginLeft: 7, color: 'var(--muted)' }}>(${usdDisplay})</span>
+            </div>
+            <button
+              onClick={() => setBioPromoOpen(true)}
+              style={{
+                background: bioPromo?.is_active
+                  ? 'linear-gradient(135deg, rgba(95,186,71,.2), rgba(50,140,30,.1))'
+                  : 'rgba(255,255,255,.06)',
+                border: bioPromo?.is_active ? '1px solid rgba(95,186,71,.45)' : '1px solid rgba(255,255,255,.12)',
+                borderRadius: 12, padding: '7px 11px', cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+              }}>
+              <span style={{ fontSize: 13, fontWeight: 800, color: bioPromo?.is_active ? '#5fba47' : 'var(--orange)' }}>+1⭐</span>
+              <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 600 }}>щодня</span>
+            </button>
           </div>
         </div>
 

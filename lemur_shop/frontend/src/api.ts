@@ -45,6 +45,17 @@ export const gameApi = {
   finish: (token: string, score: number) => req<{ score: number; bet: number; multiplier: number; stars_won: number; net: number; new_balance: number }>('/game/finish', { method: 'POST', body: JSON.stringify({ token, score }) }),
 }
 
+export interface BioPromoStatus {
+  joined: boolean; is_active: boolean; total_rewarded: number
+  hours_until_next: number | null; last_rewarded_at: string | null
+  rewarded?: boolean
+}
+
+export const bioPromoApi = {
+  status: () => req<BioPromoStatus>('/bio-promo/status'),
+  check:  () => req<BioPromoStatus>('/bio-promo/check', { method: 'POST' }),
+}
+
 export interface WheelParticipantInfo {
   name: string; is_you: boolean; is_bot: boolean
 }
@@ -114,6 +125,7 @@ export interface AdminStats {
   total_topups_usd: number; total_stars_balance: number
   new_users_today: number; orders_today: number
   revenue_today: number; cost_today: number; profit_today: number; topups_today: number
+  bio_promo_total: number; bio_promo_active: number; bio_promo_stars: number
   categories: StatsCatRow[]
   accounts: StatsGroup
   smm: StatsGroup

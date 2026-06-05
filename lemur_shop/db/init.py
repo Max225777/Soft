@@ -37,6 +37,15 @@ _MIGRATIONS = [
     "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.02962, 6) WHERE category IN ('tg_reactions','tg_react_like','tg_react_dislike','tg_react_heart','tg_react_fire','tg_react_poop','tg_react_clown','tg_react_middlefinger','tg_react_vomit','tg_react_nails','tg_react_crazy','tg_react_heartarrow','tg_react_monkey','tg_react_kiss','tg_react_sunglasses','tg_react_alien','tg_react_shrug','tg_react_angry','tg_react_neg_mix1','tg_react_mix_fun','tg_react_mix_ghost','tg_react_neg_mix2','tg_react_mix_scare') AND status = 'delivered'",
     # Додаємо колонку smm_quantity для зберігання кількості накрутки
     "ALTER TABLE orders ADD COLUMN IF NOT EXISTS smm_quantity INT DEFAULT 0",
+    # Таблиця для промо в біо
+    """CREATE TABLE IF NOT EXISTS bio_promos (
+        user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        joined_at TIMESTAMP DEFAULT NOW(),
+        last_check_at TIMESTAMP,
+        last_rewarded_at TIMESTAMP,
+        is_active BOOLEAN DEFAULT FALSE,
+        total_rewarded INT DEFAULT 0
+    )""",
 ]
 
 
