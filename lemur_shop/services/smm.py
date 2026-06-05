@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 SMM_API_URL = "https://smmway.ru/api/v2"
 
 # Курс RUB→USD для розрахунку собівартості
-RUB_PER_USD = 90.0
+RUB_PER_USD = 70.0
 
 
 def rub_to_usd(rub: float) -> float:
