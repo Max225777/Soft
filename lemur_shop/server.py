@@ -67,6 +67,30 @@ async def lifespan(app: FastAPI):
     await create_tables()
     log.info("БД готова")
 
+    # Завантажуємо список сервісів smmway при старті
+    try:
+        import httpx as _httpx
+        _r = await _httpx.AsyncClient(timeout=15).get(
+            "https://smmway.ru/api/v2",
+            params={"key": settings.SMMWAY_API_KEY, "action": "services"},
+        )
+        _all = _r.json()
+        if isinstance(_all, list):
+            keywords = ("реакц", "reaction", "like", "лайк", "heart", "сердц",
+                        "dislike", "дизлайк", "love", "поцелу", "kiss", "fire",
+                        "огонь", "👍", "👎", "❤", "💋", "🔥")
+            _tg = [s for s in _all if any(k in s.get("name","").lower() or k in str(s.get("category","")).lower() for k in keywords)]
+            log.info("=== SMMWAY реакції (%d сервісів) ===", len(_tg))
+            for s in sorted(_tg, key=lambda x: int(x.get("service", 0))):
+                log.info("  ID:%-6s | %-60s | min:%-5s max:%-7s rate:$%s",
+                         s.get("service"), s.get("name","")[:60],
+                         s.get("min"), s.get("max"), s.get("rate"))
+            log.info("=== кінець списку smmway реакцій ===")
+        else:
+            log.warning("smmway services: несподіваний формат відповіді: %s", str(_all)[:200])
+    except Exception as _e:
+        log.warning("smmway services fetch failed: %s", _e)
+
     _bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     _dp = Dispatcher(storage=MemoryStorage())
     try:
