@@ -484,10 +484,6 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   // ─── Накрутка реакцій ──────────────────────────────────────────────────────
   if (view === 'smm_reactions') {
     const REACTION_BTNS: { key: string; emoji: string }[] = [
-      { key: 'tg_react_mix_pos',         emoji: '👍❤️🔥🎉' },
-      { key: 'tg_react_mix_neg',         emoji: '👎💩😱😢' },
-      { key: 'tg_react_heart',           emoji: '❤️' },
-      { key: 'tg_react_fire',            emoji: '🔥' },
       { key: 'tg_react_poop',            emoji: '💩' },
       { key: 'tg_react_clown',           emoji: '🤡' },
       { key: 'tg_react_middlefinger',    emoji: '🖕' },
@@ -568,9 +564,9 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 10 }}>
             {T.smm_pick_reaction.toUpperCase()}
           </div>
-          {/* Reaction buttons — row 1: popular, row 2: packs, row 3-4: individual */}
-          {[REACTION_BTNS.slice(0, 2), REACTION_BTNS.slice(2, 4), REACTION_BTNS.slice(4, 6), REACTION_BTNS.slice(6)].map((row, ri) => (
-            <div key={ri} style={{ display: 'flex', gap: 8, marginBottom: ri < 3 ? 8 : 0 }}>
+          {/* Reaction buttons — row 1, row 2 */}
+          {[REACTION_BTNS.slice(0, 2), REACTION_BTNS.slice(2)].map((row, ri) => (
+            <div key={ri} style={{ display: 'flex', gap: 8, marginBottom: ri === 0 ? 8 : 0 }}>
               {row.map(btn => {
                 const active = selectedSmmKey === btn.key
                 const isPack = btn.emoji.length > 2
