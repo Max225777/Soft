@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { api, type Me } from '../api'
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
+import BioPromoButton from '../components/BioPromoButton'
 
 interface Props { me: Me | null; lang: Lang; balanceDiff?: number | null }
 
@@ -170,17 +171,20 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
         <div style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6 }}>
           {T.balance.toUpperCase()}
         </div>
-        <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1, position: 'relative', display: 'inline-block' }}>
-          <span style={{ fontWeight: 800, fontSize: 40 }}>⭐{stars}</span>
-          <span style={{ fontWeight: 400, fontSize: 15, marginLeft: 10, color: 'var(--muted)' }}>(${usdDisplay})</span>
-          {balanceDiff && (
-            <span style={{
-              position: 'absolute', top: -8, right: -48,
-              color: '#4cff8f', fontWeight: 800, fontSize: 18,
-              animation: 'balance-plus 2.5s ease forwards',
-              pointerEvents: 'none', whiteSpace: 'nowrap',
-            }}>+{balanceDiff}⭐</span>
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1, position: 'relative', display: 'inline-block' }}>
+            <span style={{ fontWeight: 800, fontSize: 40 }}>⭐{stars}</span>
+            <span style={{ fontWeight: 400, fontSize: 15, marginLeft: 10, color: 'var(--muted)' }}>(${usdDisplay})</span>
+            {balanceDiff && (
+              <span style={{
+                position: 'absolute', top: -8, right: -48,
+                color: '#4cff8f', fontWeight: 800, fontSize: 18,
+                animation: 'balance-plus 2.5s ease forwards',
+                pointerEvents: 'none', whiteSpace: 'nowrap',
+              }}>+{balanceDiff}⭐</span>
+            )}
+          </div>
+          <BioPromoButton lang={lang} />
         </div>
       </div>
 
