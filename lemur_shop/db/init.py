@@ -41,6 +41,8 @@ _MIGRATIONS = [
     "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.02508, 6) WHERE category IN ('tg_react_heart','tg_react_fire','tg_react_mix_pos','tg_react_mix_neg') AND (cost_usd IS NULL OR cost_usd = 0) AND status = 'delivered'",
     # Виправлення старих реакцій де cost_usd був встановлений з неправильним ratio (0.000256 замість 0.02559)
     "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.02559, 6) WHERE category IN ('tg_reactions','tg_react_poop','tg_react_clown','tg_react_middlefinger','tg_react_vomit') AND cost_usd > 0 AND cost_usd < 0.001 AND status = 'delivered'",
+    # Бекфілл cost_usd для нових реакцій (5480-5497 group), same ratio 0.02559
+    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.02559, 6) WHERE category IN ('tg_react_nails','tg_react_crazy','tg_react_heartarrow','tg_react_monkey','tg_react_kiss','tg_react_sunglasses','tg_react_alien','tg_react_shrug','tg_react_angry','tg_react_neg_mix1','tg_react_mix_fun','tg_react_mix_ghost','tg_react_neg_mix2','tg_react_mix_scare') AND (cost_usd IS NULL OR cost_usd = 0) AND status = 'delivered'",
 ]
 
 

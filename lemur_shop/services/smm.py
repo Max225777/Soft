@@ -103,8 +103,20 @@ SMM_SERVICES: dict[str, dict] = {
         "unit_size": 100,
         "cost_rub_per_1000": 1.0,
     },
-    # NOTE: services 6077/6078/6255/6256 use different smmway API (posts/min/max, auto-reactions)
-    # incompatible with single-post link+quantity UI — disabled until smmway clarifies format
+    "tg_react_nails":    {"service_id": 5480, "title": "💅 Реакція", "flag": "💅", "description": "Реакція 💅 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 1.0},
+    "tg_react_crazy":    {"service_id": 5481, "title": "🤪 Реакція", "flag": "🤪", "description": "Реакція 🤪 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 1.0},
+    "tg_react_heartarrow": {"service_id": 5483, "title": "💘 Реакція", "flag": "💘", "description": "Реакція 💘 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 1.0},
+    "tg_react_monkey":   {"service_id": 5484, "title": "🙉 Реакція", "flag": "🙉", "description": "Реакція 🙉 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 1.0},
+    "tg_react_kiss":     {"service_id": 5485, "title": "😘 Реакція", "flag": "😘", "description": "Реакція 😘 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 1.0},
+    "tg_react_sunglasses": {"service_id": 5486, "title": "😎 Реакція", "flag": "😎", "description": "Реакція 😎 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 1.0},
+    "tg_react_alien":    {"service_id": 5487, "title": "👾 Реакція", "flag": "👾", "description": "Реакція 👾 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 1.0},
+    "tg_react_shrug":    {"service_id": 5488, "title": "🤷 Реакція", "flag": "🤷", "description": "Реакція 🤷 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 1.0},
+    "tg_react_angry":    {"service_id": 5489, "title": "😡 Реакція", "flag": "😡", "description": "Реакція 😡 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 1.0},
+    "tg_react_neg_mix1": {"service_id": 5493, "title": "👎😁😢💩 Мікс", "flag": "👎", "description": "Мікс негативних реакцій 👎😁😢💩 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 1.0},
+    "tg_react_mix_fun":  {"service_id": 5494, "title": "🕊🦄🍓🎄 Мікс", "flag": "🦄", "description": "Мікс реакцій 🕊🦄🍓🎄 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 1.0},
+    "tg_react_mix_ghost": {"service_id": 5495, "title": "🐳🍾👻🎃 Мікс", "flag": "👻", "description": "Мікс реакцій 🐳🍾👻🎃 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 1.0},
+    "tg_react_neg_mix2": {"service_id": 5496, "title": "👎💩😱😢 Мікс", "flag": "😱", "description": "Мікс реакцій 👎💩😱😢 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 1.0},
+    "tg_react_mix_scare": {"service_id": 5497, "title": "😨🤯😱🤮 Мікс", "flag": "🤯", "description": "Мікс реакцій 😨🤯😱🤮 на пост", "price_per_100_stars": 3.34, "min": 1, "max": 150000, "step": 1, "unit_size": 100, "cost_rub_per_1000": 1.0},
 }
 
 

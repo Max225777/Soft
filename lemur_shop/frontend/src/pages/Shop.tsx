@@ -484,10 +484,24 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
   // ─── Накрутка реакцій ──────────────────────────────────────────────────────
   if (view === 'smm_reactions') {
     const REACTION_BTNS: { key: string; emoji: string }[] = [
-      { key: 'tg_react_poop',            emoji: '💩' },
-      { key: 'tg_react_clown',           emoji: '🤡' },
-      { key: 'tg_react_middlefinger',    emoji: '🖕' },
-      { key: 'tg_react_vomit',           emoji: '🤮' },
+      { key: 'tg_react_poop',       emoji: '💩' },
+      { key: 'tg_react_clown',      emoji: '🤡' },
+      { key: 'tg_react_middlefinger', emoji: '🖕' },
+      { key: 'tg_react_vomit',      emoji: '🤮' },
+      { key: 'tg_react_angry',      emoji: '😡' },
+      { key: 'tg_react_kiss',       emoji: '😘' },
+      { key: 'tg_react_sunglasses', emoji: '😎' },
+      { key: 'tg_react_crazy',      emoji: '🤪' },
+      { key: 'tg_react_nails',      emoji: '💅' },
+      { key: 'tg_react_heartarrow', emoji: '💘' },
+      { key: 'tg_react_monkey',     emoji: '🙉' },
+      { key: 'tg_react_alien',      emoji: '👾' },
+      { key: 'tg_react_shrug',      emoji: '🤷' },
+      { key: 'tg_react_neg_mix1',   emoji: '👎😁😢💩' },
+      { key: 'tg_react_neg_mix2',   emoji: '👎💩😱😢' },
+      { key: 'tg_react_mix_scare',  emoji: '😨🤯😱🤮' },
+      { key: 'tg_react_mix_fun',    emoji: '🕊🦄🍓🎄' },
+      { key: 'tg_react_mix_ghost',  emoji: '🐳🍾👻🎃' },
     ]
     const svc = smmServices.find(s => s.key === selectedSmmKey) ?? smmServices.find(s => s.key === 'tg_reactions')
     const effectiveQty = Math.max(svc?.min ?? 15, smmQty)
@@ -564,9 +578,9 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 10 }}>
             {T.smm_pick_reaction.toUpperCase()}
           </div>
-          {/* Reaction buttons — row 1, row 2 */}
-          {[REACTION_BTNS.slice(0, 2), REACTION_BTNS.slice(2)].map((row, ri) => (
-            <div key={ri} style={{ display: 'flex', gap: 8, marginBottom: ri === 0 ? 8 : 0 }}>
+          {/* Reaction buttons — 4 per row */}
+          {Array.from({ length: Math.ceil(REACTION_BTNS.length / 4) }, (_, i) => REACTION_BTNS.slice(i * 4, i * 4 + 4)).map((row, ri, rows) => (
+            <div key={ri} style={{ display: 'flex', gap: 6, marginBottom: ri < rows.length - 1 ? 6 : 0 }}>
               {row.map(btn => {
                 const active = selectedSmmKey === btn.key
                 const isPack = btn.emoji.length > 2
