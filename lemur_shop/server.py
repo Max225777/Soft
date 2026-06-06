@@ -45,28 +45,37 @@ _bio_promo_midnight_task: asyncio.Task | None = None
 
 
 async def _check_bio_has_promo(user_id: int) -> bool:
-    """Check if user's Telegram profile (bio, first_name, last_name) contains the channel username."""
+    """Check if user's Telegram profile (bio, first_name, last_name) contains the channel username.
+    Retries up to 3 times with 2s delay to work around Bot API response caching.
+    """
     if not _bot:
         return False
-    try:
-        chat = await _bot.get_chat(user_id)
-        needle = settings.CHANNEL_USERNAME.lower().lstrip("@")
-        # Check bio + first/last name — bio can be hidden by Telegram privacy settings,
-        # but names are always public; either field counts as visible promotion.
-        bio        = (chat.bio        or "").lower()
-        first_name = (chat.first_name or "").lower()
-        last_name  = (getattr(chat, "last_name", None) or "").lower()
-        combined   = f"{bio} {first_name} {last_name}"
-        found = f"@{needle}" in combined or needle in combined
-        log.info(
-            "bio_check user=%s needle=%s bio=%r first=%r last=%r → %s",
-            user_id, needle, chat.bio, chat.first_name,
-            getattr(chat, "last_name", None), found,
-        )
-        return found
-    except Exception as e:
-        log.warning("bio check failed for %s: %s", user_id, e)
-        return False
+    needle = settings.CHANNEL_USERNAME.lower().lstrip("@")
+    last_err: Exception | None = None
+    for attempt in range(3):
+        try:
+            if attempt:
+                await asyncio.sleep(2)
+            chat = await _bot.get_chat(user_id)
+            bio        = (chat.bio        or "").lower()
+            first_name = (chat.first_name or "").lower()
+            last_name  = (getattr(chat, "last_name", None) or "").lower()
+            combined   = f"{bio} {first_name} {last_name}"
+            found = f"@{needle}" in combined or needle in combined
+            log.info(
+                "bio_check attempt=%d user=%s needle=%s bio=%r first=%r last=%r → %s",
+                attempt + 1, user_id, needle, chat.bio, chat.first_name,
+                getattr(chat, "last_name", None), found,
+            )
+            if found:
+                return True
+            # If not found on first try, retry — Telegram may return stale cache
+        except Exception as e:
+            last_err = e
+            log.warning("bio check attempt=%d failed for %s: %s", attempt + 1, user_id, e)
+    if last_err:
+        log.warning("bio check exhausted retries for %s: %s", user_id, last_err)
+    return False
 
 
 def _hours_until_midnight() -> int:
