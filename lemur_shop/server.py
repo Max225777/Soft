@@ -147,30 +147,6 @@ async def lifespan(app: FastAPI):
     await create_tables()
     log.info("БД готова")
 
-    # Завантажуємо список сервісів smmway при старті
-    try:
-        import httpx as _httpx
-        _r = await _httpx.AsyncClient(timeout=15).get(
-            "https://smmway.ru/api/v2",
-            params={"key": settings.SMMWAY_API_KEY, "action": "services"},
-        )
-        _all = _r.json()
-        if isinstance(_all, list):
-            keywords = ("реакц", "reaction", "react", "like", "лайк", "heart", "сердц",
-                        "dislike", "дизлайк", "love", "поцелу", "kiss", "fire",
-                        "огонь", "👍", "👎", "❤", "💋", "🔥", "telegram react")
-            _tg = [s for s in _all if any(k in s.get("name","").lower() or k in str(s.get("category","")).lower() or k in str(s.get("type","")).lower() for k in keywords)]
-            log.info("=== SMMWAY реакції (%d сервісів) ===", len(_tg))
-            for s in sorted(_tg, key=lambda x: int(x.get("service", 0))):
-                log.info("  ID:%-6s type:%-20s | %-60s | min:%-5s max:%-7s rate:$%s",
-                         s.get("service"), s.get("type","")[:20], s.get("name","")[:60],
-                         s.get("min"), s.get("max"), s.get("rate"))
-            log.info("=== кінець списку smmway реакцій ===")
-        else:
-            log.warning("smmway services: несподіваний формат відповіді: %s", str(_all)[:200])
-    except Exception as _e:
-        log.warning("smmway services fetch failed: %s", _e)
-
     _bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     _dp = Dispatcher(storage=MemoryStorage())
     try:
@@ -241,6 +217,27 @@ async def lifespan(app: FastAPI):
         _keepalive_task = asyncio.create_task(_keepalive(webapp_url + "/health"))
 
     _bio_promo_task = asyncio.create_task(_bio_promo_daily_checker())
+
+    # Startup bio debug — log raw getChat for test user to verify bio reading works
+    async def _startup_bio_debug() -> None:
+        await asyncio.sleep(5)  # wait for bot session to be ready
+        debug_ids = [8761588239]
+        for _uid in debug_ids:
+            try:
+                _chat = await _bot.get_chat(_uid)
+                _needle = settings.CHANNEL_USERNAME.lower().lstrip("@")
+                _bio   = (_chat.bio        or "").lower()
+                _fname = (_chat.first_name or "").lower()
+                _lname = (getattr(_chat, "last_name", None) or "").lower()
+                _combined = f"{_bio} {_fname} {_lname}"
+                _found = f"@{_needle}" in _combined or _needle in _combined
+                log.info(
+                    "=== STARTUP BIO DEBUG user=%s | bio=%r | first_name=%r | last_name=%r | found=%s ===",
+                    _uid, _chat.bio, _chat.first_name, getattr(_chat, "last_name", None), _found,
+                )
+            except Exception as _e:
+                log.warning("=== STARTUP BIO DEBUG user=%s ERROR: %s ===", _uid, _e)
+    asyncio.create_task(_startup_bio_debug())
 
     log.info("🦎 Лемур бот запущено (%s)", "webhook" if use_webhook else "polling")
     yield
