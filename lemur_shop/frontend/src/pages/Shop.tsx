@@ -500,10 +500,9 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
       { key: 'tg_react_sunglasses',   emoji: '😎' },
     ]
     const PACK_BTNS: { key: string; emoji: string; label: string }[] = [
-      { key: 'tg_reactions',      emoji: '👍❤️🔥🎉', label: 'Позитивний пак' },
       { key: 'tg_react_neg_mix1', emoji: '👎😁😢💩', label: 'Негативний пак' },
     ]
-    const svc = smmServices.find(s => s.key === selectedSmmKey) ?? smmServices.find(s => s.key === 'tg_reactions')
+    const svc = smmServices.find(s => s.key === selectedSmmKey) ?? smmServices.find(s => s.key === 'tg_react_neg_mix1')
     const effectiveQty = Math.max(svc?.min ?? 15, smmQty)
     const priceStars = svc ? Math.max(1, Math.round(effectiveQty / 100 * svc.price_per_100_stars)) : 0
     const balance = me?.balance_stars ?? 0
@@ -804,7 +803,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           }}>‹</button>
           <div>
             <div style={{ fontWeight: 800, fontSize: 19 }}>
-              {isReactions ? (selectedSmmKey === 'tg_reactions' ? '👍❤️🔥🎉' : '👎💩😱😢') : isViews ? '👁️' : '👥'}{' '}
+              {isReactions ? '👎💩😱😢' : isViews ? '👁️' : '👥'}{' '}
               {isReactions ? T.smm_reactions_title : isViews ? T.smm_views_title : T.smm_subs_title}
             </div>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>Telegram</div>
@@ -819,10 +818,10 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
               background: 'linear-gradient(135deg, #5FBA47 0%, #2d7a1c 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
               boxShadow: '0 4px 14px rgba(95,186,71,.35)',
-            }}>{isReactions ? (selectedSmmKey === 'tg_reactions' ? '👍❤️' : '👎💩') : isViews ? '👁️' : '👥'}</div>
+            }}>{isReactions ? '👎💩' : isViews ? '👁️' : '👥'}</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 5 }}>
-                {isReactions ? (selectedSmmKey === 'tg_reactions' ? '👍❤️🔥🎉' : '👎💩😱😢') + ' ' + T.smm_reactions_title : isViews ? T.smm_views_title : T.smm_subs_title}
+                {isReactions ? '👎💩😱😢 ' + T.smm_reactions_title : isViews ? T.smm_views_title : T.smm_subs_title}
               </div>
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
