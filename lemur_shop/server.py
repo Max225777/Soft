@@ -804,6 +804,34 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+@app.get("/api/admin/check-bio")
+async def api_admin_check_bio(user_id: int, admin: User = Depends(require_admin)):
+    """Debug: show raw getChat response for a user to diagnose bio check issues."""
+    if not _bot:
+        raise HTTPException(503, "Bot not ready")
+    try:
+        chat = await _bot.get_chat(user_id)
+        raw = chat.model_dump() if hasattr(chat, "model_dump") else vars(chat)
+        needle = settings.CHANNEL_USERNAME.lower().lstrip("@")
+        bio        = (chat.bio        or "").lower()
+        first_name = (chat.first_name or "").lower()
+        last_name  = (getattr(chat, "last_name", None) or "").lower()
+        combined   = f"{bio} {first_name} {last_name}"
+        return {
+            "user_id":    user_id,
+            "bio":        chat.bio,
+            "first_name": chat.first_name,
+            "last_name":  getattr(chat, "last_name", None),
+            "username":   getattr(chat, "username", None),
+            "needle":     needle,
+            "combined":   combined.strip(),
+            "found":      f"@{needle}" in combined or needle in combined,
+            "raw_fields": {k: str(v) for k, v in raw.items() if v is not None},
+        }
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
+
+
 @app.get("/api/admin/smm-services-raw")
 async def api_admin_smm_services_raw(admin: User = Depends(require_admin)):
     """Повертає всі smmway сервіси де є слово 'реакц' або 'reaction' в назві/категорії."""
