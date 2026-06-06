@@ -67,7 +67,8 @@ async def cb_stars_amount(callback: CallbackQuery) -> None:
     stars = max(1, round(amount_usd * settings.STARS_PER_USD))
     user_id = callback.from_user.id
 
-    await callback.answer()
+    # cache_time=30 — Telegram не повторює цей callback 30 секунд (захист від подвійного натискання)
+    await callback.answer(cache_time=30)
     await callback.message.answer_invoice(
         title="Поповнення балансу Лемур",
         description=f"Зарахування ${amount_usd:.2f} на баланс магазину",

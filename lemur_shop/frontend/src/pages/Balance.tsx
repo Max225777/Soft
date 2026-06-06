@@ -81,12 +81,15 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
   }
 
   async function payStars(count: number) {
-    if (count < 1) return
+    if (count < 1 || starsLoading) return
     setStarsLoading(true); setStarsError(null)
     try {
       const { invoice_url } = await api.starsInvoice(count)
       if (window.Telegram?.WebApp) {
+        // openInvoice повертається ОДРАЗУ — НЕ ставити setStarsLoading(false) у finally.
+        // Кнопка лишається заблокованою до завершення платежу (paid/cancelled/failed).
         window.Telegram.WebApp.openInvoice(invoice_url, status => {
+          setStarsLoading(false)
           if (status === 'paid') {
             setOpen(null)
             setTopupSuccess(count)
@@ -97,9 +100,12 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
         })
       } else {
         window.open(invoice_url, '_blank')
+        setStarsLoading(false)
       }
-    } catch (e: any) { setStarsError(e.message ?? 'Error') }
-    finally { setStarsLoading(false) }
+    } catch (e: any) {
+      setStarsError(e.message ?? 'Error')
+      setStarsLoading(false)
+    }
   }
 
   function toggleCrypto() {
