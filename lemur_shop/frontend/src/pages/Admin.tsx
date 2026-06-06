@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type BroadcastStatus } from '../api'
+import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage } from '../api'
 
 type DateMode = 'today' | 'all' | 'custom'
 
@@ -241,6 +241,8 @@ function Overview() {
             <StatCard label="Зірок видано" value={`⭐${stats.bio_promo_stars}`} color="var(--gold)" />
           </div>
 
+          <BioPromoList />
+
           <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>ВОРОНКА</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <StatCard label="Запустили бота" value={stats.total_users} color="#4CAF72" />
@@ -286,6 +288,66 @@ function Overview() {
         )}
 
       </>)}
+    </div>
+  )
+}
+
+// ── Bio Promo Participants ─────────────────────────────────────────────────────
+function BioPromoList() {
+  const [page, setPage] = useState(1)
+  const [data, setData] = useState<BioPromoParticipantsPage | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback((p: number) => {
+    setLoading(true)
+    adminApi.bioPromoList(p, 30).then(setData).finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => { load(1) }, [load])
+
+  function fmtDate(s: string | null) {
+    if (!s) return '—'
+    return new Date(s).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  }
+
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>
+        УЧАСНИКИ ПРОМО В «ПРО СЕБЕ» {data ? `(${data.total})` : ''}
+      </div>
+      {loading && <div style={{ fontSize: 13, color: 'var(--muted)' }}>Завантаження...</div>}
+      {data && (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {data.items.map(p => (
+              <div key={p.user_id} style={{
+                background: 'var(--bg2)', border: `1px solid ${p.is_active ? 'rgba(95,186,71,.3)' : 'var(--border)'}`,
+                borderRadius: 12, padding: '10px 12px',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+              }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: p.is_active ? '#5fba47' : 'var(--muted)', fontSize: 10 }}>
+                      {p.is_active ? '●' : '○'}
+                    </span>
+                    {p.name}
+                    {p.username && <span style={{ fontSize: 11, color: '#2AABEE' }}>@{p.username}</span>}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                    ID: {p.user_id} · підключ: {fmtDate(p.joined_at)}
+                    {p.last_rewarded_at && ` · нагорода: ${fmtDate(p.last_rewarded_at)}`}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontWeight: 800, color: 'var(--gold)', fontSize: 15 }}>⭐{p.total_rewarded}</div>
+                  <div style={{ fontSize: 10, color: 'var(--muted)' }}>{p.is_active ? 'активний' : 'неактивний'}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Pagination page={page} pages={data.pages} onPage={p => { setPage(p); load(p) }} />
+        </>
+      )}
     </div>
   )
 }

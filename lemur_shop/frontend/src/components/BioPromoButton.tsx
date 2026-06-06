@@ -14,7 +14,6 @@ function TgProfileMockup({ lang }: { lang: Lang }) {
       border: '1px solid rgba(255,255,255,.1)', marginBottom: 14,
       fontSize: 13,
     }}>
-      {/* Fake header */}
       <div style={{
         background: '#2b2b2b', padding: '10px 14px',
         display: 'flex', alignItems: 'center', gap: 10,
@@ -23,7 +22,6 @@ function TgProfileMockup({ lang }: { lang: Lang }) {
         <div style={{ fontSize: 18, color: '#2AABEE' }}>‹</div>
         <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{editTitle}</div>
       </div>
-      {/* Avatar row */}
       <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 10px' }}>
         <div style={{
           width: 60, height: 60, borderRadius: '50%',
@@ -32,7 +30,6 @@ function TgProfileMockup({ lang }: { lang: Lang }) {
           fontSize: 26,
         }}>🦎</div>
       </div>
-      {/* Fields */}
       {[
         { label: lang === 'ru' ? 'Имя' : lang === 'en' ? 'First name' : 'Ім\'я', value: 'LEMUR', muted: false },
         { label: lang === 'ru' ? 'Фамилия' : lang === 'en' ? 'Last name' : 'Прізвище', value: '—', muted: true },
@@ -45,7 +42,6 @@ function TgProfileMockup({ lang }: { lang: Lang }) {
           <span style={{ color: f.muted ? '#555' : '#fff', fontSize: 12 }}>{f.value}</span>
         </div>
       ))}
-      {/* About field — highlighted */}
       <div style={{
         padding: '10px 14px',
         background: 'rgba(95,186,71,.1)',
@@ -92,21 +88,47 @@ export default function BioPromoButton({ lang }: Props) {
 
   return (
     <>
-      {/* Inline button — 2x bigger */}
+      {/* Main button */}
       <button
         onClick={() => setOpen(true)}
         style={{
           background: active
-            ? 'linear-gradient(135deg, rgba(95,186,71,.25), rgba(50,140,30,.15))'
-            : 'rgba(255,255,255,.06)',
-          border: active ? '1.5px solid rgba(95,186,71,.55)' : '1.5px solid rgba(255,255,255,.14)',
-          borderRadius: 14, padding: '10px 16px', cursor: 'pointer',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-          boxShadow: active ? '0 0 14px rgba(95,186,71,.2)' : 'none',
+            ? 'linear-gradient(135deg, rgba(95,186,71,.35) 0%, rgba(40,120,20,.25) 100%)'
+            : 'linear-gradient(135deg, rgba(255,165,0,.18) 0%, rgba(200,100,0,.12) 100%)',
+          border: active
+            ? '1.5px solid rgba(95,186,71,.7)'
+            : '1.5px solid rgba(255,165,0,.45)',
+          borderRadius: 16,
+          padding: '12px 20px',
+          cursor: 'pointer',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 3,
+          boxShadow: active
+            ? '0 0 20px rgba(95,186,71,.35), 0 2px 8px rgba(0,0,0,.3)'
+            : '0 0 16px rgba(255,165,0,.2), 0 2px 8px rgba(0,0,0,.3)',
+          minWidth: 80,
+          position: 'relative',
+          overflow: 'hidden',
         }}>
-        <span style={{ fontSize: 20, fontWeight: 900, lineHeight: 1, color: active ? '#5fba47' : 'var(--orange)' }}>+1⭐</span>
-        <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T.bio_promo_daily}</span>
-        <span style={{ fontSize: 9, color: active ? 'rgba(95,186,71,.7)' : 'rgba(255,255,255,.3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T.bio_promo_daily_sub}</span>
+        {/* shimmer overlay */}
+        <div style={{
+          position: 'absolute', inset: 0, borderRadius: 16,
+          background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,.08) 50%, transparent 60%)',
+          pointerEvents: 'none',
+        }} />
+        <span style={{
+          fontSize: 26, fontWeight: 900, lineHeight: 1,
+          color: active ? '#7ee85a' : '#FFB347',
+          textShadow: active ? '0 0 12px rgba(95,186,71,.7)' : '0 0 10px rgba(255,179,71,.6)',
+        }}>+1⭐</span>
+        <span style={{ fontSize: 11, color: active ? '#a8f080' : '#ffd080', fontWeight: 700, whiteSpace: 'nowrap' }}>
+          {T.bio_promo_daily}
+        </span>
+        <span style={{ fontSize: 10, color: active ? 'rgba(168,240,128,.7)' : 'rgba(255,208,128,.6)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+          {T.bio_promo_daily_sub}
+        </span>
       </button>
 
       {/* Modal */}
@@ -122,10 +144,22 @@ export default function BioPromoButton({ lang }: Props) {
             background: 'linear-gradient(160deg, #1A2018 0%, #141018 100%)',
             border: '1px solid rgba(95,186,71,.25)',
             borderRadius: '24px 24px 0 0',
-            padding: '20px 20px 36px',
+            padding: '16px 20px 36px',
             maxHeight: '90vh', overflowY: 'auto',
           }}>
-            <div style={{ width: 40, height: 4, borderRadius: 4, background: 'rgba(255,255,255,.15)', margin: '0 auto 20px' }} />
+            {/* Header row: drag handle + close */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+              <div style={{ width: 28 }} />
+              <div style={{ width: 40, height: 4, borderRadius: 4, background: 'rgba(255,255,255,.15)' }} />
+              <button onClick={close} style={{
+                background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.12)',
+                borderRadius: 8, width: 28, height: 28, cursor: 'pointer',
+                color: 'rgba(255,255,255,.6)', fontSize: 16, lineHeight: 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: 0, flexShrink: 0,
+              }}>✕</button>
+            </div>
+
             <div style={{ fontWeight: 800, fontSize: 18, textAlign: 'center', marginBottom: 6 }}>{T.bio_promo_title}</div>
             <div style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', marginBottom: 16, lineHeight: 1.5 }}>
               {T.bio_promo_desc}

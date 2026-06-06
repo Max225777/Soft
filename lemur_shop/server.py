@@ -41,6 +41,7 @@ _dp: Dispatcher | None = None
 _polling_task: asyncio.Task | None = None
 _keepalive_task: asyncio.Task | None = None
 _bio_promo_task: asyncio.Task | None = None
+_bio_promo_midnight_task: asyncio.Task | None = None
 
 
 async def _check_bio_has_promo(user_id: int) -> bool:
@@ -68,58 +69,103 @@ async def _check_bio_has_promo(user_id: int) -> bool:
         return False
 
 
-async def _bio_promo_daily_checker() -> None:
-    """Background task: every hour check all participants, reward once per 24h."""
+def _hours_until_midnight() -> int:
     from datetime import timedelta
-    await asyncio.sleep(120)  # wait for bot init
+    now = datetime.utcnow()
+    tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return max(0, round((tomorrow - now).total_seconds() / 3600))
+
+
+async def _bio_promo_hourly_checker() -> None:
+    """Every hour: update is_active for all participants. No rewards here."""
+    from datetime import timedelta
+    await asyncio.sleep(120)
     while True:
         try:
             now = datetime.utcnow()
-            cutoff_check = now - timedelta(hours=23)
+            cutoff = now - timedelta(hours=1)
             async with AsyncSessionLocal() as s:
-                result = await s.execute(
+                promos = (await s.execute(
                     select(BioPromo).where(
-                        (BioPromo.last_check_at == None) | (BioPromo.last_check_at < cutoff_check)
+                        (BioPromo.last_check_at == None) | (BioPromo.last_check_at < cutoff)
                     )
-                )
-                promos = result.scalars().all()
-
-            log.info("bio_promo checker: processing %d participants", len(promos))
+                )).scalars().all()
+            log.info("bio_promo hourly check: %d participants", len(promos))
             for promo in promos:
                 try:
                     has_bio = await _check_bio_has_promo(promo.user_id)
-                    reward_given = False
                     async with AsyncSessionLocal() as s:
                         p = await s.get(BioPromo, promo.user_id)
-                        if not p:
-                            continue
-                        p.is_active = has_bio
-                        p.last_check_at = now
-                        if has_bio and (p.last_rewarded_at is None or (now - p.last_rewarded_at).total_seconds() >= 86400):
-                            user = await s.get(User, p.user_id)
-                            if user and not user.is_banned:
-                                user.balance_stars += 1
-                                user.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD))
-                                p.last_rewarded_at = now
-                                p.total_rewarded += 1
-                                reward_given = True
-                        await s.commit()
-                    if reward_given and _bot:
-                        try:
-                            await _bot.send_message(
-                                promo.user_id,
-                                "⭐ <b>+1 зірка за промо!</b>\n\nВаш профіль містить @LEMUR_SHOP — вам нараховано 1 зірку.",
-                            )
-                        except Exception:
-                            pass
+                        if p:
+                            p.is_active = has_bio
+                            p.last_check_at = now
+                            await s.commit()
                 except Exception as e:
-                    log.warning("bio_promo check error for user %s: %s", promo.user_id, e)
+                    log.warning("bio_promo hourly check error user=%s: %s", promo.user_id, e)
                 await asyncio.sleep(0.5)
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            log.warning("bio_promo_daily_checker error: %s", e)
+            log.warning("bio_promo_hourly_checker error: %s", e)
         await asyncio.sleep(3600)
+
+
+async def _bio_promo_midnight_rewarder() -> None:
+    """At 00:00 UTC daily: reward 1⭐ to every user whose bio is active."""
+    from datetime import timedelta
+    while True:
+        try:
+            now = datetime.utcnow()
+            tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            secs = (tomorrow - now).total_seconds()
+            log.info("bio_promo midnight rewarder: sleeping %.0fs until 00:00 UTC", secs)
+            await asyncio.sleep(secs)
+
+            reward_time = datetime.utcnow()
+            today_start = reward_time.replace(hour=0, minute=0, second=0, microsecond=0)
+
+            async with AsyncSessionLocal() as s:
+                promos = (await s.execute(
+                    select(BioPromo).where(BioPromo.is_active == True)
+                )).scalars().all()
+
+            log.info("bio_promo midnight reward: %d active participants", len(promos))
+            for promo in promos:
+                try:
+                    async with AsyncSessionLocal() as s:
+                        async with s.begin():
+                            p = (await s.execute(
+                                select(BioPromo).where(BioPromo.user_id == promo.user_id).with_for_update()
+                            )).scalar_one_or_none()
+                            if not p or not p.is_active:
+                                continue
+                            # Skip if already rewarded today (server restart safety)
+                            if p.last_rewarded_at and p.last_rewarded_at >= today_start:
+                                continue
+                            user = await s.get(User, p.user_id)
+                            if not user or user.is_banned:
+                                continue
+                            user.balance_stars += 1
+                            user.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD))
+                            p.last_rewarded_at = reward_time
+                            p.total_rewarded += 1
+                    if _bot:
+                        try:
+                            await _bot.send_message(
+                                promo.user_id,
+                                "⭐ <b>+1 зірка!</b>\n\nДобова нагорода за @LEMUR_SHOP в профілі.",
+                                parse_mode="HTML",
+                            )
+                        except Exception:
+                            pass
+                except Exception as e:
+                    log.warning("bio_promo midnight reward error user=%s: %s", promo.user_id, e)
+                await asyncio.sleep(0.3)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            log.warning("bio_promo_midnight_rewarder error: %s", e)
+            await asyncio.sleep(60)
 
 
 async def _keepalive(url: str) -> None:
@@ -216,7 +262,8 @@ async def lifespan(app: FastAPI):
     if webapp_url.startswith("https://"):
         _keepalive_task = asyncio.create_task(_keepalive(webapp_url + "/health"))
 
-    _bio_promo_task = asyncio.create_task(_bio_promo_daily_checker())
+    _bio_promo_task = asyncio.create_task(_bio_promo_hourly_checker())
+    _bio_promo_midnight_task = asyncio.create_task(_bio_promo_midnight_rewarder())
 
     log.info("🦎 Лемур бот запущено (%s)", "webhook" if use_webhook else "polling")
     yield
@@ -231,6 +278,12 @@ async def lifespan(app: FastAPI):
         _bio_promo_task.cancel()
         try:
             await _bio_promo_task
+        except asyncio.CancelledError:
+            pass
+    if _bio_promo_midnight_task:
+        _bio_promo_midnight_task.cancel()
+        try:
+            await _bio_promo_midnight_task
         except asyncio.CancelledError:
             pass
     if _polling_task:
@@ -1164,6 +1217,36 @@ async def api_admin_broadcast_status(admin: User = Depends(require_admin)):
     return _broadcast_status
 
 
+@app.get("/api/admin/bio-promo")
+async def api_admin_bio_promo_list(
+    page: int = 1, limit: int = 30,
+    admin: User = Depends(require_admin),
+):
+    from math import ceil
+    offset = (page - 1) * limit
+    async with AsyncSessionLocal() as s:
+        total = await s.scalar(select(func.count(BioPromo.user_id))) or 0
+        rows = (await s.execute(
+            select(BioPromo, User.first_name, User.username)
+            .join(User, User.id == BioPromo.user_id)
+            .order_by(BioPromo.joined_at.desc())
+            .offset(offset).limit(limit)
+        )).all()
+    items = []
+    for promo, first_name, username in rows:
+        items.append({
+            "user_id":         promo.user_id,
+            "name":            first_name or str(promo.user_id),
+            "username":        username,
+            "is_active":       promo.is_active,
+            "total_rewarded":  promo.total_rewarded,
+            "joined_at":       promo.joined_at.isoformat() if promo.joined_at else None,
+            "last_check_at":   promo.last_check_at.isoformat() if promo.last_check_at else None,
+            "last_rewarded_at":promo.last_rewarded_at.isoformat() if promo.last_rewarded_at else None,
+        })
+    return {"items": items, "total": total, "page": page, "pages": max(1, ceil(total / limit))}
+
+
 @app.post("/api/admin/reset-stats")
 async def api_admin_reset_stats(admin: User = Depends(require_admin)):
     from sqlalchemy import delete
@@ -1548,33 +1631,30 @@ async def bio_promo_status(user: User = Depends(get_current_user)):
         promo = await s.get(BioPromo, user.id)
     if not promo:
         return {"joined": False, "is_active": False, "total_rewarded": 0, "hours_until_next": None}
-    now = datetime.utcnow()
-    hours_until_next: int | None = None
-    if promo.last_rewarded_at:
-        delta = 24 - (now - promo.last_rewarded_at).total_seconds() / 3600
-        hours_until_next = max(0, round(delta))
     return {
         "joined": True,
         "is_active": promo.is_active,
         "total_rewarded": promo.total_rewarded,
         "last_rewarded_at": promo.last_rewarded_at.isoformat() if promo.last_rewarded_at else None,
-        "hours_until_next": hours_until_next,
+        "hours_until_next": _hours_until_midnight() if promo.is_active else None,
     }
 
 
 @app.post("/api/bio-promo/check")
 async def bio_promo_check(user: User = Depends(get_current_user)):
-    """User-triggered check. Joins the promo if not joined, verifies bio, rewards if eligible."""
+    """User-triggered check.
+    - Joins the promo on first call.
+    - Gives 1⭐ immediately if bio active AND (never rewarded OR last reward > 24h ago).
+    - Daily rewards come at 00:00 UTC via background task.
+    """
     from sqlalchemy import select as _sel
     now = datetime.utcnow()
 
-    # Bio check happens outside the transaction (external API call)
-    has_bio = await _check_bio_has_promo(user.id)
+    has_bio = await _check_bio_has_promo(user.id)  # outside transaction
 
     rewarded = False
     async with AsyncSessionLocal() as s:
         async with s.begin():
-            # Lock the row to prevent concurrent double-reward (background task + manual check)
             promo = (await s.execute(
                 _sel(BioPromo).where(BioPromo.user_id == user.id).with_for_update()
             )).scalar_one_or_none()
@@ -1585,7 +1665,12 @@ async def bio_promo_check(user: User = Depends(get_current_user)):
             promo.is_active = has_bio
             promo.last_check_at = now
 
-            if has_bio and (promo.last_rewarded_at is None or (now - promo.last_rewarded_at).total_seconds() >= 86400):
+            # Give instant star on connect — protected by 24h anti-abuse window
+            can_reward = has_bio and (
+                promo.last_rewarded_at is None
+                or (now - promo.last_rewarded_at).total_seconds() >= 86400
+            )
+            if can_reward:
                 u = await s.get(User, user.id)
                 if u and not u.is_banned:
                     u.balance_stars += 1
@@ -1594,17 +1679,12 @@ async def bio_promo_check(user: User = Depends(get_current_user)):
                     promo.total_rewarded += 1
                     rewarded = True
 
-    hours_until_next: int | None = None
-    if has_bio and promo.last_rewarded_at:
-        delta = 24 - (now - promo.last_rewarded_at).total_seconds() / 3600
-        hours_until_next = max(0, round(delta))
-
     return {
         "joined": True,
         "is_active": has_bio,
         "rewarded": rewarded,
         "total_rewarded": promo.total_rewarded,
-        "hours_until_next": hours_until_next,
+        "hours_until_next": _hours_until_midnight() if has_bio else None,
     }
 
 

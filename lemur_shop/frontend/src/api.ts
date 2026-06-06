@@ -56,6 +56,15 @@ export const bioPromoApi = {
   check:  () => req<BioPromoStatus>('/bio-promo/check', { method: 'POST' }),
 }
 
+export interface BioPromoParticipant {
+  user_id: number; name: string; username: string | null
+  is_active: boolean; total_rewarded: number
+  joined_at: string; last_check_at: string | null; last_rewarded_at: string | null
+}
+export interface BioPromoParticipantsPage {
+  items: BioPromoParticipant[]; total: number; page: number; pages: number
+}
+
 export interface WheelParticipantInfo {
   name: string; is_you: boolean; is_bot: boolean
 }
@@ -89,6 +98,7 @@ export const adminApi = {
   broadcast:       (text: string, parse_mode = 'HTML') => req<{ ok: boolean; total: number }>('/admin/broadcast', { method: 'POST', body: JSON.stringify({ text, parse_mode }) }),
   broadcastStatus: () => req<BroadcastStatus>('/admin/broadcast/status'),
   resetStats:      () => req<{ ok: boolean }>('/admin/reset-stats', { method: 'POST' }),
+  bioPromoList:    (page: number, limit = 30) => req<BioPromoParticipantsPage>(`/admin/bio-promo?page=${page}&limit=${limit}`),
 }
 
 export interface Me {
