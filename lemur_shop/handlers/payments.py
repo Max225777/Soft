@@ -89,6 +89,10 @@ async def successful_payment(message: Message) -> None:
     log.info("Stars payment CREDITED: charge_id=%s user=%s stars=+%s balance %s→%s",
              charge_id, user_id, stars, bal_before, new_balance)
 
+    # clear pending invoice cache so next top-up gets a fresh invoice
+    from lemur_shop.server import _pending_star_invoices
+    _pending_star_invoices.pop(user_id, None)
+
     await message.answer(
         f"✅ Баланс поповнено!\n\n"
         f"⭐ +{stars} зірок\n"

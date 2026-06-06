@@ -799,6 +799,12 @@ async def crypto_notify(request: Request):
 
 # ─── Telegram Stars ───────────────────────────────────────────────────────────
 
+# user_id → (created_at_ts, invoice_url, stars)
+# Prevents duplicate invoices when user reloads page before paying
+_pending_star_invoices: dict[int, tuple[float, str, int]] = {}
+_INVOICE_TTL = 600  # seconds — invoice is valid 10 min, matches Telegram default
+
+
 @app.get("/api/stars/rate")
 async def api_stars_rate():
     return {"stars_per_usd": settings.STARS_PER_USD}
@@ -819,6 +825,17 @@ async def api_stars_invoice(body: StarsInvoiceRequest, user: User = Depends(get_
     stars = body.stars
     if stars < 1 or stars > 100000:
         raise HTTPException(status_code=400, detail="Invalid amount")
+
+    import time as _time
+    now = _time.monotonic()
+    cached = _pending_star_invoices.get(user.id)
+    if cached:
+        ts, url, cached_stars = cached
+        if cached_stars == stars and now - ts < _INVOICE_TTL:
+            log.info("Stars invoice CACHED: user=%s stars=%s url=%s", user.id, stars, url)
+            amount_usd = round(stars / settings.STARS_PER_USD, 4)
+            return {"invoice_url": url, "stars": stars, "amount_usd": amount_usd}
+
     amount_usd = round(stars / settings.STARS_PER_USD, 4)
     link = await _bot.create_invoice_link(
         title="Поповнення балансу Лемур",
@@ -827,6 +844,8 @@ async def api_stars_invoice(body: StarsInvoiceRequest, user: User = Depends(get_
         currency="XTR",
         prices=[LabeledPrice(label="Telegram Stars", amount=stars)],
     )
+    _pending_star_invoices[user.id] = (now, link, stars)
+    log.info("Stars invoice CREATED: user=%s stars=%s", user.id, stars)
     return {"invoice_url": link, "stars": stars, "amount_usd": amount_usd}
 
 
