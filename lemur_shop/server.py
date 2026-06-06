@@ -1595,7 +1595,7 @@ async def bio_promo_check(user: User = Depends(get_current_user)):
                     rewarded = True
 
     hours_until_next: int | None = None
-    if promo.last_rewarded_at:
+    if has_bio and promo.last_rewarded_at:
         delta = 24 - (now - promo.last_rewarded_at).total_seconds() / 3600
         hours_until_next = max(0, round(delta))
 

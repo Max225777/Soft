@@ -189,7 +189,7 @@ export default function BioPromoButton({ lang }: Props) {
                   <div style={{ fontWeight: 700, fontSize: 13 }}>
                     {promo.is_active ? T.bio_promo_active : T.bio_promo_inactive}
                   </div>
-                  {promo.hours_until_next !== null && promo.hours_until_next > 0 && (
+                  {promo.is_active && promo.hours_until_next !== null && promo.hours_until_next > 0 && (
                     <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
                       {T.bio_promo_next_hrs(promo.hours_until_next)}
                     </div>
@@ -215,7 +215,7 @@ export default function BioPromoButton({ lang }: Props) {
               disabled={loading}
               onClick={doCheck}
             >
-              {loading ? T.bio_promo_checking : promo?.joined ? T.bio_promo_recheck : T.bio_promo_check_btn}
+              {loading ? T.bio_promo_checking : promo?.joined && promo?.is_active ? T.bio_promo_recheck : T.bio_promo_check_btn}
             </button>
           </div>
         </div>
