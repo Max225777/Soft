@@ -609,7 +609,7 @@ async def api_crypto_create(body: CryptoCreateRequest, user: User = Depends(get_
     if not settings.CRYPTOBOT_TOKEN:
         raise HTTPException(status_code=503, detail="CryptoBot not configured")
     amount = round(body.amount_usd, 2)
-    if amount < 0.5 or amount > 1000:
+    if amount < 0.1 or amount > 1000:
         raise HTTPException(status_code=400, detail="Invalid amount")
 
     result = await _cryptobot(

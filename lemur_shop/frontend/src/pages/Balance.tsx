@@ -70,7 +70,7 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
   const afterLabel = lang === 'ru' ? 'Баланс зачисляется автоматически' : lang === 'ua' ? 'Баланс зараховується автоматично' : 'Balance credited automatically'
 
   async function payCrypto(amount: number) {
-    if (amount < 0.5) return
+    if (amount < 0.1) return
     setCryptoLoading(true); setCryptoError(null)
     try {
       const { url } = await api.cryptoCreate(amount)
@@ -229,8 +229,8 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
               ))}
             </div>
             <input
-              type="number" min="0.5" step="0.5"
-              placeholder={lang === 'ua' ? 'Сума ($)' : lang === 'ru' ? 'Сумма ($)' : 'Amount ($)'}
+              type="number" min="0.1" step="0.1"
+              placeholder={lang === 'ua' ? 'Сума від $0.10' : lang === 'ru' ? 'Сумма от $0.10' : 'Amount from $0.10'}
               value={customUsd}
               onChange={e => { setCustomUsd(e.target.value); setCryptoAmount(parseFloat(e.target.value) || 0) }}
               style={{ ...inputStyle, marginBottom: cryptoAmount > 0 ? 6 : 10 }}
@@ -241,10 +241,10 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
               </div>
             )}
             {cryptoError && <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--red)' }}>{cryptoError}</div>}
-            <button className="btn btn-primary" disabled={cryptoAmount < 0.5 || cryptoLoading}
+            <button className="btn btn-primary" disabled={cryptoAmount < 0.1 || cryptoLoading}
               onClick={() => payCrypto(cryptoAmount)}
               style={{ background: 'linear-gradient(135deg, #26A17B, #1a7a5e)' }}>
-              {cryptoLoading ? '⏳...' : cryptoAmount >= 0.5
+              {cryptoLoading ? '⏳...' : cryptoAmount >= 0.1
                 ? `${payLabel} $${cryptoAmount.toFixed(2)} → ⭐${Math.round(cryptoAmount / 0.013)}`
                 : payLabel}
             </button>
