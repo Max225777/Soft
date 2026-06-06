@@ -515,10 +515,12 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
 
     async with AsyncSessionLocal() as s:
         async with s.begin():
-            u = await s.get(User, user.id)
+            u = await s.get(User, user.id, with_for_update=True)
+            if u.balance_stars < shop_price_stars:
+                raise HTTPException(status_code=402, detail="insufficient_balance")
             bal_before = u.balance_stars
             u.balance_stars = u.balance_stars - shop_price_stars
-            u.balance_usd   = u.balance_usd - shop_price_usd
+            u.balance_usd   = max(Decimal(0), u.balance_usd - shop_price_usd)
             order = Order(
                 user_id=user.id,
                 product_id=0,
@@ -1776,6 +1778,7 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
         raise HTTPException(400, "blocked_channel")
 
     price_stars = max(1, round(body.quantity / 100 * svc["price_per_100_stars"]))
+    # Швидка попередня перевірка (до зовнішнього API-виклику)
     if user.balance_stars < price_stars:
         raise HTTPException(402, "insufficient_balance")
 
@@ -1791,10 +1794,13 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
     cost_usd_val  = Decimal(str(smm_cost_usd(body.service_key, body.quantity)))
     async with AsyncSessionLocal() as s:
         async with s.begin():
-            u = await s.get(User, user.id)
+            u = await s.get(User, user.id, with_for_update=True)
+            # Повторна перевірка всередині транзакції (захист від race condition)
+            if u.balance_stars < price_stars:
+                raise HTTPException(402, "insufficient_balance")
             bal_before = u.balance_stars
             u.balance_stars = u.balance_stars - price_stars
-            u.balance_usd   = u.balance_usd - price_usd_val
+            u.balance_usd   = max(Decimal(0), u.balance_usd - price_usd_val)
             smm_order_rec = Order(
                 user_id=user.id,
                 product_id=0,

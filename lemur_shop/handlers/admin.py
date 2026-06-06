@@ -7,6 +7,7 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from lemur_shop.config import settings
 from lemur_shop.db.models import Order, TopUp, User
@@ -47,33 +48,47 @@ async def cmd_topup(message: Message) -> None:
         await message.answer("❌ Невірний формат. Приклад: /topup 123456789 100", parse_mode=None)
         return
 
-    async with AsyncSessionLocal() as s:
-        async with s.begin():
-            user = await _find_user(s, parts[1])
-            if not user:
-                await message.answer(f"❌ Користувача «{parts[1]}» не знайдено.")
-                return
-            amount_usd = Decimal(str(round(stars * settings.STAR_DISPLAY_USD, 4)))
-            bal_before = user.balance_stars
-            user.balance_stars = user.balance_stars + stars
-            user.balance_usd   = user.balance_usd + amount_usd
-            s.add(TopUp(
-                user_id=user.id,
-                amount_usd=amount_usd,
-                amount_stars=stars,
-                admin_id=message.from_user.id,
-                method="admin",
-            ))
+    # charge_id на основі message_id — гарантує exactly-once навіть якщо команда відправлена двічі
+    charge_id = f"admin:{message.chat.id}:{message.message_id}"
 
-    log.info("ADMIN TOPUP: admin=%s user=%s stars=+%s balance %s→%s",
-             message.from_user.id, user.id, stars, bal_before, user.balance_stars)
+    try:
+        async with AsyncSessionLocal() as s:
+            async with s.begin():
+                user = await _find_user(s, parts[1])
+                if not user:
+                    await message.answer(f"❌ Користувача «{parts[1]}» не знайдено.")
+                    return
+                amount_usd = Decimal(str(round(stars * settings.STAR_DISPLAY_USD, 4)))
+                bal_before = user.balance_stars
+                user.balance_stars = user.balance_stars + stars
+                user.balance_usd   = user.balance_usd + amount_usd
+                s.add(TopUp(
+                    user_id=user.id,
+                    amount_usd=amount_usd,
+                    amount_stars=stars,
+                    admin_id=message.from_user.id,
+                    method="admin",
+                    charge_id=charge_id,
+                ))
+    except IntegrityError:
+        log.warning("ADMIN TOPUP DUPLICATE: charge_id=%s — skipped", charge_id)
+        await message.answer(
+            f"⚠️ Це поповнення вже було зараховано (дублікат).\n"
+            f"<code>{charge_id}</code>",
+            parse_mode="HTML"
+        )
+        return
+
+    log.info("ADMIN TOPUP: admin=%s user=%s stars=+%s balance %s→%s charge=%s",
+             message.from_user.id, user.id, stars, bal_before, user.balance_stars, charge_id)
 
     name = user.username or str(user.id)
     await message.answer(
         f"✅ Баланс поповнено\n\n"
         f"👤 @{name} (ID: <code>{user.id}</code>)\n"
         f"➕ +⭐{stars} (~${float(amount_usd):.2f})\n"
-        f"💰 Новий баланс: ⭐{user.balance_stars}",
+        f"💰 Новий баланс: ⭐{user.balance_stars}\n"
+        f"🆔 <code>{charge_id}</code>",
         parse_mode="HTML"
     )
 
