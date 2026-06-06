@@ -128,6 +128,7 @@ class BioPromo(Base):
     last_rewarded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
     total_rewarded: Mapped[int] = mapped_column(Integer, default=0)
+    reward_tier: Mapped[int] = mapped_column(Integer, default=1)  # 1 = @username only, 2 = full phrase
 
 
 class WheelRoom(Base):

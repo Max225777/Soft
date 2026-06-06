@@ -310,6 +310,7 @@ function BioPromoTab() {
 
   const totalStars  = data?.items.reduce((s, p) => s + p.total_rewarded, 0) ?? 0
   const activeCount = data?.items.filter(p => p.is_active).length ?? 0
+  const tier2Count  = data?.items.filter(p => p.is_active && p.reward_tier === 2).length ?? 0
 
   return (
     <div style={{ padding: '14px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -317,12 +318,18 @@ function BioPromoTab() {
 
       {/* Summary cards */}
       {data && (
-        <div style={{ display: 'flex', gap: 8 }}>
-          <StatCard label="Всього учасників" value={data.total} color="#5fba47" />
-          <StatCard label="Активних зараз" value={activeCount}
-            sub={data.total ? `${Math.round(activeCount / data.total * 100)}%` : '0%'} color="#5fba47" />
-          <StatCard label="Зірок видано" value={`⭐${totalStars}`} color="var(--gold)" />
-        </div>
+        <>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <StatCard label="Всього учасників" value={data.total} color="#5fba47" />
+            <StatCard label="Активних (+1⭐)" value={activeCount - tier2Count} color="#5fba47" />
+            <StatCard label="Активних (+2⭐)" value={tier2Count} color="#FFB347" />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <StatCard label="Зірок видано" value={`⭐${totalStars}`} color="var(--gold)" />
+            <StatCard label="З повною фразою" value={`${tier2Count} / ${activeCount}`}
+              sub={activeCount ? `${Math.round(tier2Count / activeCount * 100)}%` : '0%'} color="#FFB347" />
+          </div>
+        </>
       )}
 
       {loading && <div style={{ fontSize: 13, color: 'var(--muted)' }}>Завантаження...</div>}
@@ -354,8 +361,9 @@ function BioPromoTab() {
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ fontWeight: 800, color: 'var(--gold)', fontSize: 16 }}>⭐{p.total_rewarded}</div>
-                  <div style={{ fontSize: 10, color: p.is_active ? '#5fba47' : 'var(--muted)', marginTop: 1 }}>
-                    {p.is_active ? 'активний' : 'неактивний'}
+                  <div style={{ fontSize: 10, marginTop: 1,
+                    color: p.is_active ? (p.reward_tier === 2 ? '#FFB347' : '#5fba47') : 'var(--muted)' }}>
+                    {p.is_active ? (p.reward_tier === 2 ? '+2⭐/день' : '+1⭐/день') : 'неактивний'}
                   </div>
                 </div>
               </div>

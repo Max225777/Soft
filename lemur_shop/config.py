@@ -20,6 +20,10 @@ class Settings(BaseSettings):
 
     CHANNEL_USERNAME: str = "@LEMUR_SHOP"
     SUPPORT_USERNAME: str = "@LEMUR_MANEGER"
+    # Full promo phrase for tier-2 reward (2 stars/day instead of 1)
+    BIO_PROMO_PHRASE: str = "Дешеві акаунти та накрутка тільки в @LEMUR_SHOP"
+    # Keyword unique to the phrase — used for tier detection (normalized, without @/_/spaces)
+    BIO_PROMO_PHRASE_KEYWORD: str = "накрутка"
     # 1 Star ≈ $0.013 (курс при поповненні балансу зірками)
     STAR_DISPLAY_USD: float = 0.013
     # Stars з користувача за $1 ціни товару (= round(1/STAR_DISPLAY_USD))

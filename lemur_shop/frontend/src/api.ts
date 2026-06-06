@@ -46,9 +46,9 @@ export const gameApi = {
 }
 
 export interface BioPromoStatus {
-  joined: boolean; is_active: boolean; total_rewarded: number
+  joined: boolean; is_active: boolean; reward_tier: number; total_rewarded: number
   hours_until_next: number | null; last_rewarded_at: string | null
-  rewarded?: boolean
+  rewarded?: boolean; stars_rewarded?: number
 }
 
 export const bioPromoApi = {
@@ -58,7 +58,7 @@ export const bioPromoApi = {
 
 export interface BioPromoParticipant {
   user_id: number; name: string; username: string | null
-  is_active: boolean; total_rewarded: number
+  is_active: boolean; reward_tier: number; total_rewarded: number
   joined_at: string; last_check_at: string | null; last_rewarded_at: string | null
 }
 export interface BioPromoParticipantsPage {
@@ -135,7 +135,7 @@ export interface AdminStats {
   total_topups_usd: number; total_stars_balance: number
   new_users_today: number; orders_today: number
   revenue_today: number; cost_today: number; profit_today: number; topups_today: number
-  bio_promo_total: number; bio_promo_active: number; bio_promo_stars: number
+  bio_promo_total: number; bio_promo_active: number; bio_promo_tier2: number; bio_promo_stars: number
   categories: StatsCatRow[]
   accounts: StatsGroup
   smm: StatsGroup

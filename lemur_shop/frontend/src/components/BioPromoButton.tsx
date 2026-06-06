@@ -2,17 +2,20 @@ import { useState, useEffect } from 'react'
 import { bioPromoApi, type BioPromoStatus } from '../api'
 import { getT, type Lang } from '../i18n'
 
+const PHRASE = 'Дешеві акаунти та накрутка тільки в @LEMUR_SHOP'
+const USERNAME = '@LEMUR_SHOP'
+
 interface Props { lang: Lang }
 
-function TgProfileMockup({ lang }: { lang: Lang }) {
-  const label = lang === 'ru' ? 'О себе' : lang === 'en' ? 'About' : 'Про себе'
+function TgProfileMockup({ lang, tier }: { lang: Lang; tier: 1 | 2 }) {
+  const label     = lang === 'ru' ? 'О себе' : lang === 'en' ? 'About' : 'Про себе'
   const editTitle = lang === 'ru' ? 'Редактировать профиль' : lang === 'en' ? 'Edit Profile' : 'Редагувати профіль'
-  const hint = lang === 'ru' ? '← вставь сюда' : lang === 'en' ? '← paste here' : '← встав сюди'
+  const hint      = lang === 'ru' ? '← вставь сюда' : lang === 'en' ? '← paste here' : '← встав сюди'
+  const bioText   = tier === 2 ? PHRASE : USERNAME
   return (
     <div style={{
       background: '#212121', borderRadius: 16, overflow: 'hidden',
-      border: '1px solid rgba(255,255,255,.1)', marginBottom: 14,
-      fontSize: 13,
+      border: '1px solid rgba(255,255,255,.1)', marginBottom: 14, fontSize: 13,
     }}>
       <div style={{
         background: '#2b2b2b', padding: '10px 14px',
@@ -26,8 +29,7 @@ function TgProfileMockup({ lang }: { lang: Lang }) {
         <div style={{
           width: 60, height: 60, borderRadius: '50%',
           background: 'linear-gradient(135deg, #2AABEE, #1178B8)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 26,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
         }}>🦎</div>
       </div>
       {[
@@ -44,15 +46,46 @@ function TgProfileMockup({ lang }: { lang: Lang }) {
       ))}
       <div style={{
         padding: '10px 14px',
-        background: 'rgba(95,186,71,.1)',
-        border: '1.5px solid rgba(95,186,71,.5)',
+        background: tier === 2 ? 'rgba(255,179,71,.1)' : 'rgba(95,186,71,.1)',
+        border: `1.5px solid ${tier === 2 ? 'rgba(255,179,71,.5)' : 'rgba(95,186,71,.5)'}`,
         borderRadius: 8, margin: '6px 8px 8px',
       }}>
-        <div style={{ color: '#5fba47', fontSize: 11, marginBottom: 4, fontWeight: 700 }}>{label}</div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <code style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>@LEMUR_SHOP</code>
-          <span style={{ color: '#5fba47', fontSize: 11, fontWeight: 700 }}>{hint}</span>
+        <div style={{ color: tier === 2 ? '#FFB347' : '#5fba47', fontSize: 11, marginBottom: 4, fontWeight: 700 }}>{label}</div>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
+          <code style={{ color: '#fff', fontSize: tier === 2 ? 11 : 14, fontWeight: 700, lineHeight: 1.4 }}>{bioText}</code>
+          <span style={{ color: tier === 2 ? '#FFB347' : '#5fba47', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{hint}</span>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function CopyCard({
+  label, hint, value, color, stars, onCopy,
+}: {
+  label: string; hint: string; value: string; color: string; stars: string; onCopy: () => void
+}) {
+  return (
+    <div style={{
+      background: `rgba(${color},.08)`, border: `1.5px dashed rgba(${color},.4)`,
+      borderRadius: 14, padding: '12px 14px', flex: 1,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: .5 }}>{label}</div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: `rgba(${color},1)` }}>{stars}</div>
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8, lineHeight: 1.4 }}>{hint}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <code style={{
+          fontSize: 11, fontWeight: 700, color: `rgba(${color},1)`,
+          background: `rgba(${color},.12)`, borderRadius: 6, padding: '4px 8px',
+          flex: 1, wordBreak: 'break-all', lineHeight: 1.4,
+        }}>{value}</code>
+        <button onClick={onCopy} style={{
+          background: `rgba(${color},.2)`, border: `1px solid rgba(${color},.4)`,
+          borderRadius: 8, padding: '6px 10px', cursor: 'pointer', color: `rgba(${color},1)`,
+          fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0,
+        }}>📋</button>
       </div>
     </div>
   )
@@ -64,6 +97,7 @@ export default function BioPromoButton({ lang }: Props) {
   const [open, setOpen]       = useState(false)
   const [loading, setLoading] = useState(false)
   const [msg, setMsg]         = useState('')
+  const [mockupTier, setMockupTier] = useState<1 | 2>(1)
 
   useEffect(() => {
     bioPromoApi.status().then(setPromo).catch(() => {})
@@ -74,10 +108,15 @@ export default function BioPromoButton({ lang }: Props) {
     try {
       const res = await bioPromoApi.check()
       setPromo(res)
-      if (res.rewarded)                             setMsg(T.bio_promo_rewarded)
-      else if (!res.is_active)                      setMsg(T.bio_promo_not_active)
-      else if ((res.hours_until_next ?? 0) > 0)     setMsg(T.bio_promo_wait(res.hours_until_next!))
-      else                                          setMsg(T.bio_promo_ok)
+      if (res.rewarded) {
+        setMsg(res.reward_tier === 2 ? T.bio_promo_rewarded2 : T.bio_promo_rewarded)
+      } else if (!res.is_active) {
+        setMsg(T.bio_promo_not_active)
+      } else if ((res.hours_until_next ?? 0) > 0) {
+        setMsg(T.bio_promo_wait(res.hours_until_next!))
+      } else {
+        setMsg(res.reward_tier === 2 ? T.bio_promo_ok2 : T.bio_promo_ok)
+      }
     } catch { setMsg(T.bio_promo_error) }
     setLoading(false)
   }
@@ -85,6 +124,8 @@ export default function BioPromoButton({ lang }: Props) {
   function close() { setOpen(false); setMsg('') }
 
   const active = promo?.is_active
+  const tier   = promo?.reward_tier ?? 0
+  const starsLabel = tier === 2 ? '+2⭐' : '+1⭐'
 
   return (
     <>
@@ -93,26 +134,22 @@ export default function BioPromoButton({ lang }: Props) {
         onClick={() => setOpen(true)}
         style={{
           background: active
-            ? 'linear-gradient(135deg, rgba(95,186,71,.35) 0%, rgba(40,120,20,.25) 100%)'
+            ? tier === 2
+              ? 'linear-gradient(135deg, rgba(255,179,71,.35) 0%, rgba(200,120,0,.25) 100%)'
+              : 'linear-gradient(135deg, rgba(95,186,71,.35) 0%, rgba(40,120,20,.25) 100%)'
             : 'linear-gradient(135deg, rgba(255,165,0,.18) 0%, rgba(200,100,0,.12) 100%)',
           border: active
-            ? '1.5px solid rgba(95,186,71,.7)'
+            ? tier === 2 ? '1.5px solid rgba(255,179,71,.7)' : '1.5px solid rgba(95,186,71,.7)'
             : '1.5px solid rgba(255,165,0,.45)',
-          borderRadius: 16,
-          padding: '12px 20px',
-          cursor: 'pointer',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 3,
+          borderRadius: 16, padding: '12px 20px', cursor: 'pointer',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
           boxShadow: active
-            ? '0 0 20px rgba(95,186,71,.35), 0 2px 8px rgba(0,0,0,.3)'
+            ? tier === 2
+              ? '0 0 20px rgba(255,179,71,.4), 0 2px 8px rgba(0,0,0,.3)'
+              : '0 0 20px rgba(95,186,71,.35), 0 2px 8px rgba(0,0,0,.3)'
             : '0 0 16px rgba(255,165,0,.2), 0 2px 8px rgba(0,0,0,.3)',
-          minWidth: 80,
-          position: 'relative',
-          overflow: 'hidden',
+          minWidth: 80, position: 'relative', overflow: 'hidden',
         }}>
-        {/* shimmer overlay */}
         <div style={{
           position: 'absolute', inset: 0, borderRadius: 16,
           background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,.08) 50%, transparent 60%)',
@@ -120,13 +157,15 @@ export default function BioPromoButton({ lang }: Props) {
         }} />
         <span style={{
           fontSize: 26, fontWeight: 900, lineHeight: 1,
-          color: active ? '#7ee85a' : '#FFB347',
-          textShadow: active ? '0 0 12px rgba(95,186,71,.7)' : '0 0 10px rgba(255,179,71,.6)',
-        }}>+1⭐</span>
-        <span style={{ fontSize: 11, color: active ? '#a8f080' : '#ffd080', fontWeight: 700, whiteSpace: 'nowrap' }}>
+          color: active ? (tier === 2 ? '#FFB347' : '#7ee85a') : '#FFB347',
+          textShadow: active
+            ? tier === 2 ? '0 0 12px rgba(255,179,71,.7)' : '0 0 12px rgba(95,186,71,.7)'
+            : '0 0 10px rgba(255,179,71,.6)',
+        }}>{starsLabel}</span>
+        <span style={{ fontSize: 11, color: active ? (tier === 2 ? '#ffd080' : '#a8f080') : '#ffd080', fontWeight: 700, whiteSpace: 'nowrap' }}>
           {T.bio_promo_daily}
         </span>
-        <span style={{ fontSize: 10, color: active ? 'rgba(168,240,128,.7)' : 'rgba(255,208,128,.6)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 10, color: active ? (tier === 2 ? 'rgba(255,208,128,.7)' : 'rgba(168,240,128,.7)') : 'rgba(255,208,128,.6)', fontWeight: 600, whiteSpace: 'nowrap' }}>
           {T.bio_promo_daily_sub}
         </span>
       </button>
@@ -147,7 +186,7 @@ export default function BioPromoButton({ lang }: Props) {
             padding: '16px 20px 36px',
             maxHeight: '90vh', overflowY: 'auto',
           }}>
-            {/* Header row: drag handle + close */}
+            {/* Header: drag handle + close */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
               <div style={{ width: 28 }} />
               <div style={{ width: 40, height: 4, borderRadius: 4, background: 'rgba(255,255,255,.15)' }} />
@@ -165,30 +204,49 @@ export default function BioPromoButton({ lang }: Props) {
               {T.bio_promo_desc}
             </div>
 
-            {/* Copyable card */}
-            <div style={{
-              background: 'rgba(95,186,71,.08)', border: '1.5px dashed rgba(95,186,71,.4)',
-              borderRadius: 14, padding: '14px 16px', marginBottom: 14,
-            }}>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6, letterSpacing: .5 }}>{T.bio_promo_add_label}</div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                <code style={{
-                  fontSize: 18, fontWeight: 800, color: '#5fba47', letterSpacing: .5,
-                  background: 'rgba(95,186,71,.12)', borderRadius: 8, padding: '6px 10px', flex: 1, textAlign: 'center',
-                }}>@LEMUR_SHOP</code>
-                <button
-                  onClick={() => { navigator.clipboard?.writeText('@LEMUR_SHOP'); setMsg('📋 ' + T.copied) }}
-                  style={{
-                    background: 'rgba(95,186,71,.2)', border: '1px solid rgba(95,186,71,.4)',
-                    borderRadius: 10, padding: '8px 12px', cursor: 'pointer', color: '#5fba47',
-                    fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0,
-                  }}>{T.copy}</button>
-              </div>
+            {/* Two copy options */}
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8, letterSpacing: .5 }}>{T.bio_promo_add_label}</div>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+              <CopyCard
+                label={lang === 'ru' ? 'ВАРИАНТ 1' : lang === 'en' ? 'OPTION 1' : 'ВАРІАНТ 1'}
+                hint={lang === 'ru' ? 'Только юзернейм' : lang === 'en' ? 'Username only' : 'Тільки юзернейм'}
+                value={USERNAME}
+                color="95,186,71"
+                stars="+1⭐/день"
+                onCopy={() => { navigator.clipboard?.writeText(USERNAME); setMsg('📋 ' + T.copied) }}
+              />
+              <CopyCard
+                label={lang === 'ru' ? 'ВАРИАНТ 2' : lang === 'en' ? 'OPTION 2' : 'ВАРІАНТ 2'}
+                hint={T.bio_promo_phrase_hint}
+                value={PHRASE}
+                color="255,179,71"
+                stars="+2⭐/день"
+                onCopy={() => { navigator.clipboard?.writeText(PHRASE); setMsg('📋 ' + T.copied) }}
+              />
             </div>
 
-            {/* Telegram UI mockup */}
+            {/* Mockup switcher */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              {([1, 2] as const).map(t => (
+                <button key={t} onClick={() => setMockupTier(t)} style={{
+                  flex: 1, padding: '6px 0', fontSize: 11, fontWeight: mockupTier === t ? 700 : 500,
+                  background: mockupTier === t
+                    ? t === 2 ? 'rgba(255,179,71,.2)' : 'rgba(95,186,71,.2)'
+                    : 'rgba(255,255,255,.04)',
+                  border: mockupTier === t
+                    ? t === 2 ? '1px solid rgba(255,179,71,.4)' : '1px solid rgba(95,186,71,.4)'
+                    : '1px solid var(--border)',
+                  borderRadius: 8, cursor: 'pointer',
+                  color: mockupTier === t ? (t === 2 ? '#FFB347' : '#5fba47') : 'var(--muted)',
+                }}>
+                  {t === 1
+                    ? (lang === 'ru' ? 'Вариант 1 (+1⭐)' : lang === 'en' ? 'Option 1 (+1⭐)' : 'Варіант 1 (+1⭐)')
+                    : (lang === 'ru' ? 'Вариант 2 (+2⭐)' : lang === 'en' ? 'Option 2 (+2⭐)' : 'Варіант 2 (+2⭐)')}
+                </button>
+              ))}
+            </div>
             <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8, letterSpacing: .5 }}>{T.bio_promo_how_label}</div>
-            <TgProfileMockup lang={lang} />
+            <TgProfileMockup lang={lang} tier={mockupTier} />
 
             {/* Steps */}
             <div style={{
@@ -214,14 +272,20 @@ export default function BioPromoButton({ lang }: Props) {
             {/* Status (if joined) */}
             {promo?.joined && (
               <div style={{
-                background: promo.is_active ? 'rgba(95,186,71,.1)' : 'rgba(255,80,80,.08)',
-                border: `1px solid ${promo.is_active ? 'rgba(95,186,71,.3)' : 'rgba(255,80,80,.25)'}`,
+                background: promo.is_active
+                  ? (promo.reward_tier === 2 ? 'rgba(255,179,71,.1)' : 'rgba(95,186,71,.1)')
+                  : 'rgba(255,80,80,.08)',
+                border: `1px solid ${promo.is_active
+                  ? (promo.reward_tier === 2 ? 'rgba(255,179,71,.35)' : 'rgba(95,186,71,.3)')
+                  : 'rgba(255,80,80,.25)'}`,
                 borderRadius: 14, padding: '12px 14px', marginBottom: 14,
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13 }}>
-                    {promo.is_active ? T.bio_promo_active : T.bio_promo_inactive}
+                    {promo.is_active
+                      ? (promo.reward_tier === 2 ? T.bio_promo_active2 : T.bio_promo_active)
+                      : T.bio_promo_inactive}
                   </div>
                   {promo.is_active && promo.hours_until_next !== null && promo.hours_until_next > 0 && (
                     <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
