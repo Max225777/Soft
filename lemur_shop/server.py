@@ -44,16 +44,27 @@ _bio_promo_task: asyncio.Task | None = None
 
 
 async def _check_bio_has_promo(user_id: int) -> bool:
-    """Check if user's Telegram bio contains the channel username."""
+    """Check if user's Telegram profile (bio, first_name, last_name) contains the channel username."""
     if not _bot:
         return False
     try:
         chat = await _bot.get_chat(user_id)
-        bio = (chat.bio or "").lower()
         needle = settings.CHANNEL_USERNAME.lower().lstrip("@")
-        return f"@{needle}" in bio or needle in bio
+        # Check bio + first/last name — bio can be hidden by Telegram privacy settings,
+        # but names are always public; either field counts as visible promotion.
+        bio        = (chat.bio        or "").lower()
+        first_name = (chat.first_name or "").lower()
+        last_name  = (getattr(chat, "last_name", None) or "").lower()
+        combined   = f"{bio} {first_name} {last_name}"
+        found = f"@{needle}" in combined or needle in combined
+        log.info(
+            "bio_check user=%s needle=%s bio=%r first=%r last=%r → %s",
+            user_id, needle, chat.bio, chat.first_name,
+            getattr(chat, "last_name", None), found,
+        )
+        return found
     except Exception as e:
-        log.debug("bio check failed for %s: %s", user_id, e)
+        log.warning("bio check failed for %s: %s", user_id, e)
         return False
 
 
