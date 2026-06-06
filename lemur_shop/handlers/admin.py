@@ -4,7 +4,7 @@ import logging
 from decimal import Decimal
 
 from aiogram import Router
-from aiogram.filters import Command
+from aiogram.filters import BaseFilter, Command
 from aiogram.types import Message
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -16,6 +16,11 @@ from lemur_shop.db.session import AsyncSessionLocal
 log = logging.getLogger(__name__)
 
 router = Router()
+
+
+class IsAdmin(BaseFilter):
+    async def __call__(self, message: Message) -> bool:
+        return message.from_user is not None and message.from_user.id in settings.ADMIN_IDS
 
 
 def _is_admin(user_id: int) -> bool:
@@ -30,7 +35,7 @@ async def _find_user(session, query: str) -> User | None:
     return result.scalar_one_or_none()
 
 
-@router.message(Command("topup"))
+@router.message(Command("topup"), IsAdmin())
 async def cmd_topup(message: Message) -> None:
     if not _is_admin(message.from_user.id):
         return
@@ -93,7 +98,7 @@ async def cmd_topup(message: Message) -> None:
     )
 
 
-@router.message(Command("deduct"))
+@router.message(Command("deduct"), IsAdmin())
 async def cmd_deduct(message: Message) -> None:
     if not _is_admin(message.from_user.id):
         return
@@ -136,7 +141,7 @@ async def cmd_deduct(message: Message) -> None:
     )
 
 
-@router.message(Command("balance"))
+@router.message(Command("balance"), IsAdmin())
 async def cmd_balance(message: Message) -> None:
     if not _is_admin(message.from_user.id):
         return
@@ -166,7 +171,7 @@ async def cmd_balance(message: Message) -> None:
     )
 
 
-@router.message(Command("stats"))
+@router.message(Command("stats"), IsAdmin())
 async def cmd_stats(message: Message) -> None:
     if not _is_admin(message.from_user.id):
         return
@@ -223,7 +228,7 @@ async def cmd_stats(message: Message) -> None:
     await message.answer("\n".join(lines), parse_mode="HTML")
 
 
-@router.message(Command("ban"))
+@router.message(Command("ban"), IsAdmin())
 async def cmd_ban(message: Message) -> None:
     if not _is_admin(message.from_user.id):
         return
@@ -242,7 +247,7 @@ async def cmd_ban(message: Message) -> None:
     await message.answer(f"🚫 @{name} (<code>{user.id}</code>) заблоковано.", parse_mode="HTML")
 
 
-@router.message(Command("unban"))
+@router.message(Command("unban"), IsAdmin())
 async def cmd_unban(message: Message) -> None:
     if not _is_admin(message.from_user.id):
         return
@@ -261,7 +266,7 @@ async def cmd_unban(message: Message) -> None:
     await message.answer(f"✅ @{name} (<code>{user.id}</code>) розблоковано.", parse_mode="HTML")
 
 
-@router.message(Command("topups"))
+@router.message(Command("topups"), IsAdmin())
 async def cmd_topups(message: Message) -> None:
     if not _is_admin(message.from_user.id):
         return
@@ -305,6 +310,6 @@ async def cmd_topups(message: Message) -> None:
     await message.answer("\n".join(lines), parse_mode="HTML")
 
 
-@router.message(Command("myid"))
+@router.message(Command("myid"), IsAdmin())
 async def cmd_myid(message: Message) -> None:
     await message.answer(f"Ваш ID: <code>{message.from_user.id}</code>", parse_mode="HTML")
