@@ -218,27 +218,6 @@ async def lifespan(app: FastAPI):
 
     _bio_promo_task = asyncio.create_task(_bio_promo_daily_checker())
 
-    # Startup bio debug — log raw getChat for test user to verify bio reading works
-    async def _startup_bio_debug() -> None:
-        await asyncio.sleep(5)  # wait for bot session to be ready
-        debug_ids = [8761588239]
-        for _uid in debug_ids:
-            try:
-                _chat = await _bot.get_chat(_uid)
-                _needle = settings.CHANNEL_USERNAME.lower().lstrip("@")
-                _bio   = (_chat.bio        or "").lower()
-                _fname = (_chat.first_name or "").lower()
-                _lname = (getattr(_chat, "last_name", None) or "").lower()
-                _combined = f"{_bio} {_fname} {_lname}"
-                _found = f"@{_needle}" in _combined or _needle in _combined
-                log.info(
-                    "=== STARTUP BIO DEBUG user=%s | bio=%r | first_name=%r | last_name=%r | found=%s ===",
-                    _uid, _chat.bio, _chat.first_name, getattr(_chat, "last_name", None), _found,
-                )
-            except Exception as _e:
-                log.warning("=== STARTUP BIO DEBUG user=%s ERROR: %s ===", _uid, _e)
-    asyncio.create_task(_startup_bio_debug())
-
     log.info("🦎 Лемур бот запущено (%s)", "webhook" if use_webhook else "polling")
     yield
 
