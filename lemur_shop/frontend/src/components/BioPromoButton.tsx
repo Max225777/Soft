@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { bioPromoApi, type BioPromoStatus } from '../api'
 import { getT, type Lang } from '../i18n'
 
-const USERNAME = '@LEMUR_SHOP'
 const PHRASES: Record<'ua' | 'ru' | 'en', string> = {
   ua: 'Дешеві акаунти та накрутка тільки в @LEMUR_SHOP',
   ru: 'Дешёвые аккаунты и накрутка только в @LEMUR_SHOP',
@@ -74,7 +73,6 @@ export default function BioPromoButton({ lang }: Props) {
   const [open, setOpen]         = useState(false)
   const [loading, setLoading]   = useState(false)
   const [msg, setMsg]           = useState('')
-  const [variant, setVariant]   = useState<1 | 2>(2)
 
   useEffect(() => {
     bioPromoApi.status().then(setPromo).catch(() => {})
@@ -172,34 +170,6 @@ export default function BioPromoButton({ lang }: Props) {
               }}>✕</button>
             </div>
 
-            {/* ── Variant selector — TOP ── */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
-              <button onClick={() => setVariant(1)} style={{
-                flex: 1, padding: '10px 8px', borderRadius: 12, cursor: 'pointer',
-                fontWeight: variant === 1 ? 800 : 500, fontSize: 13,
-                background: variant === 1 ? 'rgba(95,186,71,.2)' : 'rgba(255,255,255,.04)',
-                border: variant === 1 ? '1.5px solid rgba(95,186,71,.55)' : '1.5px solid rgba(255,255,255,.1)',
-                color: variant === 1 ? '#7ee85a' : 'var(--muted)',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-              }}>
-                <span style={{ fontSize: 18, fontWeight: 900 }}>+1⭐</span>
-                <span style={{ fontSize: 10 }}>{lang === 'ru' ? 'Вариант 1' : lang === 'en' ? 'Option 1' : 'Варіант 1'}</span>
-                <span style={{ fontSize: 9, opacity: .7 }}>{lang === 'ru' ? 'только юзернейм' : lang === 'en' ? 'username only' : 'тільки юзернейм'}</span>
-              </button>
-              <button onClick={() => setVariant(2)} style={{
-                flex: 1, padding: '10px 8px', borderRadius: 12, cursor: 'pointer',
-                fontWeight: variant === 2 ? 800 : 500, fontSize: 13,
-                background: variant === 2 ? 'rgba(255,179,71,.22)' : 'rgba(255,255,255,.04)',
-                border: variant === 2 ? '1.5px solid rgba(255,179,71,.6)' : '1.5px solid rgba(255,255,255,.1)',
-                color: variant === 2 ? '#FFB347' : 'var(--muted)',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-              }}>
-                <span style={{ fontSize: 18, fontWeight: 900 }}>+2⭐</span>
-                <span style={{ fontSize: 10 }}>{lang === 'ru' ? 'Вариант 2' : lang === 'en' ? 'Option 2' : 'Варіант 2'}</span>
-                <span style={{ fontSize: 9, opacity: .7 }}>{lang === 'ru' ? 'полная фраза' : lang === 'en' ? 'full phrase' : 'повна фраза'}</span>
-              </button>
-            </div>
-
             <div style={{ fontWeight: 800, fontSize: 18, textAlign: 'center', marginBottom: 6 }}>{T.bio_promo_title}</div>
             <div style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', marginBottom: 16, lineHeight: 1.5 }}>
               {T.bio_promo_desc}
@@ -208,70 +178,47 @@ export default function BioPromoButton({ lang }: Props) {
             {/* Copy section */}
             <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8, letterSpacing: .5 }}>{T.bio_promo_add_label}</div>
 
-            {variant === 1 ? (
-              /* Variant 1: single username */
-              <div style={{
-                background: 'rgba(95,186,71,.08)', border: '1.5px dashed rgba(95,186,71,.4)',
-                borderRadius: 14, padding: '12px 14px', marginBottom: 14,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <code style={{
-                    flex: 1, fontSize: 18, fontWeight: 800, color: '#5fba47',
-                    background: 'rgba(95,186,71,.12)', borderRadius: 8, padding: '6px 10px', textAlign: 'center',
-                  }}>{USERNAME}</code>
-                  <button
-                    onClick={() => { navigator.clipboard?.writeText(USERNAME); setMsg('📋 ' + T.copied) }}
-                    style={{
-                      background: 'rgba(95,186,71,.2)', border: '1px solid rgba(95,186,71,.4)',
-                      borderRadius: 10, padding: '8px 12px', cursor: 'pointer',
-                      color: '#5fba47', fontSize: 12, fontWeight: 700, flexShrink: 0,
-                    }}>{T.copy}</button>
-                </div>
-              </div>
-            ) : (
-              /* Variant 2: 3-language phrases */
-              <div style={{
-                background: 'rgba(255,179,71,.06)', border: '1.5px dashed rgba(255,179,71,.35)',
-                borderRadius: 14, padding: '12px 14px', marginBottom: 14,
-              }}>
-                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10 }}>{T.bio_promo_phrase_hint}</div>
-                {(['ua', 'ru', 'en'] as const).map((l, i) => {
-                  const flag   = l === 'ua' ? '🇺🇦' : l === 'ru' ? '🇷🇺' : '🇬🇧'
-                  const phrase = PHRASES[l]
-                  // Split phrase so @LEMUR_SHOP is on a new line
-                  const parts  = phrase.split('@LEMUR_SHOP')
-                  return (
-                    <div key={l} style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      marginBottom: i < 2 ? 10 : 0,
-                      paddingBottom: i < 2 ? 10 : 0,
-                      borderBottom: i < 2 ? '1px solid rgba(255,179,71,.12)' : 'none',
-                    }}>
-                      <span style={{ fontSize: 18, flexShrink: 0 }}>{flag}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.7)', lineHeight: 1.4 }}>
-                          {parts[0]}
-                        </div>
-                        <code style={{ fontSize: 13, fontWeight: 800, color: '#FFB347' }}>
-                          @LEMUR_SHOP
-                        </code>
+            {/* 3-language phrases */}
+            <div style={{
+              background: 'rgba(255,179,71,.06)', border: '1.5px dashed rgba(255,179,71,.35)',
+              borderRadius: 14, padding: '12px 14px', marginBottom: 14,
+            }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10 }}>{T.bio_promo_phrase_hint}</div>
+              {(['ua', 'ru', 'en'] as const).map((l, i) => {
+                const flag   = l === 'ua' ? '🇺🇦' : l === 'ru' ? '🇷🇺' : '🇬🇧'
+                const phrase = PHRASES[l]
+                const parts  = phrase.split('@LEMUR_SHOP')
+                return (
+                  <div key={l} style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    marginBottom: i < 2 ? 10 : 0,
+                    paddingBottom: i < 2 ? 10 : 0,
+                    borderBottom: i < 2 ? '1px solid rgba(255,179,71,.12)' : 'none',
+                  }}>
+                    <span style={{ fontSize: 18, flexShrink: 0 }}>{flag}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,.7)', lineHeight: 1.4 }}>
+                        {parts[0]}
                       </div>
-                      <button
-                        onClick={() => { navigator.clipboard?.writeText(phrase); setMsg('📋 ' + T.copied) }}
-                        style={{
-                          background: 'rgba(255,179,71,.2)', border: '1px solid rgba(255,179,71,.4)',
-                          borderRadius: 7, padding: '7px 11px', cursor: 'pointer',
-                          color: '#FFB347', fontSize: 12, fontWeight: 700, flexShrink: 0,
-                        }}>📋</button>
+                      <code style={{ fontSize: 13, fontWeight: 800, color: '#FFB347' }}>
+                        @LEMUR_SHOP
+                      </code>
                     </div>
-                  )
-                })}
-              </div>
-            )}
+                    <button
+                      onClick={() => { navigator.clipboard?.writeText(phrase); setMsg('📋 ' + T.copied) }}
+                      style={{
+                        background: 'rgba(255,179,71,.2)', border: '1px solid rgba(255,179,71,.4)',
+                        borderRadius: 7, padding: '7px 11px', cursor: 'pointer',
+                        color: '#FFB347', fontSize: 12, fontWeight: 700, flexShrink: 0,
+                      }}>📋</button>
+                  </div>
+                )
+              })}
+            </div>
 
             {/* Mockup */}
             <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8, letterSpacing: .5 }}>{T.bio_promo_how_label}</div>
-            <TgProfileMockup lang={lang} variant={variant} />
+            <TgProfileMockup lang={lang} variant={2} />
 
             {/* Steps */}
             <div style={{
