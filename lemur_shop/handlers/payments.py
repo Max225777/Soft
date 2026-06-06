@@ -50,7 +50,7 @@ async def successful_payment(message: Message) -> None:
     try:
         async with AsyncSessionLocal() as s:
             async with s.begin():
-                user = await s.get(User, user_id)
+                user = await s.get(User, user_id, with_for_update=True)
                 if not user:
                     log.error("Stars payment for unknown user=%s stars=%s charge_id=%s", user_id, stars, charge_id)
                     return

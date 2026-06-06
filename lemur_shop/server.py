@@ -22,6 +22,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from lemur_shop.api.lolz import LolzApiError
 from lemur_shop.config import settings
@@ -741,33 +742,32 @@ async def crypto_notify(request: Request):
         log.error("CryptoBot bad payload %r: %s", raw_payload, e)
         return Response(content="ok")
 
-    # Idempotency: перевіряємо по унікальному invoice_id від CryptoBot
-    async with AsyncSessionLocal() as s:
-        already = await s.scalar(
-            select(TopUp.id).where(TopUp.charge_id == f"crypto:{crypto_invoice_id}").limit(1)
-        )
-    if already:
-        log.warning("CryptoBot duplicate invoice_id=%s user=%s — skip", crypto_invoice_id, user_id)
+    # Idempotency: перевірка + запис в ОДНІЙ транзакції.
+    # UNIQUE constraint на charge_id гарантує exactly-once через IntegrityError.
+    stars_credited = 0
+    bal_before = 0
+    try:
+        async with AsyncSessionLocal() as s:
+            async with s.begin():
+                user = await s.get(User, user_id, with_for_update=True)
+                if not user:
+                    log.error("CryptoBot payment for unknown user=%s", user_id)
+                    return Response(content="ok")
+                stars_credited = round(float(amount_usd) / settings.STAR_DISPLAY_USD)
+                bal_before = user.balance_stars
+                user.balance_usd   = user.balance_usd + amount_usd
+                user.balance_stars = user.balance_stars + stars_credited
+                s.add(TopUp(
+                    user_id=user_id, amount_usd=amount_usd,
+                    amount_stars=stars_credited, admin_id=-1,
+                    method="crypto",
+                    charge_id=f"crypto:{crypto_invoice_id}",
+                ))
+                log.info("CryptoBot paid: invoice=%s user=%s amount=%s stars=%s balance %s→%s",
+                         crypto_invoice_id, user_id, amount_usd, stars_credited, bal_before, user.balance_stars)
+    except IntegrityError:
+        log.warning("CryptoBot DUPLICATE invoice_id=%s user=%s — skip", crypto_invoice_id, user_id)
         return Response(content="ok")
-
-    async with AsyncSessionLocal() as s:
-        async with s.begin():
-            user = await s.get(User, user_id)
-            if not user:
-                log.error("CryptoBot payment for unknown user=%s", user_id)
-                return Response(content="ok")
-            stars_credited = round(float(amount_usd) / settings.STAR_DISPLAY_USD)
-            bal_before = user.balance_stars
-            user.balance_usd   = user.balance_usd + amount_usd
-            user.balance_stars = user.balance_stars + stars_credited
-            s.add(TopUp(
-                user_id=user_id, amount_usd=amount_usd,
-                amount_stars=stars_credited, admin_id=-1,
-                method="crypto",
-                charge_id=f"crypto:{crypto_invoice_id}",
-            ))
-            log.info("CryptoBot paid: invoice=%s user=%s amount=%s stars=%s balance %s→%s",
-                     crypto_invoice_id, user_id, amount_usd, stars_credited, bal_before, user.balance_stars)
 
     if _bot:
         if settings.ADMIN_IDS:
@@ -837,11 +837,11 @@ async def api_stars_buy(body: StarsBuyRequest, user: User = Depends(get_current_
     price_stars = round(body.amount_usd / settings.STAR_DISPLAY_USD)
     async with AsyncSessionLocal() as s:
         async with s.begin():
-            u = await s.get(User, user.id)
+            u = await s.get(User, user.id, with_for_update=True)
             if not u or u.balance_stars < price_stars:
                 raise HTTPException(status_code=400, detail="Insufficient balance")
             u.balance_stars = u.balance_stars - price_stars
-            u.balance_usd   = u.balance_usd - Decimal(str(round(price_stars * settings.STAR_DISPLAY_USD, 4)))
+            u.balance_usd   = max(Decimal(0), u.balance_usd - Decimal(str(round(price_stars * settings.STAR_DISPLAY_USD, 4))))
 
     if _bot and settings.ADMIN_IDS:
         uname = f"@{user.username}" if user.username else f"ID:{user.id}"
@@ -1728,7 +1728,7 @@ async def bio_promo_check(user: User = Depends(get_current_user)):
                 or (now - promo.last_rewarded_at).total_seconds() >= 86400
             )
             if can_reward:
-                u = await s.get(User, user.id)
+                u = await s.get(User, user.id, with_for_update=True)
                 if u and not u.is_banned:
                     u.balance_stars += stars_amount
                     u.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD)) * stars_amount
