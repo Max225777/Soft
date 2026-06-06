@@ -597,14 +597,27 @@ function Topups() {
         data?.topups.map(t => (
           <div key={t.id} className="card" style={{ marginBottom: 6, padding: '12px 14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
+              <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 13 }}>
                   {t.username ? `@${t.username}` : t.user_name}
                   <span style={{ color: 'var(--muted)', fontSize: 11, marginLeft: 6 }}>#{t.user_id}</span>
+                  <span style={{
+                    marginLeft: 6, fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 6,
+                    background: t.method === 'stars' ? 'rgba(42,171,238,.15)' : 'rgba(95,186,71,.15)',
+                    color: t.method === 'stars' ? '#2AABEE' : '#5fba47',
+                  }}>{t.method === 'stars' ? '⭐ Stars' : t.method === 'crypto' ? '💎 Crypto' : '👤 Admin'}</span>
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>{fmt(t.created_at)}</div>
+                {t.charge_id && (
+                  <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3, fontFamily: 'monospace', wordBreak: 'break-all' }}
+                    onClick={() => navigator.clipboard?.writeText(t.charge_id!)}
+                    title="Натисни щоб скопіювати"
+                  >
+                    🆔 <code style={{ cursor: 'pointer', color: 'rgba(255,255,255,.4)' }}>{t.charge_id}</code>
+                  </div>
+                )}
               </div>
-              <div style={{ textAlign: 'right' }}>
+              <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 10 }}>
                 <div style={{ fontWeight: 700, color: '#2AABEE', fontSize: 14 }}>⭐{t.amount_stars}</div>
                 <div style={{ fontSize: 11, color: 'var(--muted)' }}>${t.amount_usd.toFixed(2)}</div>
               </div>

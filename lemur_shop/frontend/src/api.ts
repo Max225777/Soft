@@ -167,7 +167,8 @@ export interface AdminOrderRow {
 export interface AdminOrdersPage { total: number; page: number; pages: number; orders: AdminOrderRow[] }
 export interface AdminTopupRow {
   id: number; user_id: number; username: string | null; user_name: string
-  amount_usd: number; amount_stars: number; created_at: string
+  amount_usd: number; amount_stars: number; method: string; charge_id: string | null
+  admin_id: number; created_at: string
 }
 export interface AdminTopupsPage { total: number; page: number; pages: number; topups: AdminTopupRow[] }
 

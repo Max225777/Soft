@@ -695,7 +695,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 3 }}>{T.smm_total_label}</div>
               <div style={{ fontSize: 12, color: 'var(--text2)' }}>
                 {effectiveQty} {T.smm_reactions_word}
-                <span style={{ color: 'var(--muted)' }}> × ⭐10/300</span>
+                <span style={{ color: 'var(--muted)' }}> × ⭐{svc?.price_per_100_stars}/100</span>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
@@ -830,7 +830,7 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
               }}>✅ {T.smm_guarantee}</span>
             </div>
             <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <div className="text-green-grad" style={{ fontWeight: 900, fontSize: 20, lineHeight: 1 }}>⭐{isViews ? 10 : svc.price_per_100_stars}</div>
+              <div className="text-green-grad" style={{ fontWeight: 900, fontSize: 20, lineHeight: 1 }}>⭐{isViews ? Math.round(svc.price_per_100_stars * 10) : svc.price_per_100_stars}</div>
               <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{isViews ? T.smm_per_1000 : isReactions ? T.smm_per_100 : T.smm_per_100}</div>
             </div>
           </div>

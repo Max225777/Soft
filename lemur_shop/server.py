@@ -1201,13 +1201,16 @@ async def api_admin_topups(page: int = 1, limit: int = 30, admin: User = Depends
         for t in topups:
             u = await s.get(User, t.user_id)
             result.append({
-                "id":         t.id,
-                "user_id":    t.user_id,
-                "username":   u.username if u else None,
-                "user_name":  u.full_name if u else "?",
-                "amount_usd": float(t.amount_usd),
+                "id":           t.id,
+                "user_id":      t.user_id,
+                "username":     u.username if u else None,
+                "user_name":    u.full_name if u else "?",
+                "amount_usd":   float(t.amount_usd),
                 "amount_stars": t.amount_stars if t.amount_stars else round(float(t.amount_usd) / settings.STAR_DISPLAY_USD),
-                "created_at": t.created_at.isoformat(),
+                "method":       t.method or "admin",
+                "charge_id":    t.charge_id,
+                "admin_id":     t.admin_id,
+                "created_at":   t.created_at.isoformat(),
             })
 
     return {"total": total, "page": page, "pages": ceil(total / limit) if total else 1, "topups": result}
