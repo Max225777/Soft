@@ -128,7 +128,11 @@ class BioPromo(Base):
     last_rewarded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
     total_rewarded: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class WheelRoom(Base):
     __tablename__ = "wheel_rooms"
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     stake: Mapped[int] = mapped_column(Integer, nullable=False)
     max_players: Mapped[int] = mapped_column(Integer, nullable=False)

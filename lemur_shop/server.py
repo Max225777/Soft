@@ -88,6 +88,7 @@ async def _bio_promo_daily_checker() -> None:
                             user = await s.get(User, p.user_id)
                             if user and not user.is_banned:
                                 user.balance_stars += 1
+                                user.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD))
                                 p.last_rewarded_at = now
                                 p.total_rewarded += 1
                                 reward_given = True
@@ -654,15 +655,10 @@ async def crypto_notify(request: Request):
         log.error("CryptoBot bad payload %r: %s", raw_payload, e)
         return Response(content="ok")
 
-    # Idempotency: перевіряємо чи вже є TopUp з таким invoice_id
+    # Idempotency: перевіряємо по унікальному invoice_id від CryptoBot
     async with AsyncSessionLocal() as s:
         already = await s.scalar(
-            select(TopUp.id).where(
-                TopUp.user_id == user_id,
-                TopUp.admin_id == -1,  # -1 = CryptoBot marker
-                TopUp.amount_usd == amount_usd,
-                TopUp.created_at >= datetime.utcnow() - timedelta(hours=24),
-            ).limit(1)
+            select(TopUp.id).where(TopUp.charge_id == f"crypto:{crypto_invoice_id}").limit(1)
         )
     if already:
         log.warning("CryptoBot duplicate invoice_id=%s user=%s — skip", crypto_invoice_id, user_id)
@@ -682,6 +678,7 @@ async def crypto_notify(request: Request):
                 user_id=user_id, amount_usd=amount_usd,
                 amount_stars=stars_credited, admin_id=-1,
                 method="crypto",
+                charge_id=f"crypto:{crypto_invoice_id}",
             ))
             log.info("CryptoBot paid: invoice=%s user=%s amount=%s stars=%s balance %s→%s",
                      crypto_invoice_id, user_id, amount_usd, stars_credited, bal_before, user.balance_stars)
@@ -1553,28 +1550,34 @@ async def bio_promo_status(user: User = Depends(get_current_user)):
 @app.post("/api/bio-promo/check")
 async def bio_promo_check(user: User = Depends(get_current_user)):
     """User-triggered check. Joins the promo if not joined, verifies bio, rewards if eligible."""
-    from datetime import timedelta
+    from sqlalchemy import select as _sel
     now = datetime.utcnow()
+
+    # Bio check happens outside the transaction (external API call)
+    has_bio = await _check_bio_has_promo(user.id)
+
+    rewarded = False
     async with AsyncSessionLocal() as s:
-        promo = await s.get(BioPromo, user.id)
-        if not promo:
-            promo = BioPromo(user_id=user.id)
-            s.add(promo)
-            await s.flush()
+        async with s.begin():
+            # Lock the row to prevent concurrent double-reward (background task + manual check)
+            promo = (await s.execute(
+                _sel(BioPromo).where(BioPromo.user_id == user.id).with_for_update()
+            )).scalar_one_or_none()
+            if not promo:
+                promo = BioPromo(user_id=user.id)
+                s.add(promo)
 
-        has_bio = await _check_bio_has_promo(user.id)
-        promo.is_active = has_bio
-        promo.last_check_at = now
+            promo.is_active = has_bio
+            promo.last_check_at = now
 
-        rewarded = False
-        if has_bio and (promo.last_rewarded_at is None or (now - promo.last_rewarded_at).total_seconds() >= 86400):
-            u = await s.get(User, user.id)
-            if u and not u.is_banned:
-                u.balance_stars += 1
-                promo.last_rewarded_at = now
-                promo.total_rewarded += 1
-                rewarded = True
-        await s.commit()
+            if has_bio and (promo.last_rewarded_at is None or (now - promo.last_rewarded_at).total_seconds() >= 86400):
+                u = await s.get(User, user.id)
+                if u and not u.is_banned:
+                    u.balance_stars += 1
+                    u.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD))
+                    promo.last_rewarded_at = now
+                    promo.total_rewarded += 1
+                    rewarded = True
 
     hours_until_next: int | None = None
     if promo.last_rewarded_at:
