@@ -14,7 +14,7 @@ function useOverviewStats(dateFrom: string, dateTo: string) {
   return { stats, loading, reload }
 }
 
-type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'broadcast'
+type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'broadcast' | 'promo'
 
 const CATEGORY_FLAGS: Record<string, string> = { us: '🇺🇸', ua: '🇺🇦', kz: '🇰🇿' }
 
@@ -241,8 +241,6 @@ function Overview() {
             <StatCard label="Зірок видано" value={`⭐${stats.bio_promo_stars}`} color="var(--gold)" />
           </div>
 
-          <BioPromoList />
-
           <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>ВОРОНКА</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <StatCard label="Запустили бота" value={stats.total_users} color="#4CAF72" />
@@ -292,8 +290,8 @@ function Overview() {
   )
 }
 
-// ── Bio Promo Participants ─────────────────────────────────────────────────────
-function BioPromoList() {
+// ── Bio Promo tab ─────────────────────────────────────────────────────────────
+function BioPromoTab() {
   const [page, setPage] = useState(1)
   const [data, setData] = useState<BioPromoParticipantsPage | null>(null)
   const [loading, setLoading] = useState(true)
@@ -310,11 +308,23 @@ function BioPromoList() {
     return new Date(s).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
   }
 
+  const totalStars  = data?.items.reduce((s, p) => s + p.total_rewarded, 0) ?? 0
+  const activeCount = data?.items.filter(p => p.is_active).length ?? 0
+
   return (
-    <div style={{ marginTop: 6 }}>
-      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>
-        УЧАСНИКИ ПРОМО В «ПРО СЕБЕ» {data ? `(${data.total})` : ''}
-      </div>
+    <div style={{ padding: '14px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ fontWeight: 800, fontSize: 16 }}>⭐ Промо «Про себе»</div>
+
+      {/* Summary cards */}
+      {data && (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <StatCard label="Всього учасників" value={data.total} color="#5fba47" />
+          <StatCard label="Активних зараз" value={activeCount}
+            sub={data.total ? `${Math.round(activeCount / data.total * 100)}%` : '0%'} color="#5fba47" />
+          <StatCard label="Зірок видано" value={`⭐${totalStars}`} color="var(--gold)" />
+        </div>
+      )}
+
       {loading && <div style={{ fontSize: 13, color: 'var(--muted)' }}>Завантаження...</div>}
       {data && (
         <>
@@ -327,20 +337,26 @@ function BioPromoList() {
               }}>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ color: p.is_active ? '#5fba47' : 'var(--muted)', fontSize: 10 }}>
+                    <span style={{ color: p.is_active ? '#5fba47' : 'rgba(255,255,255,.25)', fontSize: 11 }}>
                       {p.is_active ? '●' : '○'}
                     </span>
-                    {p.name}
-                    {p.username && <span style={{ fontSize: 11, color: '#2AABEE' }}>@{p.username}</span>}
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                    {p.username && <span style={{ fontSize: 11, color: '#2AABEE', flexShrink: 0 }}>@{p.username}</span>}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                    ID: {p.user_id} · підключ: {fmtDate(p.joined_at)}
-                    {p.last_rewarded_at && ` · нагорода: ${fmtDate(p.last_rewarded_at)}`}
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>
+                    <span>ID {p.user_id}</span>
+                    <span style={{ margin: '0 4px' }}>·</span>
+                    <span>підключ: {fmtDate(p.joined_at)}</span>
+                    {p.last_rewarded_at && (
+                      <><span style={{ margin: '0 4px' }}>·</span><span>нагорода: {fmtDate(p.last_rewarded_at)}</span></>
+                    )}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontWeight: 800, color: 'var(--gold)', fontSize: 15 }}>⭐{p.total_rewarded}</div>
-                  <div style={{ fontSize: 10, color: 'var(--muted)' }}>{p.is_active ? 'активний' : 'неактивний'}</div>
+                  <div style={{ fontWeight: 800, color: 'var(--gold)', fontSize: 16 }}>⭐{p.total_rewarded}</div>
+                  <div style={{ fontSize: 10, color: p.is_active ? '#5fba47' : 'var(--muted)', marginTop: 1 }}>
+                    {p.is_active ? 'активний' : 'неактивний'}
+                  </div>
                 </div>
               </div>
             ))}
@@ -724,6 +740,7 @@ const TABS: { id: AdminTab; label: string }[] = [
   { id: 'orders',    label: '📦 Замовл.' },
   { id: 'topups',    label: '💰 Поповн.' },
   { id: 'broadcast', label: '📢 Розсилка' },
+  { id: 'promo',     label: '⭐ Промо' },
 ]
 
 export default function Admin() {
@@ -772,6 +789,7 @@ export default function Admin() {
       {tab === 'orders'    && <Orders />}
       {tab === 'topups'    && <Topups />}
       {tab === 'broadcast' && <Broadcast />}
+      {tab === 'promo'     && <BioPromoTab />}
     </div>
   )
 }
