@@ -76,7 +76,7 @@ async def _check_bio_tier(user_id: int) -> tuple[bool, int]:
     if not _bot:
         return False, 0
     needle      = _normalize(settings.CHANNEL_USERNAME.lstrip("@"))   # "lemurshop"
-    phrase_kw   = _normalize(settings.BIO_PROMO_PHRASE_KEYWORD)        # "накрутка"
+    phrase_kws  = [_normalize(kw) for kw in settings.BIO_PROMO_PHRASE_KEYWORDS]  # ["накрутка","cheap"]
     last_err: Exception | None = None
     for attempt in range(3):
         try:
@@ -87,11 +87,12 @@ async def _check_bio_tier(user_id: int) -> tuple[bool, int]:
             first_name = chat.first_name or ""
             last_name  = getattr(chat, "last_name", None) or ""
             combined_norm = _normalize(f"{bio} {first_name} {last_name}")
-            found = needle in combined_norm
-            tier  = 2 if (found and phrase_kw in combined_norm) else (1 if found else 0)
+            found     = needle in combined_norm
+            has_phrase = any(kw in combined_norm for kw in phrase_kws)
+            tier      = 2 if (found and has_phrase) else (1 if found else 0)
             log.info(
-                "bio_check attempt=%d user=%s needle=%r phrase_kw=%r norm=%r → found=%s tier=%d",
-                attempt + 1, user_id, needle, phrase_kw, combined_norm, found, tier,
+                "bio_check attempt=%d user=%s needle=%r phrase_kws=%r norm=%r → found=%s tier=%d",
+                attempt + 1, user_id, needle, phrase_kws, combined_norm, found, tier,
             )
             if found:
                 return True, tier

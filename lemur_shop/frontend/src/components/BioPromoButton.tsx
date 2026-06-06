@@ -2,8 +2,12 @@ import { useState, useEffect } from 'react'
 import { bioPromoApi, type BioPromoStatus } from '../api'
 import { getT, type Lang } from '../i18n'
 
-const PHRASE = 'Дешеві акаунти та накрутка тільки в @LEMUR_SHOP'
 const USERNAME = '@LEMUR_SHOP'
+const PHRASES: Record<'ua' | 'ru' | 'en', string> = {
+  ua: 'Дешеві акаунти та накрутка тільки в @LEMUR_SHOP',
+  ru: 'Дешёвые аккаунты и накрутка только в @LEMUR_SHOP',
+  en: 'Cheap accounts and promotion only at @LEMUR_SHOP',
+}
 
 interface Props { lang: Lang }
 
@@ -11,7 +15,7 @@ function TgProfileMockup({ lang, tier }: { lang: Lang; tier: 1 | 2 }) {
   const label     = lang === 'ru' ? 'О себе' : lang === 'en' ? 'About' : 'Про себе'
   const editTitle = lang === 'ru' ? 'Редактировать профиль' : lang === 'en' ? 'Edit Profile' : 'Редагувати профіль'
   const hint      = lang === 'ru' ? '← вставь сюда' : lang === 'en' ? '← paste here' : '← встав сюди'
-  const bioText   = tier === 2 ? PHRASE : USERNAME
+  const bioText   = tier === 2 ? PHRASES[lang] : USERNAME
   return (
     <div style={{
       background: '#212121', borderRadius: 16, overflow: 'hidden',
@@ -204,25 +208,49 @@ export default function BioPromoButton({ lang }: Props) {
               {T.bio_promo_desc}
             </div>
 
-            {/* Two copy options */}
+            {/* Variant 1 — username only */}
             <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8, letterSpacing: .5 }}>{T.bio_promo_add_label}</div>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-              <CopyCard
-                label={lang === 'ru' ? 'ВАРИАНТ 1' : lang === 'en' ? 'OPTION 1' : 'ВАРІАНТ 1'}
-                hint={lang === 'ru' ? 'Только юзернейм' : lang === 'en' ? 'Username only' : 'Тільки юзернейм'}
-                value={USERNAME}
-                color="95,186,71"
-                stars="+1⭐/день"
-                onCopy={() => { navigator.clipboard?.writeText(USERNAME); setMsg('📋 ' + T.copied) }}
-              />
-              <CopyCard
-                label={lang === 'ru' ? 'ВАРИАНТ 2' : lang === 'en' ? 'OPTION 2' : 'ВАРІАНТ 2'}
-                hint={T.bio_promo_phrase_hint}
-                value={PHRASE}
-                color="255,179,71"
-                stars="+2⭐/день"
-                onCopy={() => { navigator.clipboard?.writeText(PHRASE); setMsg('📋 ' + T.copied) }}
-              />
+            <CopyCard
+              label={lang === 'ru' ? 'ВАРИАНТ 1 — только юзернейм' : lang === 'en' ? 'OPTION 1 — username only' : 'ВАРІАНТ 1 — тільки юзернейм'}
+              hint={lang === 'ru' ? 'Только @LEMUR_SHOP в «О себе»' : lang === 'en' ? 'Only @LEMUR_SHOP in About' : 'Тільки @LEMUR_SHOP в «Про себе»'}
+              value={USERNAME}
+              color="95,186,71"
+              stars="+1⭐/день"
+              onCopy={() => { navigator.clipboard?.writeText(USERNAME); setMsg('📋 ' + T.copied) }}
+            />
+
+            {/* Variant 2 — full phrase, 3 languages */}
+            <div style={{ fontSize: 11, color: '#FFB347', marginTop: 14, marginBottom: 8, letterSpacing: .5, fontWeight: 700 }}>
+              {T.bio_promo_phrase_label}
+            </div>
+            <div style={{
+              background: 'rgba(255,179,71,.06)', border: '1.5px dashed rgba(255,179,71,.35)',
+              borderRadius: 14, padding: '10px 12px', marginBottom: 14,
+            }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>{T.bio_promo_phrase_hint}</div>
+              {(['ua', 'ru', 'en'] as const).map((l) => {
+                const flag = l === 'ua' ? '🇺🇦' : l === 'ru' ? '🇷🇺' : '🇬🇧'
+                const phrase = PHRASES[l]
+                return (
+                  <div key={l} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, marginBottom: l === 'en' ? 0 : 8,
+                  }}>
+                    <span style={{ fontSize: 16, flexShrink: 0 }}>{flag}</span>
+                    <code style={{
+                      flex: 1, fontSize: 10, color: '#FFB347', lineHeight: 1.4,
+                      background: 'rgba(255,179,71,.1)', borderRadius: 6, padding: '4px 8px',
+                      wordBreak: 'break-all',
+                    }}>{phrase}</code>
+                    <button
+                      onClick={() => { navigator.clipboard?.writeText(phrase); setMsg('📋 ' + T.copied) }}
+                      style={{
+                        background: 'rgba(255,179,71,.2)', border: '1px solid rgba(255,179,71,.4)',
+                        borderRadius: 7, padding: '5px 9px', cursor: 'pointer',
+                        color: '#FFB347', fontSize: 11, fontWeight: 700, flexShrink: 0,
+                      }}>📋</button>
+                  </div>
+                )
+              })}
             </div>
 
             {/* Mockup switcher */}
