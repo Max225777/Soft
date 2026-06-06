@@ -4,6 +4,64 @@ import { getT, type Lang } from '../i18n'
 
 interface Props { lang: Lang }
 
+function TgProfileMockup({ lang }: { lang: Lang }) {
+  const label = lang === 'ru' ? 'О себе' : lang === 'en' ? 'About' : 'Про себе'
+  const editTitle = lang === 'ru' ? 'Редактировать профиль' : lang === 'en' ? 'Edit Profile' : 'Редагувати профіль'
+  const hint = lang === 'ru' ? '← вставь сюда' : lang === 'en' ? '← paste here' : '← встав сюди'
+  return (
+    <div style={{
+      background: '#212121', borderRadius: 16, overflow: 'hidden',
+      border: '1px solid rgba(255,255,255,.1)', marginBottom: 14,
+      fontSize: 13,
+    }}>
+      {/* Fake header */}
+      <div style={{
+        background: '#2b2b2b', padding: '10px 14px',
+        display: 'flex', alignItems: 'center', gap: 10,
+        borderBottom: '1px solid rgba(255,255,255,.07)',
+      }}>
+        <div style={{ fontSize: 18, color: '#2AABEE' }}>‹</div>
+        <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{editTitle}</div>
+      </div>
+      {/* Avatar row */}
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 10px' }}>
+        <div style={{
+          width: 60, height: 60, borderRadius: '50%',
+          background: 'linear-gradient(135deg, #2AABEE, #1178B8)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 26,
+        }}>🦎</div>
+      </div>
+      {/* Fields */}
+      {[
+        { label: lang === 'ru' ? 'Имя' : lang === 'en' ? 'First name' : 'Ім\'я', value: 'LEMUR', muted: false },
+        { label: lang === 'ru' ? 'Фамилия' : lang === 'en' ? 'Last name' : 'Прізвище', value: '—', muted: true },
+      ].map(f => (
+        <div key={f.label} style={{
+          padding: '8px 14px', borderBottom: '1px solid rgba(255,255,255,.05)',
+          display: 'flex', justifyContent: 'space-between',
+        }}>
+          <span style={{ color: '#2AABEE', fontSize: 12 }}>{f.label}</span>
+          <span style={{ color: f.muted ? '#555' : '#fff', fontSize: 12 }}>{f.value}</span>
+        </div>
+      ))}
+      {/* About field — highlighted */}
+      <div style={{
+        padding: '10px 14px',
+        background: 'rgba(95,186,71,.1)',
+        border: '1.5px solid rgba(95,186,71,.5)',
+        borderRadius: 8, margin: '6px 8px 8px',
+      }}>
+        <div style={{ color: '#5fba47', fontSize: 11, marginBottom: 4, fontWeight: 700 }}>{label}</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <code style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>@LEMUR_SHOP</code>
+          <span style={{ color: '#5fba47', fontSize: 11, fontWeight: 700 }}>{hint}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function BioPromoButton({ lang }: Props) {
   const T = getT(lang)
   const [promo, setPromo]     = useState<BioPromoStatus | null>(null)
@@ -30,21 +88,25 @@ export default function BioPromoButton({ lang }: Props) {
 
   function close() { setOpen(false); setMsg('') }
 
+  const active = promo?.is_active
+
   return (
     <>
-      {/* Inline button */}
+      {/* Inline button — 2x bigger */}
       <button
         onClick={() => setOpen(true)}
         style={{
-          background: promo?.is_active
-            ? 'linear-gradient(135deg, rgba(95,186,71,.2), rgba(50,140,30,.1))'
+          background: active
+            ? 'linear-gradient(135deg, rgba(95,186,71,.25), rgba(50,140,30,.15))'
             : 'rgba(255,255,255,.06)',
-          border: promo?.is_active ? '1px solid rgba(95,186,71,.45)' : '1px solid rgba(255,255,255,.12)',
-          borderRadius: 12, padding: '7px 11px', cursor: 'pointer',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+          border: active ? '1.5px solid rgba(95,186,71,.55)' : '1.5px solid rgba(255,255,255,.14)',
+          borderRadius: 14, padding: '10px 16px', cursor: 'pointer',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+          boxShadow: active ? '0 0 14px rgba(95,186,71,.2)' : 'none',
         }}>
-        <span style={{ fontSize: 13, fontWeight: 800, color: promo?.is_active ? '#5fba47' : 'var(--orange)' }}>+1⭐</span>
-        <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 600 }}>{T.bio_promo_daily}</span>
+        <span style={{ fontSize: 20, fontWeight: 900, lineHeight: 1, color: active ? '#5fba47' : 'var(--orange)' }}>+1⭐</span>
+        <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T.bio_promo_daily}</span>
+        <span style={{ fontSize: 9, color: active ? 'rgba(95,186,71,.7)' : 'rgba(255,255,255,.3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T.bio_promo_daily_sub}</span>
       </button>
 
       {/* Modal */}
@@ -61,6 +123,7 @@ export default function BioPromoButton({ lang }: Props) {
             border: '1px solid rgba(95,186,71,.25)',
             borderRadius: '24px 24px 0 0',
             padding: '20px 20px 36px',
+            maxHeight: '90vh', overflowY: 'auto',
           }}>
             <div style={{ width: 40, height: 4, borderRadius: 4, background: 'rgba(255,255,255,.15)', margin: '0 auto 20px' }} />
             <div style={{ fontWeight: 800, fontSize: 18, textAlign: 'center', marginBottom: 6 }}>{T.bio_promo_title}</div>
@@ -89,18 +152,21 @@ export default function BioPromoButton({ lang }: Props) {
               </div>
             </div>
 
+            {/* Telegram UI mockup */}
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8, letterSpacing: .5 }}>{T.bio_promo_how_label}</div>
+            <TgProfileMockup lang={lang} />
+
             {/* Steps */}
             <div style={{
               background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)',
               borderRadius: 14, padding: '12px 14px', marginBottom: 14,
             }}>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8, letterSpacing: .5 }}>{T.bio_promo_how_label}</div>
               {([
                 ['1', T.bio_promo_step1],
                 ['2', T.bio_promo_step2],
                 ['3', T.bio_promo_step3],
               ] as [string, string][]).map(([n, t]) => (
-                <div key={n} style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: n === '3' ? 0 : 6 }}>
+                <div key={n} style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: n === '3' ? 0 : 8 }}>
                   <div style={{
                     width: 22, height: 22, borderRadius: 8, background: 'rgba(95,186,71,.15)',
                     border: '1px solid rgba(95,186,71,.3)', display: 'flex', alignItems: 'center',
