@@ -174,7 +174,15 @@ async def _bio_promo_midnight_rewarder() -> None:
                     )).scalars().all()
 
                 log.info("bio_promo daily reward: %d active participants (date=%s)", len(promos), today)
+
+                _DAILY_REWARD_MSG = {
+                    "ru": "⭐ <b>+{stars} зірки!</b>\n\nЕжедневная награда за фразу в профиле.",
+                    "ua": "⭐ <b>+{stars} зірки!</b>\n\nДобова нагорода за фразу в профілі.",
+                    "en": "⭐ <b>+{stars} stars!</b>\n\nDaily reward for the phrase in your profile.",
+                }
+
                 for promo in promos:
+                    user_lang = "ua"
                     try:
                         async with AsyncSessionLocal() as s:
                             async with s.begin():
@@ -194,14 +202,12 @@ async def _bio_promo_midnight_rewarder() -> None:
                                 user.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD)) * stars
                                 p.last_rewarded_at = now
                                 p.total_rewarded += stars
+                                user_lang = user.lang or "ua"
                         if _bot:
                             stars_given = max(2, promo.reward_tier)
+                            txt = _DAILY_REWARD_MSG.get(user_lang, _DAILY_REWARD_MSG["ua"]).format(stars=stars_given)
                             try:
-                                await _bot.send_message(
-                                    promo.user_id,
-                                    f"⭐ <b>+{stars_given} зірки!</b>\n\nДобова нагорода за фразу в профілі.",
-                                    parse_mode="HTML",
-                                )
+                                await _bot.send_message(promo.user_id, txt, parse_mode="HTML")
                             except Exception:
                                 pass
                     except Exception as e:
