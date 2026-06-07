@@ -119,7 +119,7 @@ def _hours_until_midnight() -> int:
 
 
 async def _bio_promo_hourly_checker() -> None:
-    """Every hour: update is_active for all participants. No rewards here."""
+    """Every hour: update is_active + reward_tier for all participants. No rewards here."""
     from datetime import timedelta
     await asyncio.sleep(120)
     while True:
@@ -135,11 +135,12 @@ async def _bio_promo_hourly_checker() -> None:
             log.info("bio_promo hourly check: %d participants", len(promos))
             for promo in promos:
                 try:
-                    has_bio = await _check_bio_has_promo(promo.user_id)
+                    has_bio, tier = await _check_bio_tier(promo.user_id)
                     async with AsyncSessionLocal() as s:
                         p = await s.get(BioPromo, promo.user_id)
                         if p:
                             p.is_active = has_bio
+                            p.reward_tier = tier if tier >= 2 else (2 if has_bio else p.reward_tier)
                             p.last_check_at = now
                             await s.commit()
                 except Exception as e:
@@ -153,63 +154,67 @@ async def _bio_promo_hourly_checker() -> None:
 
 
 async def _bio_promo_midnight_rewarder() -> None:
-    """At 00:00 UTC daily: reward 1⭐ to every user whose bio is active."""
-    from datetime import timedelta
+    """Once per UTC calendar day: reward ⭐ to every user whose bio is active.
+    Polls every 60 s so server restarts never miss a day (no long sleep until midnight).
+    """
+    from datetime import date as _date
+    _last_run_date: _date | None = None
+    await asyncio.sleep(90)  # wait for DB / bot to be ready
     while True:
         try:
             now = datetime.utcnow()
-            tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-            secs = (tomorrow - now).total_seconds()
-            log.info("bio_promo midnight rewarder: sleeping %.0fs until 00:00 UTC", secs)
-            await asyncio.sleep(secs)
+            today = now.date()
 
-            reward_time = datetime.utcnow()
-            today_start = reward_time.replace(hour=0, minute=0, second=0, microsecond=0)
+            if today != _last_run_date:
+                today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
-            async with AsyncSessionLocal() as s:
-                promos = (await s.execute(
-                    select(BioPromo).where(BioPromo.is_active == True)
-                )).scalars().all()
+                async with AsyncSessionLocal() as s:
+                    promos = (await s.execute(
+                        select(BioPromo).where(BioPromo.is_active == True)
+                    )).scalars().all()
 
-            log.info("bio_promo midnight reward: %d active participants", len(promos))
-            for promo in promos:
-                try:
-                    async with AsyncSessionLocal() as s:
-                        async with s.begin():
-                            p = (await s.execute(
-                                select(BioPromo).where(BioPromo.user_id == promo.user_id).with_for_update()
-                            )).scalar_one_or_none()
-                            if not p or not p.is_active:
-                                continue
-                            # Skip if already rewarded today (server restart safety)
-                            if p.last_rewarded_at and p.last_rewarded_at >= today_start:
-                                continue
-                            user = await s.get(User, p.user_id)
-                            if not user or user.is_banned:
-                                continue
-                            stars = p.reward_tier if p.reward_tier >= 1 else 1
-                            user.balance_stars += stars
-                            user.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD)) * stars
-                            p.last_rewarded_at = reward_time
-                            p.total_rewarded += stars
-                    if _bot:
-                        stars_given = promo.reward_tier if promo.reward_tier >= 1 else 1
-                        try:
-                            await _bot.send_message(
-                                promo.user_id,
-                                f"⭐ <b>+{stars_given} {'зірка' if stars_given == 1 else 'зірки'}!</b>\n\nДобова нагорода за @LEMUR_SHOP в профілі.",
-                                parse_mode="HTML",
-                            )
-                        except Exception:
-                            pass
-                except Exception as e:
-                    log.warning("bio_promo midnight reward error user=%s: %s", promo.user_id, e)
-                await asyncio.sleep(0.3)
+                log.info("bio_promo daily reward: %d active participants (date=%s)", len(promos), today)
+                for promo in promos:
+                    try:
+                        async with AsyncSessionLocal() as s:
+                            async with s.begin():
+                                p = (await s.execute(
+                                    select(BioPromo).where(BioPromo.user_id == promo.user_id).with_for_update()
+                                )).scalar_one_or_none()
+                                if not p or not p.is_active:
+                                    continue
+                                # Skip if already rewarded today
+                                if p.last_rewarded_at and p.last_rewarded_at >= today_start:
+                                    continue
+                                user = await s.get(User, p.user_id)
+                                if not user or user.is_banned:
+                                    continue
+                                stars = max(2, p.reward_tier)  # always ≥ 2 (tier 1 removed from UI)
+                                user.balance_stars += stars
+                                user.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD)) * stars
+                                p.last_rewarded_at = now
+                                p.total_rewarded += stars
+                        if _bot:
+                            stars_given = max(2, promo.reward_tier)
+                            try:
+                                await _bot.send_message(
+                                    promo.user_id,
+                                    f"⭐ <b>+{stars_given} зірки!</b>\n\nДобова нагорода за фразу в профілі.",
+                                    parse_mode="HTML",
+                                )
+                            except Exception:
+                                pass
+                    except Exception as e:
+                        log.warning("bio_promo daily reward error user=%s: %s", promo.user_id, e)
+                    await asyncio.sleep(0.3)
+
+                _last_run_date = today
+                log.info("bio_promo daily reward done for %s", today)
         except asyncio.CancelledError:
             raise
         except Exception as e:
             log.warning("bio_promo_midnight_rewarder error: %s", e)
-            await asyncio.sleep(60)
+        await asyncio.sleep(60)  # poll every minute
 
 
 async def _keepalive(url: str) -> None:
