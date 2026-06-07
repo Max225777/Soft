@@ -1305,16 +1305,16 @@ async def api_admin_bio_promo_list(
     async with AsyncSessionLocal() as s:
         total = await s.scalar(select(func.count(BioPromo.user_id))) or 0
         rows = (await s.execute(
-            select(BioPromo, User.first_name, User.username)
+            select(BioPromo, User.full_name, User.username)
             .join(User, User.id == BioPromo.user_id)
             .order_by(BioPromo.joined_at.desc())
             .offset(offset).limit(limit)
         )).all()
     items = []
-    for promo, first_name, username in rows:
+    for promo, full_name, username in rows:
         items.append({
             "user_id":         promo.user_id,
-            "name":            first_name or str(promo.user_id),
+            "name":            full_name or str(promo.user_id),
             "username":        username,
             "is_active":       promo.is_active,
             "reward_tier":     promo.reward_tier,
