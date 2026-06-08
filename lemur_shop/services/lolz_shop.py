@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 # Конфіг категорій: country code, назва, прапор, ЦІНА В МАГАЗИНІ
 CATEGORIES: dict[str, dict] = {
     "us": {"country": "US", "title": "USA",        "flag": "🇺🇸", "price_usd": 0.65, "discount_stars": 25,  "pmax_tiers": [0.50]},
-    "de": {"country": "DE", "title": "Germany",    "flag": "🇩🇪", "price_usd": 1.95, "discount_stars": 115, "pmax_tiers": [1.20]},
+    "de": {"country": "DE", "title": "Germany",    "flag": "🇩🇪", "price_usd": 1.95, "discount_stars": 115, "pmax_tiers": [1.50]},
     "ua": {"country": "UA", "title": "Ukraine",    "flag": "🇺🇦", "price_usd": 3.25, "discount_stars": 150, "pmax_tiers": [2.50]},
     "kz": {"country": "KZ", "title": "Kazakhstan", "flag": "🇰🇿", "price_usd": 3.25, "discount_stars": 150, "pmax_tiers": [1.50, 2.00]},
 }
