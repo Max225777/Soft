@@ -1039,7 +1039,7 @@ async def api_admin_stats(
             .order_by(func.count(Order.id).desc())
         )).all()
 
-    ACCOUNT_CATS = {"us", "ua", "kz"}
+    ACCOUNT_CATS = {"us", "ua", "kz", "de"}
 
     def _row(r) -> dict:
         rev  = float(r[2] or 0)
