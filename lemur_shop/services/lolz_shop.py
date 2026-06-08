@@ -72,8 +72,8 @@ SKIP_ERRORS = (
 )
 
 USA_PMAX = 0.50
-USA_MACRO_STEPS = 5
-USA_MICRO_ATTEMPTS = 5
+USA_MACRO_STEPS = 8
+USA_MICRO_ATTEMPTS = 15
 
 
 async def _try_buy_batch(items: list[dict], max_cost: float, micro_limit: int) -> tuple[str, int, float] | None:
@@ -120,7 +120,7 @@ async def auto_buy_category(category: str) -> tuple[str, int, float]:
             for attempt in range(3):
                 try:
                     items = await lolz.search_telegram(
-                        country=country, pmax=USA_PMAX, pmin=pmin, count=20,
+                        country=country, pmax=USA_PMAX, pmin=pmin, count=50,
                         spam="no", password=None,
                     )
                     break  # успішно — виходимо з retry
