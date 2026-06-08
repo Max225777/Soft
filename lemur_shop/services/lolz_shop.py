@@ -71,14 +71,22 @@ SKIP_ERRORS = (
     "более 20",      # "более 20 ошибок"
 )
 
+BLACKLIST_MSG = "черный список"  # "Продавец добавил вас в черный список"
+
 USA_PMAX = 0.50
 USA_MACRO_STEPS = 8
 USA_MICRO_ATTEMPTS = 15
 
 
-async def _try_buy_batch(items: list[dict], max_cost: float, micro_limit: int) -> tuple[str, int, float] | None:
-    """Пробує купити з батчу акаунтів, повертає (phone, item_id, price) або None."""
+async def _try_buy_batch(
+    items: list[dict], max_cost: float, micro_limit: int
+) -> tuple[tuple[str, int, float] | None, float]:
+    """Пробує купити з батчу.
+    Повертає (result_or_None, max_blacklisted_price).
+    max_blacklisted_price > 0 якщо були помилки ЧС — caller може bumping pmin.
+    """
     micro = 0
+    max_bl_price: float = 0.0
     for item in items:
         if micro >= micro_limit:
             break
@@ -89,18 +97,20 @@ async def _try_buy_batch(items: list[dict], max_cost: float, micro_limit: int) -
         micro += 1
         try:
             phone = await auto_buy(item_id, lolz_price)
-            return phone, item_id, lolz_price
+            return (phone, item_id, lolz_price), max_bl_price
         except (LolzApiError, ValueError) as e:
             err_text = str(e).lower()
-            # 403 від fast-buy = проблема з акаунтом (перевірка/заблоковано), не з API-ключем
+            is_blacklist = BLACKLIST_MSG in str(e)
             is_skip = any(skip in err_text for skip in SKIP_ERRORS) or (
                 isinstance(e, LolzApiError) and e.status == 403
             )
             if is_skip:
+                if is_blacklist:
+                    max_bl_price = max(max_bl_price, lolz_price)
                 log.warning("Item #%s skipped (%s), micro %d/%d", item_id, e, micro, micro_limit)
                 continue
             raise
-    return None
+    return None, max_bl_price
 
 
 async def auto_buy_category(category: str) -> tuple[str, int, float]:
@@ -137,14 +147,19 @@ async def auto_buy_category(category: str) -> tuple[str, int, float]:
             log.info("USA macro %d: %d items, cheapest=%.2f", macro, len(items_sorted),
                      float(items_sorted[0].get("price") or items_sorted[0].get("price_usd") or 0))
 
-            result = await _try_buy_batch(items_sorted, max_cost=USA_PMAX, micro_limit=USA_MICRO_ATTEMPTS)
+            result, max_bl_price = await _try_buy_batch(items_sorted, max_cost=USA_PMAX, micro_limit=USA_MICRO_ATTEMPTS)
             if result:
                 return result
 
-            # усі мікро провалились — підвищуємо pmin на $0.01 від найдорожчого з батчу
-            last_price = float(items_sorted[-1].get("price") or items_sorted[-1].get("price_usd") or 0)
-            pmin = round(last_price + 0.01, 2)
-            log.info("USA macro %d exhausted, bumping pmin to %.2f", macro, pmin)
+            # Якщо були ЧС-помилки — стрибаємо pmin одразу за ціну останнього відмовника
+            if max_bl_price > 0:
+                new_pmin = round(max_bl_price + 0.02, 2)
+                pmin = max(pmin or 0.0, new_pmin)
+                log.info("USA macro %d: blacklisted sellers up to %.2f → pmin=%.2f", macro, max_bl_price, pmin)
+            else:
+                last_price = float(items_sorted[-1].get("price") or items_sorted[-1].get("price_usd") or 0)
+                pmin = round(last_price + 0.01, 2)
+                log.info("USA macro %d exhausted, bumping pmin to %.2f", macro, pmin)
 
         raise LolzApiError("No purchasable accounts found after trying all candidates")
 
@@ -168,7 +183,7 @@ async def auto_buy_category(category: str) -> tuple[str, int, float]:
     log.info("Price range for %s: top5=%s", category,
              [float(i.get("price") or i.get("price_usd") or 0) for i in items_sorted[:5]])
 
-    result = await _try_buy_batch(items_sorted, max_cost=shop_price, micro_limit=5)
+    result, _ = await _try_buy_batch(items_sorted, max_cost=shop_price, micro_limit=5)
     if result:
         return result
 

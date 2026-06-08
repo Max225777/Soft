@@ -521,6 +521,20 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
         else:
             detail = "buy_failed"
         log.warning("auto_buy_category failed for %s: %s", body.category, e)
+        if _bot and settings.ADMIN_IDS:
+            cat_label = body.category.upper()
+            err_txt = (
+                f"⚠️ <b>Помилка покупки акаунту!</b>\n\n"
+                f"👤 Покупець: <code>{user.id}</code>"
+                + (f" (@{user.username})" if user.username else "") + "\n"
+                f"🌍 Категорія: <b>{cat_label}</b>\n"
+                f"❌ Помилка: <code>{str(e)[:300]}</code>"
+            )
+            for admin_id in settings.ADMIN_IDS:
+                try:
+                    await _bot.send_message(admin_id, err_txt, parse_mode="HTML")
+                except Exception:
+                    pass
         raise HTTPException(status_code=502, detail=detail)
 
     lolz_cost = Decimal(str(round(lolz_price, 2)))
