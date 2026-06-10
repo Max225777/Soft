@@ -116,6 +116,7 @@ export interface Me {
   balance_usd: number; balance_uah: number; balance_rub: number
   rate_uah: number; rate_rub: number
   orders_count: number; is_admin: boolean; preview_mode: boolean
+  bot_username: string
 }
 export interface SmmService {
   key: string; service_id: number | string; title: string; flag: string; description: string

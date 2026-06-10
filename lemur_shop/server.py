@@ -447,6 +447,7 @@ async def api_me(user: User = Depends(get_current_user)):
         "orders_count":  orders_count,
         "is_admin":      user.id in settings.ADMIN_IDS,
         "preview_mode":  settings.PREVIEW_MODE,
+        "bot_username":  _BOT_USERNAME or "",
     }
 
 
