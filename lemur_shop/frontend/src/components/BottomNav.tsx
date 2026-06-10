@@ -43,13 +43,15 @@ const icons: Record<Exclude<Tab, 'shop'>, JSX.Element> = {
 export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
   const T = getT(lang)
 
-  const leftTabs:  Tab[] = ['profile', 'balance']
-  const rightTabs: Tab[] = isAdmin ? ['admin'] : []
+  const leftTabs:  Tab[] = ['profile']
+  const rightTabs: Tab[] = isAdmin ? ['balance', 'admin'] : ['balance']
+
+  const strip = (s: string) => s.replace(/^[^\p{L}\d]+/u, '').trim()
 
   const labels: Record<Tab, string> = {
-    shop:    T.shop,
-    profile: T.profile,
-    balance: 'Баланс/Реф',
+    shop:    strip(T.shop),
+    profile: strip(T.profile),
+    balance: strip(T.balance_tab),
     admin:   'Адмін',
   }
 
@@ -108,8 +110,6 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
         </button>
       ))}
 
-      {/* Симетричний заповнювач якщо нема правих вкладок */}
-      {rightTabs.length === 0 && <div style={{ flex: 1 }} />}
     </nav>
   )
 }
