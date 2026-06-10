@@ -347,45 +347,48 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
 
         {cats.length === 0 ? (
           <>
-            <div className="card"><div className="skeleton" style={{ height: 80 }} /></div>
-            <div className="card"><div className="skeleton" style={{ height: 80 }} /></div>
+            <div className="card"><div className="skeleton" style={{ height: 72 }} /></div>
+            <div className="card"><div className="skeleton" style={{ height: 72 }} /></div>
           </>
         ) : (
-          cats.map(cat => {
-            return (
-              <div key={cat.category} className="card" style={{ padding: '14px 16px' }}>
-                {cat.discount_stars && (
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#ff6b2b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    🎉 <span>Скидка в честь открытия</span>
-                    <span style={{ marginLeft: 4, textDecoration: 'line-through', color: 'var(--muted)', fontWeight: 400 }}>⭐{cat.price_stars}</span>
-                    <span style={{ color: '#ff6b2b' }}>→ ⭐{cat.discount_stars}</span>
-                  </div>
-                )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ fontSize: 40, flexShrink: 0, lineHeight: 1 }}>{cat.flag}</div>
-                  <div style={{ flex: 1 }}>
+          <>
+            {cats.some(c => c.discount_stars) && (
+              <div style={{
+                fontSize: 12, fontWeight: 700, color: '#ff6b2b',
+                background: 'rgba(255,107,43,.1)', border: '1px solid rgba(255,107,43,.25)',
+                borderRadius: 10, padding: '8px 14px', textAlign: 'center', marginBottom: 4,
+              }}>
+                🎉 Акция открытия магазина — скидки на все аккаунты
+              </div>
+            )}
+            {cats.map(cat => (
+              <div key={cat.category} className="card" style={{ padding: '12px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                  <div style={{ fontSize: 36, flexShrink: 0, lineHeight: 1 }}>{cat.flag}</div>
+                  <div>
                     <div style={{ fontWeight: 800, fontSize: 16 }}>{cat.title}</div>
                     <div className="muted" style={{ fontSize: 11, marginTop: 1 }}>Telegram account</div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                    <div className="price-pill" style={{ justifyContent: 'center', fontSize: 14, padding: '8px 10px' }}>
-                      {cat.discount_stars ? (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span style={{ fontWeight: 800, color: '#ff6b2b' }}>⭐{cat.discount_stars}</span>
-                          <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: 11 }}>(${(cat.discount_stars * 0.013).toFixed(2)})</span>
-                        </span>
-                      ) : localPrice(cat.price_stars, cat.price_usd)}
-                    </div>
-                    <button
-                      className="btn btn-primary"
-                      style={{ width: 'auto', padding: '9px 18px', fontSize: 14 }}
-                      onClick={() => setConfirmCat(cat)}
-                    >{T.buy}</button>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="price-pill" style={{ flex: 1, justifyContent: 'center', padding: '8px 10px' }}>
+                    {cat.discount_stars ? (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontSize: 12 }}>⭐{cat.price_stars}</span>
+                        <span style={{ fontWeight: 800, color: '#ff6b2b', fontSize: 15 }}>⭐{cat.discount_stars}</span>
+                        <span style={{ color: 'var(--muted)', fontSize: 11 }}>(${(cat.discount_stars * 0.013).toFixed(2)})</span>
+                      </span>
+                    ) : localPrice(cat.price_stars, cat.price_usd)}
                   </div>
+                  <button
+                    className="btn btn-primary"
+                    style={{ width: 'auto', padding: '9px 20px', fontSize: 14, flexShrink: 0 }}
+                    onClick={() => setConfirmCat(cat)}
+                  >{T.buy}</button>
                 </div>
               </div>
-            )
-          })
+            ))}
+          </>
         )}
 
       </div>
