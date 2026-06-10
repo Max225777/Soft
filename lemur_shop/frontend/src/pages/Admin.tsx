@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage } from '../api'
+import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats } from '../api'
 
 type DateMode = 'today' | 'all' | 'custom'
 
@@ -14,7 +14,7 @@ function useOverviewStats(dateFrom: string, dateTo: string) {
   return { stats, loading, reload }
 }
 
-type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'broadcast' | 'promo'
+type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'broadcast' | 'promo' | 'referrals'
 
 const CATEGORY_FLAGS: Record<string, string> = { us: '🇺🇸', ua: '🇺🇦', kz: '🇰🇿' }
 
@@ -754,6 +754,75 @@ function Broadcast() {
   )
 }
 
+// ── Referrals tab ─────────────────────────────────────────────────────────────
+function ReferralsTab() {
+  const [data, setData] = useState<AdminReferralStats | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    adminApi.referralStats().then(setData).finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <p className="muted">Завантаження...</p>
+  if (!data) return <p className="muted">Помилка завантаження</p>
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Загальна статистика */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div className="card" style={{ textAlign: 'center', padding: '12px 8px' }}>
+          <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>Сьогодні запрошено</div>
+          <div style={{ fontWeight: 800, fontSize: 28, color: 'var(--orange)' }}>{data.invited_today}</div>
+        </div>
+        <div className="card" style={{ textAlign: 'center', padding: '12px 8px' }}>
+          <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>Всього через реф</div>
+          <div style={{ fontWeight: 800, fontSize: 28, color: 'var(--orange)' }}>{data.invited_total}</div>
+        </div>
+      </div>
+
+      {/* Таблиця реферерів */}
+      {data.referrers.length === 0 ? (
+        <p className="muted" style={{ fontSize: 13 }}>Рефералів ще немає</p>
+      ) : (
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          {/* Заголовок */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1fr 40px 40px 56px',
+            gap: 4, padding: '8px 12px',
+            borderBottom: '1px solid var(--border)',
+            fontSize: 11, color: 'var(--muted)', fontWeight: 600,
+          }}>
+            <span>Реферер</span>
+            <span style={{ textAlign: 'center' }}>Запр.</span>
+            <span style={{ textAlign: 'center' }}>Купили</span>
+            <span style={{ textAlign: 'right' }}>Зірки</span>
+          </div>
+          {data.referrers.map((r, i) => (
+            <div key={r.id} style={{
+              display: 'grid', gridTemplateColumns: '1fr 40px 40px 56px',
+              gap: 4, padding: '9px 12px', alignItems: 'center',
+              borderBottom: i < data.referrers.length - 1 ? '1px solid var(--border)' : 'none',
+              background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.02)',
+            }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>{r.name}</div>
+                {r.username && <div className="muted" style={{ fontSize: 11 }}>@{r.username}</div>}
+              </div>
+              <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 14 }}>{r.invited}</div>
+              <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 14, color: r.buyers > 0 ? 'var(--orange)' : 'var(--muted)' }}>
+                {r.buyers}
+              </div>
+              <div style={{ textAlign: 'right', fontWeight: 700, fontSize: 13, color: '#FFD700' }}>
+                {r.earned_stars > 0 ? `⭐${r.earned_stars}` : '—'}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main Admin page ───────────────────────────────────────────────────────────
 const TABS: { id: AdminTab; label: string }[] = [
   { id: 'overview',  label: '📊 Огляд' },
@@ -762,6 +831,7 @@ const TABS: { id: AdminTab; label: string }[] = [
   { id: 'topups',    label: '💰 Поповн.' },
   { id: 'broadcast', label: '📢 Розсилка' },
   { id: 'promo',     label: '⭐ Промо' },
+  { id: 'referrals', label: '👥 Рефи' },
 ]
 
 export default function Admin() {
@@ -811,6 +881,7 @@ export default function Admin() {
       {tab === 'topups'    && <Topups />}
       {tab === 'broadcast' && <Broadcast />}
       {tab === 'promo'     && <BioPromoTab />}
+      {tab === 'referrals' && <ReferralsTab />}
     </div>
   )
 }

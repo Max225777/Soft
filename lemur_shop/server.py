@@ -1370,6 +1370,82 @@ async def api_admin_broadcast_status(admin: User = Depends(require_admin)):
     return _broadcast_status
 
 
+@app.get("/api/admin/referrals")
+async def api_admin_referrals(admin: User = Depends(require_admin)):
+    from datetime import date, timezone
+    async with AsyncSessionLocal() as s:
+        today_start = datetime.combine(date.today(), datetime.min.time())
+
+        # Запрошені сьогодні (referred_by_id IS NOT NULL і created_at >= сьогодні)
+        invited_today = await s.scalar(
+            select(func.count()).where(
+                User.referred_by_id.isnot(None),
+                User.created_at >= today_start,
+            )
+        ) or 0
+
+        # Всього запрошених через реф
+        invited_total = await s.scalar(
+            select(func.count()).where(User.referred_by_id.isnot(None))
+        ) or 0
+
+        # Топ реферерів: хто скільки запросив + скільки з них купили
+        rows = await s.execute(
+            select(
+                User.referred_by_id,
+                func.count(User.id).label("invited"),
+            )
+            .where(User.referred_by_id.isnot(None))
+            .group_by(User.referred_by_id)
+            .order_by(func.count(User.id).desc())
+            .limit(50)
+        )
+        referrer_rows = rows.all()
+
+        if not referrer_rows:
+            return {"invited_today": invited_today, "invited_total": invited_total, "referrers": []}
+
+        referrer_ids = [r.referred_by_id for r in referrer_rows]
+
+        # Дані рефереров
+        referrers_data = (await s.execute(
+            select(User.id, User.full_name, User.username).where(User.id.in_(referrer_ids))
+        )).all()
+        referrer_map = {r.id: r for r in referrers_data}
+
+        # Зароблені зірки кожним
+        earned_rows = (await s.execute(
+            select(ReferralPayout.referrer_id, func.sum(ReferralPayout.amount_stars).label("stars"))
+            .where(ReferralPayout.referrer_id.in_(referrer_ids))
+            .group_by(ReferralPayout.referrer_id)
+        )).all()
+        earned_map = {r.referrer_id: int(r.stars) for r in earned_rows}
+
+        # Кількість покупців серед запрошених кожного
+        buyers_rows = (await s.execute(
+            select(User.referred_by_id, func.count(func.distinct(Order.user_id)).label("buyers"))
+            .join(Order, Order.user_id == User.id)
+            .where(User.referred_by_id.in_(referrer_ids), Order.status == "delivered")
+            .group_by(User.referred_by_id)
+        )).all()
+        buyers_map = {r.referred_by_id: r.buyers for r in buyers_rows}
+
+        result = []
+        for row in referrer_rows:
+            rid = row.referred_by_id
+            ref = referrer_map.get(rid)
+            result.append({
+                "id":       rid,
+                "name":     (ref.full_name or ref.username or str(rid)) if ref else str(rid),
+                "username": ref.username if ref else None,
+                "invited":  row.invited,
+                "buyers":   buyers_map.get(rid, 0),
+                "earned_stars": earned_map.get(rid, 0),
+            })
+
+    return {"invited_today": invited_today, "invited_total": invited_total, "referrers": result}
+
+
 @app.get("/api/admin/bio-promo")
 async def api_admin_bio_promo_list(
     page: int = 1, limit: int = 30,

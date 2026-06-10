@@ -113,6 +113,7 @@ export const adminApi = {
   broadcastStatus: () => req<BroadcastStatus>('/admin/broadcast/status'),
   resetStats:      () => req<{ ok: boolean }>('/admin/reset-stats', { method: 'POST' }),
   bioPromoList:    (page: number, limit = 30) => req<BioPromoParticipantsPage>(`/admin/bio-promo?page=${page}&limit=${limit}`),
+  referralStats:   () => req<AdminReferralStats>('/admin/referrals'),
 }
 
 export interface Me {
@@ -186,6 +187,15 @@ export interface AdminTopupRow {
   admin_id: number; created_at: string
 }
 export interface AdminTopupsPage { total: number; page: number; pages: number; topups: AdminTopupRow[] }
+
+export interface AdminReferrerRow {
+  id: number; name: string; username: string | null
+  invited: number; buyers: number; earned_stars: number
+}
+export interface AdminReferralStats {
+  invited_today: number; invited_total: number
+  referrers: AdminReferrerRow[]
+}
 
 declare global {
   interface Window {
