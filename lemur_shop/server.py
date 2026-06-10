@@ -580,12 +580,12 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
         txt = (
             f"🛒 <b>Нова покупка!</b>\n\n"
             f"👤 {uname} (<code>{user.id}</code>)\n"
-            f"📦 {flag} Telegram {title}\n"
+            f"📦 {flag} {title}\n"
             f"💫 Ціна: <b>⭐{shop_price_stars}</b> (~${stars_usd_val:.2f})\n"
-            f"💸 Витрати (Lolz): ${float(lolz_cost):.2f}\n"
+            f"💸 Витрати: ${float(lolz_cost):.2f}\n"
             f"💰 Прибуток: <b>${float(profit):.2f}</b>\n\n"
             f"📱 Номер: <code>{phone}</code>\n"
-            f"🆔 Lolz ID: <code>{lolz_item_id}</code>"
+            f"🆔 ID: <code>{lolz_item_id}</code>"
         )
         for admin_id in settings.ADMIN_IDS:
             try:
