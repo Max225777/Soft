@@ -40,6 +40,7 @@ STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 _bot: Bot | None = None
 _dp: Dispatcher | None = None
 _polling_task: asyncio.Task | None = None
+_BOT_USERNAME: str = "LEMUR_SHOP_BOT"
 _keepalive_task: asyncio.Task | None = None
 _bio_promo_task: asyncio.Task | None = None
 _bio_promo_midnight_task: asyncio.Task | None = None
