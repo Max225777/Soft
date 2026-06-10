@@ -11,7 +11,7 @@ interface Props {
 }
 
 const shopIcon = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" width="24" height="24">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="28" height="28">
     <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
     <line x1="3" y1="6" x2="21" y2="6"/>
     <path d="M16 10a4 4 0 01-8 0"/>
@@ -72,15 +72,15 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
       ))}
 
       {/* Центр — FAB */}
-      <div style={{ flex: 1.1, position: 'relative', overflow: 'visible' }}>
+      <div style={{ flex: 1.6, position: 'relative', overflow: 'visible' }}>
         <button
           onClick={() => onChange('shop')}
           style={{
             position: 'absolute',
             left: '50%',
             top: '50%',
-            transform: 'translate(-50%, calc(-50% - 5px))',
-            width: 70, height: 70,
+            transform: 'translate(-50%, -50%)',
+            width: 76, height: 76,
             borderRadius: '50%',
             background: active === 'shop'
               ? 'linear-gradient(135deg, #FF8C42, #FF5500)'
@@ -102,10 +102,11 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
         >
           {shopIcon}
           <span style={{
-            fontSize: 10, fontWeight: 700,
-            color: 'white',
+            fontSize: 11, fontWeight: 700,
+            color: 'rgba(255,255,255,.95)',
             lineHeight: 1,
             userSelect: 'none',
+            letterSpacing: 0.2,
           }}>
             Магазин
           </span>
