@@ -58,7 +58,8 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
   return (
     <nav className="nav" style={{ overflow: 'visible', alignItems: 'stretch', gap: 0 }}>
 
-      {/* Ліво */}
+      {/* Ліво — спейсер + профіль */}
+      <div style={{ flex: 0.7 }} />
       {leftTabs.map(tab => (
         <button
           key={tab}
