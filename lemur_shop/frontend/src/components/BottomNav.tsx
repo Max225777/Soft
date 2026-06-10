@@ -11,7 +11,7 @@ interface Props {
 }
 
 const shopIcon = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" width="26" height="26">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" width="24" height="24">
     <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
     <line x1="3" y1="6" x2="21" y2="6"/>
     <path d="M16 10a4 4 0 01-8 0"/>
@@ -49,19 +49,21 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
   const strip = (s: string) => s.replace(/^[^\p{L}\d]+/u, '').trim()
 
   const labels: Record<Tab, string> = {
-    shop:    strip(T.shop),
+    shop:    'Магазин',
     profile: strip(T.profile),
     balance: 'Баланс/Реф',
     admin:   'Адмін',
   }
 
   return (
-    <nav className="nav" style={{ overflow: 'visible', alignItems: 'stretch' }}>
+    <nav className="nav" style={{ overflow: 'visible', alignItems: 'flex-end', paddingBottom: 6 }}>
+
       {/* Ліво */}
       {leftTabs.map(tab => (
         <button
           key={tab}
           className={`nav-item ${active === tab ? 'active' : ''}`}
+          style={{ paddingBottom: 0 }}
           onClick={() => onChange(tab)}
         >
           {icons[tab as Exclude<Tab, 'shop'>]}
@@ -69,33 +71,46 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
         </button>
       ))}
 
-      {/* Центр — FAB магазину */}
-      <div style={{ flex: 1.2, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      {/* Центр — FAB */}
+      <div style={{
+        flex: 1.2,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'flex-end',
+        gap: 4, paddingBottom: 0,
+      }}>
         <button
           onClick={() => onChange('shop')}
           style={{
-            position: 'absolute',
-            bottom: 10,
-            width: 56, height: 56,
+            width: 54, height: 54,
             borderRadius: '50%',
+            transform: 'translateY(-10px)',
             background: active === 'shop'
               ? 'linear-gradient(135deg, #FF8C42, #FF5500)'
               : 'linear-gradient(135deg, #FF6B2B, #E8530A)',
             border: active === 'shop'
               ? '2.5px solid rgba(255,255,255,.35)'
-              : '2.5px solid rgba(255,107,43,.25)',
+              : '2.5px solid rgba(255,107,43,.2)',
             boxShadow: active === 'shop'
-              ? '0 6px 24px rgba(255,107,43,.75), 0 0 0 6px rgba(255,107,43,.12)'
-              : '0 4px 18px rgba(255,107,43,.45)',
+              ? '0 6px 24px rgba(255,107,43,.75), 0 0 0 5px rgba(255,107,43,.12)'
+              : '0 4px 18px rgba(255,107,43,.5)',
             cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: 'white',
             transition: 'all .2s',
-            transform: active === 'shop' ? 'scale(1.08)' : 'scale(1)',
+            flexShrink: 0,
           }}
         >
           {shopIcon}
         </button>
+        <span style={{
+          fontSize: 11, fontWeight: active === 'shop' ? 700 : 500,
+          color: active === 'shop' ? 'var(--orange)' : 'var(--muted)',
+          marginTop: -6,
+          transition: 'color .18s',
+          userSelect: 'none',
+        }}>
+          {labels['shop']}
+        </span>
       </div>
 
       {/* Право */}
@@ -103,6 +118,7 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
         <button
           key={tab}
           className={`nav-item ${active === tab ? 'active' : ''}`}
+          style={{ paddingBottom: 0 }}
           onClick={() => onChange(tab)}
         >
           {icons[tab as Exclude<Tab, 'shop'>]}
