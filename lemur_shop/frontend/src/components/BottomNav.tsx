@@ -73,46 +73,43 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
 
       {/* Центр — FAB */}
       <div style={{ flex: 1.1, position: 'relative', overflow: 'visible' }}>
-        <div style={{
-          position: 'absolute',
-          left: '50%',
-          top: '50%',
-          transform: 'translate(-50%, calc(-50% - 5px))',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-        }}>
-          <button
-            onClick={() => onChange('shop')}
-            style={{
-              width: 52, height: 52,
-              borderRadius: '50%',
-              background: active === 'shop'
-                ? 'linear-gradient(135deg, #FF8C42, #FF5500)'
-                : 'linear-gradient(135deg, #FF6B2B, #E8530A)',
-              border: active === 'shop'
-                ? '2px solid rgba(255,255,255,.35)'
-                : '2px solid rgba(255,107,43,.2)',
-              boxShadow: active === 'shop'
-                ? '0 4px 20px rgba(255,107,43,.75)'
-                : '0 3px 14px rgba(255,107,43,.45)',
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'white',
-              transition: 'all .2s',
-              flexShrink: 0,
-            }}
-          >
-            {shopIcon}
-          </button>
+        <button
+          onClick={() => onChange('shop')}
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, calc(-50% - 5px))',
+            width: 70, height: 70,
+            borderRadius: '50%',
+            background: active === 'shop'
+              ? 'linear-gradient(135deg, #FF8C42, #FF5500)'
+              : 'linear-gradient(135deg, #FF6B2B, #E8530A)',
+            border: active === 'shop'
+              ? '2.5px solid rgba(255,255,255,.4)'
+              : '2.5px solid rgba(255,107,43,.25)',
+            boxShadow: active === 'shop'
+              ? '0 5px 22px rgba(255,107,43,.8)'
+              : '0 3px 16px rgba(255,107,43,.5)',
+            cursor: 'pointer',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            gap: 3,
+            color: 'white',
+            transition: 'all .2s',
+            flexShrink: 0,
+          }}
+        >
+          {shopIcon}
           <span style={{
-            fontSize: 11, fontWeight: active === 'shop' ? 700 : 500,
-            color: active === 'shop' ? 'var(--orange)' : 'var(--muted)',
-            transition: 'color .18s',
+            fontSize: 10, fontWeight: 700,
+            color: 'white',
+            lineHeight: 1,
             userSelect: 'none',
-            whiteSpace: 'nowrap',
           }}>
-            {labels['shop']}
+            Магазин
           </span>
-        </div>
+        </button>
       </div>
 
       {/* Право */}
