@@ -51,7 +51,7 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
   const labels: Record<Tab, string> = {
     shop:    strip(T.shop),
     profile: strip(T.profile),
-    balance: strip(T.balance_tab),
+    balance: 'Баланс/Реф',
     admin:   'Адмін',
   }
 
