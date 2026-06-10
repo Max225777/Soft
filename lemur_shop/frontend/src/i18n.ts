@@ -135,6 +135,15 @@ const UA = {
   bio_promo_phrase:       'Дешеві акаунти та накрутка тільки в @LEMUR_SHOP',
   bio_promo_rewarded2:    '✅ +2⭐ зараховано!',
   bio_promo_active2:      '✅ Активно (+2⭐/день)',
+  referral:        '👥 Реферали',
+  ref_desc:        'Запроси друга — отримай 10⭐ за кожну його покупку.',
+  ref_joined:      'Запрошено',
+  ref_buyers:      'Зробили покупку',
+  ref_earned:      'Зароблено зірок',
+  ref_link:        'Твоє реферальне посилання',
+  ref_copy:        'Скопіювати посилання',
+  ref_copied:      'Скопійовано!',
+  ref_how:         'За кожну покупку запрошеного — +⭐10 на твій баланс.',
 }
 
 const RU: typeof UA = {
@@ -274,6 +283,15 @@ const RU: typeof UA = {
   bio_promo_phrase:       'Дешёвые аккаунты и накрутка только в @LEMUR_SHOP',
   bio_promo_rewarded2:    '✅ +2⭐ начислено!',
   bio_promo_active2:      '✅ Активно (+2⭐/день)',
+  referral:        '👥 Рефералы',
+  ref_desc:        'Пригласи друга — получи 10⭐ за каждую его покупку.',
+  ref_joined:      'Приглашено',
+  ref_buyers:      'Сделали покупку',
+  ref_earned:      'Заработано звёзд',
+  ref_link:        'Твоя реферальная ссылка',
+  ref_copy:        'Скопировать ссылку',
+  ref_copied:      'Скопировано!',
+  ref_how:         'За каждую покупку приглашённого — +⭐10 на твой баланс.',
 }
 
 const EN: typeof UA = {
@@ -413,6 +431,15 @@ const EN: typeof UA = {
   bio_promo_phrase:       'Cheap accounts and promotion only at @LEMUR_SHOP',
   bio_promo_rewarded2:    '✅ +2⭐ rewarded!',
   bio_promo_active2:      '✅ Active (+2⭐/day)',
+  referral:        '👥 Referrals',
+  ref_desc:        'Invite a friend — get 10⭐ for every purchase they make.',
+  ref_joined:      'Invited',
+  ref_buyers:      'Made a purchase',
+  ref_earned:      'Stars earned',
+  ref_link:        'Your referral link',
+  ref_copy:        'Copy link',
+  ref_copied:      'Copied!',
+  ref_how:         'For every purchase by your invite — +⭐10 to your balance.',
 }
 
 export type Lang = 'ua' | 'ru' | 'en'

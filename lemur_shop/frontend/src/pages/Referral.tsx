@@ -24,35 +24,35 @@ export default function ReferralPage({ lang, botUsername }: Props) {
 
   return (
     <div className="page">
-      <h1>👥 {T.referral.replace(/^[^ ]+ /, '')}</h1>
-      <p className="muted" style={{ marginBottom: 16 }}>
-        {T.ref_bonus}: <strong>+{data.bonus_pct}%</strong>
-      </p>
+      <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 6 }}>{T.referral}</div>
+      <p className="muted" style={{ fontSize: 13, marginBottom: 18 }}>{T.ref_how}</p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-        <div className="card" style={{ textAlign: 'center' }}>
-          <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>{T.ref_count}</div>
-          <div style={{ fontWeight: 700, fontSize: 28, color: 'var(--orange)' }}>{data.ref_count}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
+        <div className="card" style={{ textAlign: 'center', padding: '12px 8px' }}>
+          <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>{T.ref_joined}</div>
+          <div style={{ fontWeight: 800, fontSize: 26, color: 'var(--orange)' }}>{data.ref_count}</div>
         </div>
-        <div className="card" style={{ textAlign: 'center' }}>
-          <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>{T.ref_earned}</div>
-          <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--green)' }}>
-            ${data.earned_usd.toFixed(2)}
-          </div>
+        <div className="card" style={{ textAlign: 'center', padding: '12px 8px' }}>
+          <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>{T.ref_buyers}</div>
+          <div style={{ fontWeight: 800, fontSize: 26, color: 'var(--orange)' }}>{data.buyers_count}</div>
+        </div>
+        <div className="card" style={{ textAlign: 'center', padding: '12px 8px' }}>
+          <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>{T.ref_earned}</div>
+          <div style={{ fontWeight: 800, fontSize: 22, color: '#FFD700' }}>⭐{data.earned_stars}</div>
         </div>
       </div>
 
       <div className="card">
-        <div className="muted" style={{ marginBottom: 8 }}>{T.ref_link}</div>
+        <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{T.ref_link}</div>
         <div style={{
-          background: 'var(--sand)', borderRadius: 8, padding: '10px 12px',
-          fontSize: 13, wordBreak: 'break-all', marginBottom: 10,
-          color: 'var(--brown2)',
+          background: 'rgba(255,255,255,.05)', border: '1px solid var(--border)',
+          borderRadius: 10, padding: '10px 12px', fontSize: 12,
+          wordBreak: 'break-all', marginBottom: 10, color: 'var(--text2)',
         }}>
           {link}
         </div>
-        <button className="btn btn-primary" onClick={copy}>
-          {copied ? T.copied : T.copy}
+        <button className="btn btn-primary" onClick={copy} style={{ fontSize: 14 }}>
+          {copied ? T.ref_copied : T.ref_copy}
         </button>
       </div>
     </div>

@@ -46,6 +46,8 @@ _MIGRATIONS = [
         is_active BOOLEAN DEFAULT FALSE,
         total_rewarded INT DEFAULT 0
     )""",
+    # Реферальні виплати — поле зірок
+    "ALTER TABLE referral_payouts ADD COLUMN IF NOT EXISTS amount_stars INT DEFAULT 0",
 ]
 
 

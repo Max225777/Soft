@@ -17,6 +17,13 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
   return r.json()
 }
 
+export interface Referral {
+  referral_code: string
+  ref_count: number
+  buyers_count: number
+  earned_stars: number
+}
+
 export const api = {
   me:           () => req<Me>('/me'),
   setLang:      (lang: string) => req<{ ok: boolean }>('/set-lang', { method: 'POST', body: JSON.stringify({ lang }) }),
@@ -29,6 +36,7 @@ export const api = {
   starsRate:    () => req<{ stars_per_usd: number }>('/stars/rate'),
   starsInvoice: (stars: number) => req<{ invoice_url: string; stars: number; amount_usd: number }>('/stars/invoice', { method: 'POST', body: JSON.stringify({ stars }) }),
   starsBuy:     (stars: number, amount_usd: number) => req<{ ok: boolean }>('/stars/buy', { method: 'POST', body: JSON.stringify({ stars, amount_usd }) }),
+  referral:     () => req<Referral>('/referral'),
 }
 
 export const smmApi = {

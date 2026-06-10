@@ -176,13 +176,13 @@ async def _bio_promo_midnight_rewarder() -> None:
                 log.info("bio_promo daily reward: %d active participants (date=%s)", len(promos), today)
 
                 _DAILY_REWARD_MSG = {
-                    "ru": "⭐ <b>+{stars} зірки!</b>\n\nЕжедневная награда за фразу в профиле.",
+                    "ru": "⭐ <b>+{stars} звёзды!</b>\n\nЕжедневная награда за фразу в профиле.",
                     "ua": "⭐ <b>+{stars} зірки!</b>\n\nДобова нагорода за фразу в профілі.",
                     "en": "⭐ <b>+{stars} stars!</b>\n\nDaily reward for the phrase in your profile.",
                 }
 
                 for promo in promos:
-                    user_lang = "ua"
+                    user_lang = "ru"
                     try:
                         async with AsyncSessionLocal() as s:
                             async with s.begin():
@@ -202,7 +202,7 @@ async def _bio_promo_midnight_rewarder() -> None:
                                 user.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD)) * stars
                                 p.last_rewarded_at = now
                                 p.total_rewarded += stars
-                                user_lang = user.lang or "ua"
+                                user_lang = user.lang or "ru"
                         if _bot:
                             stars_given = max(2, promo.reward_tier)
                             txt = _DAILY_REWARD_MSG.get(user_lang, _DAILY_REWARD_MSG["ua"]).format(stars=stars_given)
@@ -568,6 +568,46 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
             log.info("BUY: user=%s category=%s item=#%s price=⭐%s balance %s→%s",
                      user.id, body.category, lolz_item_id, shop_price_stars, bal_before, u.balance_stars)
 
+    # Реферальна виплата — 10⭐ рефереру за покупку
+    if user.referred_by_id:
+        try:
+            bonus_stars = REFERRAL_BONUS_STARS
+            bonus_usd   = Decimal(str(round(bonus_stars * settings.STAR_DISPLAY_USD, 4)))
+            async with AsyncSessionLocal() as s:
+                async with s.begin():
+                    referrer = await s.get(User, user.referred_by_id, with_for_update=True)
+                    if referrer and not referrer.is_banned:
+                        referrer.balance_stars += bonus_stars
+                        referrer.balance_usd   += bonus_usd
+                        s.add(ReferralPayout(
+                            referrer_id=referrer.id,
+                            referred_id=user.id,
+                            order_id=order_id,
+                            bonus_usd=bonus_usd,
+                            amount_stars=bonus_stars,
+                        ))
+                        log.info("REF PAYOUT: referrer=%s referred=%s order=%s +⭐%s",
+                                 referrer.id, user.id, order_id, bonus_stars)
+                        if _bot:
+                            try:
+                                ref_lang = referrer.lang or "ru"
+                                ref_msgs = {
+                                    "ru": f"⭐ <b>+{bonus_stars} звёзд!</b>\n\nВаш реферал сделал покупку.",
+                                    "ua": f"⭐ <b>+{bonus_stars} зірок!</b>\n\nВаш реферал зробив покупку.",
+                                    "en": f"⭐ <b>+{bonus_stars} stars!</b>\n\nYour referral made a purchase.",
+                                }
+                                await _bot.send_message(
+                                    referrer.id,
+                                    ref_msgs.get(ref_lang, ref_msgs["ru"]),
+                                    parse_mode="HTML",
+                                )
+                            except Exception:
+                                pass
+        except IntegrityError:
+            pass  # order_id вже є в referral_payouts — дублікат, ігноруємо
+        except Exception as e:
+            log.warning("REF PAYOUT error order=%s: %s", order_id, e)
+
     # Нотифікація адміну
     if _bot and settings.ADMIN_IDS:
         from lemur_shop.services.lolz_shop import CATEGORIES as _CATS
@@ -651,19 +691,29 @@ async def api_orders(user: User = Depends(get_current_user)):
     ]
 
 
+REFERRAL_BONUS_STARS = 10  # зірок за кожну покупку рефералу
+
+
 @app.get("/api/referral")
 async def api_referral(user: User = Depends(get_current_user)):
     async with AsyncSessionLocal() as s:
-        ref_count = await s.scalar(select(func.count()).where(User.referred_by_id == user.id))
-        earned = await s.scalar(
-            select(func.coalesce(func.sum(ReferralPayout.bonus_usd), 0))
+        ref_count = await s.scalar(
+            select(func.count()).where(User.referred_by_id == user.id)
+        ) or 0
+        buyers_count = await s.scalar(
+            select(func.count(func.distinct(Order.user_id)))
+            .join(User, User.id == Order.user_id)
+            .where(User.referred_by_id == user.id, Order.status == "delivered")
+        ) or 0
+        earned_stars = await s.scalar(
+            select(func.coalesce(func.sum(ReferralPayout.amount_stars), 0))
             .where(ReferralPayout.referrer_id == user.id)
-        )
+        ) or 0
     return {
         "referral_code": user.referral_code,
-        "ref_count":     ref_count or 0,
-        "earned_usd":    float(earned or 0),
-        "bonus_pct":     settings.REFERRAL_BONUS_PERCENT,
+        "ref_count":     ref_count,
+        "buyers_count":  buyers_count,
+        "earned_stars":  int(earned_stars),
     }
 
 
