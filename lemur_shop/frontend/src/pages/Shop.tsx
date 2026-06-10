@@ -353,34 +353,35 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
         ) : (
           cats.map(cat => {
             return (
-              <div key={cat.category} className="card" style={{ padding: '20px 16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-                  <div style={{ fontSize: 44, flexShrink: 0, lineHeight: 1 }}>{cat.flag}</div>
+              <div key={cat.category} className="card" style={{ padding: '14px 16px' }}>
+                {cat.discount_stars && (
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#ff6b2b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    🎉 <span>Скидка в честь открытия</span>
+                    <span style={{ marginLeft: 4, textDecoration: 'line-through', color: 'var(--muted)', fontWeight: 400 }}>⭐{cat.price_stars}</span>
+                    <span style={{ color: '#ff6b2b' }}>→ ⭐{cat.discount_stars}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ fontSize: 40, flexShrink: 0, lineHeight: 1 }}>{cat.flag}</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 800, fontSize: 17 }}>{cat.title}</div>
-                    <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>Telegram account</div>
-                    {cat.discount_stars && (
-                      <div style={{ fontSize: 11, fontWeight: 700, color: '#ff6b2b', marginTop: 4 }}>
-                        🎉 Скидка в честь открытия магазина
-                      </div>
-                    )}
+                    <div style={{ fontWeight: 800, fontSize: 16 }}>{cat.title}</div>
+                    <div className="muted" style={{ fontSize: 11, marginTop: 1 }}>Telegram account</div>
                   </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div className="price-pill" style={{ flex: 1, justifyContent: 'center', fontSize: 15, padding: '9px 12px' }}>
-                    {cat.discount_stars ? (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontSize: 13 }}>⭐{cat.price_stars}</span>
-                        <span style={{ fontWeight: 800, color: '#ff6b2b' }}>⭐{cat.discount_stars}</span>
-                        <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: 12 }}>(${(cat.discount_stars * 0.013).toFixed(2)})</span>
-                      </span>
-                    ) : localPrice(cat.price_stars, cat.price_usd)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    <div className="price-pill" style={{ justifyContent: 'center', fontSize: 14, padding: '8px 10px' }}>
+                      {cat.discount_stars ? (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontWeight: 800, color: '#ff6b2b' }}>⭐{cat.discount_stars}</span>
+                          <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: 11 }}>(${(cat.discount_stars * 0.013).toFixed(2)})</span>
+                        </span>
+                      ) : localPrice(cat.price_stars, cat.price_usd)}
+                    </div>
+                    <button
+                      className="btn btn-primary"
+                      style={{ width: 'auto', padding: '9px 18px', fontSize: 14 }}
+                      onClick={() => setConfirmCat(cat)}
+                    >{T.buy}</button>
                   </div>
-                  <button
-                    className="btn btn-primary"
-                    style={{ width: 'auto', padding: '10px 22px', fontSize: 15 }}
-                    onClick={() => setConfirmCat(cat)}
-                  >{T.buy}</button>
                 </div>
               </div>
             )

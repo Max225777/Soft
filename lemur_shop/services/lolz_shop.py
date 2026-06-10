@@ -8,12 +8,46 @@ from lemur_shop.api.lolz import LolzApiError, lolz
 
 log = logging.getLogger(__name__)
 
-# Конфіг категорій: country code, назва, прапор, ЦІНА В МАГАЗИНІ
+# Конфіг категорій
+# macro=True  → USA-style: ітеративний pmin-bump при чорному списку
+#   pmax        — максимальна ціна покупки на lolz
+#   pmin_start  — стартовий pmin (None = без обмеження знизу)
+#   macro_steps — кількість макро-ітерацій
+#   micro_attempts — спроб купівлі за ітерацію
+# pmax_tiers  → стандартний режим: перебираємо тири pmax
 CATEGORIES: dict[str, dict] = {
-    "us": {"country": "US", "title": "USA",        "flag": "🇺🇸", "price_usd": 0.65, "discount_stars": 25,  "pmax_tiers": [0.50]},
-    "de": {"country": "DE", "title": "Germany",    "flag": "🇩🇪", "price_usd": 1.95, "discount_stars": 115, "pmax_tiers": [1.50]},
-    "ua": {"country": "UA", "title": "Ukraine",    "flag": "🇺🇦", "price_usd": 3.25, "discount_stars": 150, "pmax_tiers": [2.50]},
-    "kz": {"country": "KZ", "title": "Kazakhstan", "flag": "🇰🇿", "price_usd": 3.25, "discount_stars": 150, "pmax_tiers": [1.50, 2.00]},
+    "us": {
+        "country": "US", "title": "USA",        "flag": "🇺🇸",
+        "price_usd": 0.65, "discount_stars": 25,
+        "macro": True, "pmax": 0.50, "pmin_start": None,
+        "macro_steps": 8, "micro_attempts": 15,
+    },
+    "mm": {
+        "country": "MM", "title": "Myanmar",    "flag": "🇲🇲",
+        "price_usd": 0.65, "discount_stars": 25,
+        "macro": True, "pmax": 0.40, "pmin_start": 0.20,
+        "macro_steps": 8, "micro_attempts": 15,
+    },
+    "co": {
+        "country": "CO", "title": "Colombia",   "flag": "🇨🇴",
+        "price_usd": 0.78, "discount_stars": 45,
+        "pmax_tiers": [0.50],
+    },
+    "de": {
+        "country": "DE", "title": "Germany",    "flag": "🇩🇪",
+        "price_usd": 1.95, "discount_stars": 115,
+        "pmax_tiers": [1.50],
+    },
+    "ua": {
+        "country": "UA", "title": "Ukraine",    "flag": "🇺🇦",
+        "price_usd": 3.25, "discount_stars": 150,
+        "pmax_tiers": [2.50],
+    },
+    "kz": {
+        "country": "KZ", "title": "Kazakhstan", "flag": "🇰🇿",
+        "price_usd": 3.25, "discount_stars": 150,
+        "pmax_tiers": [1.50, 2.00],
+    },
 }
 
 
@@ -25,12 +59,11 @@ async def _search_with_pmax(country: str, pmax: float, limit: int = 10) -> list[
 
 
 async def search_accounts(category: str, limit: int = 8) -> list[dict]:
-    """Шукає акаунти по тирах pmax, повертає перший непустий результат."""
     cat = CATEGORIES.get(category)
     if not cat:
         return []
     country = cat["country"]
-    for pmax in cat.get("pmax_tiers", [2.50]):
+    for pmax in cat.get("pmax_tiers", [cat.get("pmax", 2.50)]):
         items = await _search_with_pmax(country, pmax, limit)
         if items:
             return items
@@ -66,16 +99,12 @@ SKIP_ERRORS = (
     "user_inactive", "already_sold", "item_sold", "not_found", "forbidden",
     "invalid_account", "account_not_valid", "verification", "check_failed",
     "account_invalid", "phone_banned", "banned", "spam", "deactivated",
-    "проверк",       # "проверки аккаунта" — verification errors in Russian
-    "ошибок во",     # "ошибок во время проверки"
-    "более 20",      # "более 20 ошибок"
+    "проверк",
+    "ошибок во",
+    "более 20",
 )
 
-BLACKLIST_MSG = "черный список"  # "Продавец добавил вас в черный список"
-
-USA_PMAX = 0.50
-USA_MACRO_STEPS = 8
-USA_MICRO_ATTEMPTS = 15
+BLACKLIST_MSG = "черный список"
 
 
 async def _try_buy_batch(
@@ -83,7 +112,6 @@ async def _try_buy_batch(
 ) -> tuple[tuple[str, int, float] | None, float]:
     """Пробує купити з батчу.
     Повертає (result_or_None, max_blacklisted_price).
-    max_blacklisted_price > 0 якщо були помилки ЧС — caller може bumping pmin.
     """
     micro = 0
     max_bl_price: float = 0.0
@@ -113,57 +141,65 @@ async def _try_buy_batch(
     return None, max_bl_price
 
 
+async def _macro_buy(cat: dict) -> tuple[str, int, float]:
+    """Macro-цикл для категорій з macro=True (USA, Myanmar тощо).
+    Ітеративно підвищує pmin при помилках чорного списку.
+    """
+    country      = cat["country"]
+    pmax         = cat["pmax"]
+    macro_steps  = cat.get("macro_steps", 8)
+    micro_att    = cat.get("micro_attempts", 15)
+    pmin: float | None = cat.get("pmin_start")
+
+    for macro in range(macro_steps):
+        items = []
+        for attempt in range(3):
+            try:
+                items = await lolz.search_telegram(
+                    country=country, pmax=pmax, pmin=pmin, count=50,
+                    spam="no", password=None,
+                )
+                break
+            except LolzApiError as e:
+                log.warning("%s macro %d search attempt %d failed: %s", country, macro, attempt + 1, e)
+                if attempt < 2:
+                    await asyncio.sleep(2)
+
+        if not items:
+            log.info("%s macro %d: no items at pmin=%s pmax=%.2f", country, macro, pmin, pmax)
+            break
+
+        items_sorted = sorted(items, key=lambda x: float(x.get("price") or x.get("price_usd") or 999))
+        log.info("%s macro %d: %d items, cheapest=%.2f", country, macro, len(items_sorted),
+                 float(items_sorted[0].get("price") or items_sorted[0].get("price_usd") or 0))
+
+        result, max_bl_price = await _try_buy_batch(items_sorted, max_cost=pmax, micro_limit=micro_att)
+        if result:
+            return result
+
+        if max_bl_price > 0:
+            new_pmin = round(max_bl_price + 0.02, 2)
+            pmin = max(pmin or 0.0, new_pmin)
+            log.info("%s macro %d: blacklisted up to %.2f → pmin=%.2f", country, macro, max_bl_price, pmin)
+        else:
+            last_price = float(items_sorted[-1].get("price") or items_sorted[-1].get("price_usd") or 0)
+            pmin = round(last_price + 0.01, 2)
+            log.info("%s macro %d exhausted, bumping pmin to %.2f", country, macro, pmin)
+
+    raise LolzApiError("No purchasable accounts found after trying all candidates")
+
+
 async def auto_buy_category(category: str) -> tuple[str, int, float]:
-    """Шукає акаунт по тирам pmax, купує перший знайдений."""
     cat = CATEGORIES.get(category)
     if not cat:
         raise LolzApiError("Unknown category")
-    country = cat["country"]
-    shop_price: float = cat.get("price_usd", 9999)
 
-    # ── USA: макро-цикл з покроковим підвищенням ціни ──────────────────────────
-    if category == "us":
-        pmin: float | None = None
-        for macro in range(USA_MACRO_STEPS):
-            # Retry пошуку: 403 від Lolz може бути тимчасовий rate-limit
-            items = []
-            for attempt in range(3):
-                try:
-                    items = await lolz.search_telegram(
-                        country=country, pmax=USA_PMAX, pmin=pmin, count=50,
-                        spam="no", password=None,
-                    )
-                    break  # успішно — виходимо з retry
-                except LolzApiError as e:
-                    log.warning("USA macro %d search attempt %d failed: %s", macro, attempt + 1, e)
-                    if attempt < 2:
-                        await asyncio.sleep(2)  # чекаємо перед retry
+    if cat.get("macro"):
+        return await _macro_buy(cat)
 
-            if not items:
-                log.info("USA macro %d: no items at pmin=%s pmax=%.2f", macro, pmin, USA_PMAX)
-                break
-
-            items_sorted = sorted(items, key=lambda x: float(x.get("price") or x.get("price_usd") or 999))
-            log.info("USA macro %d: %d items, cheapest=%.2f", macro, len(items_sorted),
-                     float(items_sorted[0].get("price") or items_sorted[0].get("price_usd") or 0))
-
-            result, max_bl_price = await _try_buy_batch(items_sorted, max_cost=USA_PMAX, micro_limit=USA_MICRO_ATTEMPTS)
-            if result:
-                return result
-
-            # Якщо були ЧС-помилки — стрибаємо pmin одразу за ціну останнього відмовника
-            if max_bl_price > 0:
-                new_pmin = round(max_bl_price + 0.02, 2)
-                pmin = max(pmin or 0.0, new_pmin)
-                log.info("USA macro %d: blacklisted sellers up to %.2f → pmin=%.2f", macro, max_bl_price, pmin)
-            else:
-                last_price = float(items_sorted[-1].get("price") or items_sorted[-1].get("price_usd") or 0)
-                pmin = round(last_price + 0.01, 2)
-                log.info("USA macro %d exhausted, bumping pmin to %.2f", macro, pmin)
-
-        raise LolzApiError("No purchasable accounts found after trying all candidates")
-
-    # ── Інші категорії: тири pmax ───────────────────────────────────────────────
+    # ── Стандартний режим: тири pmax ──────────────────────────────────────────
+    country    = cat["country"]
+    shop_price = cat.get("price_usd", 9999)
     tiers: list[float] = cat.get("pmax_tiers", [2.50])
     items: list[dict] = []
     for pmax in tiers:
