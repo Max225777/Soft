@@ -593,39 +593,6 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
             except Exception as e:
                 log.warning("Admin notify failed for %s: %s", admin_id, e)
 
-    # Нотифікація юзеру
-    if _bot:
-        lang = getattr(user, "lang", "ru")
-        stars_usd_val = shop_price_stars * settings.STAR_DISPLAY_USD
-        if lang == "ua":
-            user_buy_txt = (
-                f"✅ <b>Акаунт придбано!</b>\n\n"
-                f"📦 {flag} Telegram {title}\n"
-                f"💫 Списано: <b>⭐{shop_price_stars}</b> (~${stars_usd_val:.2f})\n"
-                f"📱 Номер: <code>{phone}</code>\n\n"
-                f"⬇️ Натисніть «Отримати код» у застосунку."
-            )
-        elif lang == "en":
-            user_buy_txt = (
-                f"✅ <b>Account purchased!</b>\n\n"
-                f"📦 {flag} Telegram {title}\n"
-                f"💫 Charged: <b>⭐{shop_price_stars}</b> (~${stars_usd_val:.2f})\n"
-                f"📱 Number: <code>{phone}</code>\n\n"
-                f"⬇️ Tap «Get Code» in the app."
-            )
-        else:
-            user_buy_txt = (
-                f"✅ <b>Аккаунт куплен!</b>\n\n"
-                f"📦 {flag} Telegram {title}\n"
-                f"💫 Списано: <b>⭐{shop_price_stars}</b> (~${stars_usd_val:.2f})\n"
-                f"📱 Номер: <code>{phone}</code>\n\n"
-                f"⬇️ Нажмите «Получить код» в приложении."
-            )
-        try:
-            await _bot.send_message(user.id, user_buy_txt, parse_mode="HTML")
-        except Exception:
-            pass
-
     return {"order_id": order_id, "phone": phone, "created_at": created_at.isoformat()}
 
 
