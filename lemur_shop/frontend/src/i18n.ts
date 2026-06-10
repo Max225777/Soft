@@ -144,7 +144,7 @@ const UA = {
   ref_copy:        'Скопіювати посилання',
   ref_copied:      'Скопійовано!',
   ref_list:        'Список запрошених',
-  ref_how:         'За першу покупку запрошеного — +⭐10 на твій баланс.',
+  ref_how:         'За першу покупку TG акаунту від запрошеного — +⭐10 на твій баланс. Працює тільки з акаунтами.',
 }
 
 const RU: typeof UA = {
@@ -293,7 +293,7 @@ const RU: typeof UA = {
   ref_copy:        'Скопировать ссылку',
   ref_copied:      'Скопировано!',
   ref_list:        'Список приглашённых',
-  ref_how:         'За первую покупку приглашённого — +⭐10 на твой баланс.',
+  ref_how:         'За первую покупку TG аккаунта от приглашённого — +⭐10 на твой баланс. Работает только с аккаунтами.',
 }
 
 const EN: typeof UA = {
@@ -442,7 +442,7 @@ const EN: typeof UA = {
   ref_copy:        'Copy link',
   ref_copied:      'Copied!',
   ref_list:        'Invited users',
-  ref_how:         'For the first purchase by your invite — +⭐10 to your balance.',
+  ref_how:         'For the first TG account purchase by your invite — +⭐10 to your balance. Works with accounts only.',
 }
 
 export type Lang = 'ua' | 'ru' | 'en'
