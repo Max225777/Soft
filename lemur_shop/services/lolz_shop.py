@@ -17,34 +17,40 @@ log = logging.getLogger(__name__)
 # pmax_tiers  → стандартний режим: перебираємо тири pmax
 CATEGORIES: dict[str, dict] = {
     "us": {
-        "country": "US", "title": "USA",        "flag": "🇺🇸",
+        "country": "US", "title": "USA", "title_ru": "США", "title_ua": "США",
+        "flag": "🇺🇸", "phone_prefix": "+1",
         "price_usd": 0.65, "discount_stars": 25,
         "macro": True, "pmax": 0.50, "pmin_start": None,
         "macro_steps": 8, "micro_attempts": 15,
     },
     "mm": {
-        "country": "MM", "title": "Myanmar",    "flag": "🇲🇲",
+        "country": "MM", "title": "Myanmar", "title_ru": "Мьянма", "title_ua": "М'янма",
+        "flag": "🇲🇲", "phone_prefix": "+95",
         "price_usd": 0.65, "discount_stars": 25,
         "macro": True, "pmax": 0.40, "pmin_start": 0.20,
         "macro_steps": 8, "micro_attempts": 15,
     },
     "co": {
-        "country": "CO", "title": "Colombia",   "flag": "🇨🇴",
+        "country": "CO", "title": "Colombia", "title_ru": "Колумбия", "title_ua": "Колумбія",
+        "flag": "🇨🇴", "phone_prefix": "+57",
         "price_usd": 0.78, "discount_stars": 45,
         "pmax_tiers": [0.50],
     },
     "de": {
-        "country": "DE", "title": "Germany",    "flag": "🇩🇪",
+        "country": "DE", "title": "Germany", "title_ru": "Германия", "title_ua": "Німеччина",
+        "flag": "🇩🇪", "phone_prefix": "+49",
         "price_usd": 1.95, "discount_stars": 115,
         "pmax_tiers": [1.50],
     },
     "ua": {
-        "country": "UA", "title": "Ukraine",    "flag": "🇺🇦",
+        "country": "UA", "title": "Ukraine", "title_ru": "Украина", "title_ua": "Україна",
+        "flag": "🇺🇦", "phone_prefix": "+380",
         "price_usd": 3.25, "discount_stars": 150,
         "pmax_tiers": [2.50],
     },
     "kz": {
-        "country": "KZ", "title": "Kazakhstan", "flag": "🇰🇿",
+        "country": "KZ", "title": "Kazakhstan", "title_ru": "Казахстан", "title_ua": "Казахстан",
+        "flag": "🇰🇿", "phone_prefix": "+7",
         "price_usd": 3.25, "discount_stars": 150,
         "pmax_tiers": [1.50, 2.00],
     },

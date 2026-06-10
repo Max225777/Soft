@@ -113,7 +113,7 @@ export interface SmmService {
   key: string; service_id: number | string; title: string; flag: string; description: string
   price_per_100_stars: number; min: number; max: number; step: number; unit_size: number
 }
-export interface Category { category: string; flag: string; title: string; price_usd: number; price_stars: number; discount_stars?: number }
+export interface Category { category: string; flag: string; title: string; title_ru: string; title_ua: string; phone_prefix: string; price_usd: number; price_stars: number; discount_stars?: number }
 export interface BuyResult { order_id: number; phone: string; created_at: string }
 export interface Order {
   id: number; price_usd: number; status: string

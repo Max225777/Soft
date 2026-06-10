@@ -366,7 +366,14 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
                   <div style={{ fontSize: 36, flexShrink: 0, lineHeight: 1 }}>{cat.flag}</div>
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: 16 }}>{cat.title}</div>
+                    <div style={{ fontWeight: 800, fontSize: 16 }}>
+                      {lang === 'ru' ? cat.title_ru : lang === 'ua' ? cat.title_ua : cat.title}
+                      {cat.phone_prefix && (
+                        <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--muted)', marginLeft: 6 }}>
+                          ({cat.phone_prefix})
+                        </span>
+                      )}
+                    </div>
                     <div className="muted" style={{ fontSize: 11, marginTop: 1 }}>Telegram account</div>
                   </div>
                 </div>
