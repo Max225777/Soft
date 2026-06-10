@@ -133,7 +133,7 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
   })
 
   return (
-    <div className="page">
+    <div className="page" style={{ paddingTop: 12 }}>
       <style>{SLIDE_STYLE}</style>
 
       {/* Success toast */}

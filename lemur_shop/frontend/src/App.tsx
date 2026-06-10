@@ -15,11 +15,11 @@ const CHANNEL_URL = `https://t.me/${CHANNEL}`
 
 export default function App() {
   const [tab, setTab]         = useState<Tab>('shop')
+  const [balSub, setBalSub]   = useState<'balance' | 'referral'>('balance')
   const [me, setMe]           = useState<Me | null>(null)
   const [lang, setLang] = useState<Lang>(() => {
     const saved = localStorage.getItem(LANG_KEY) as Lang | null
     if (saved === 'ru' || saved === 'ua' || saved === 'en') return saved
-    // new user: detect from Telegram language_code
     const tgLang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code ?? ''
     if (tgLang.startsWith('uk')) return 'ua'
     if (tgLang.startsWith('en')) return 'en'
@@ -84,16 +84,49 @@ export default function App() {
     return <SubGate lang={lang} onCheck={recheckSub} checking={checkingAgain} />
   }
 
+  const T = getT(lang)
+
   return (
     <>
       <div style={{ flex: 1 }}>
-        {tab === 'shop'     && <Shop     key="shop"     lang={lang} me={me} onGoToBalance={() => setTab('balance')} onBuy={refreshMe} />}
-        {tab === 'profile'  && <Profile  key="profile"  me={me} lang={lang} onChangeLang={l => { setLang(l); localStorage.setItem(LANG_KEY, l); refreshMe() }} />}
-        {tab === 'balance'  && <Balance  key="balance"  me={me} lang={lang} balanceDiff={balanceDiff} />}
-        {tab === 'referral' && <Referral key="referral" lang={lang} botUsername={me?.bot_username ?? ''} />}
-        {tab === 'admin'    && <Admin    key="admin" />}
+        {tab === 'shop'    && <Shop    key="shop"    lang={lang} me={me} onGoToBalance={() => { setTab('balance'); setBalSub('balance') }} onBuy={refreshMe} />}
+        {tab === 'profile' && <Profile key="profile" me={me} lang={lang} onChangeLang={l => { setLang(l); localStorage.setItem(LANG_KEY, l); refreshMe() }} />}
+        {tab === 'admin'   && <Admin   key="admin" />}
+        {tab === 'balance' && (
+          <>
+            {/* Sub-nav Баланс / Реферали */}
+            <div style={{
+              display: 'flex', gap: 0,
+              margin: '14px 14px 0',
+              background: 'var(--bg2)', borderRadius: 12,
+              border: '1px solid var(--border)', overflow: 'hidden',
+            }}>
+              {(['balance', 'referral'] as const).map(s => {
+                const label = s === 'balance'
+                  ? (lang === 'ua' ? '💰 Баланс' : lang === 'en' ? '💰 Balance' : '💰 Баланс')
+                  : (lang === 'ua' ? '👥 Реферали' : lang === 'en' ? '👥 Referrals' : '👥 Рефералы')
+                const isActive = balSub === s
+                return (
+                  <button
+                    key={s}
+                    onClick={() => setBalSub(s)}
+                    style={{
+                      flex: 1, padding: '10px 6px', fontSize: 13, fontWeight: isActive ? 700 : 500,
+                      background: isActive ? 'rgba(255,107,43,.18)' : 'transparent',
+                      color: isActive ? 'var(--orange)' : 'var(--muted)',
+                      border: 'none', cursor: 'pointer', transition: 'all .15s',
+                      borderRight: s === 'balance' ? '1px solid var(--border)' : 'none',
+                    }}
+                  >{label}</button>
+                )
+              })}
+            </div>
+            {balSub === 'balance'  && <Balance  key="balance"  me={me} lang={lang} balanceDiff={balanceDiff} />}
+            {balSub === 'referral' && <Referral key="referral" lang={lang} botUsername={me?.bot_username ?? ''} />}
+          </>
+        )}
       </div>
-      <BottomNav active={tab} onChange={setTab} lang={lang} isAdmin={me?.is_admin} />
+      <BottomNav active={tab} onChange={t => { setTab(t); if (t !== 'balance') setBalSub('balance') }} lang={lang} isAdmin={me?.is_admin} />
     </>
   )
 }
@@ -160,4 +193,3 @@ function SubGate({ lang, onCheck, checking }: { lang: Lang; onCheck(): void; che
     </div>
   )
 }
-

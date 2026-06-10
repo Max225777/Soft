@@ -23,9 +23,8 @@ export default function ReferralPage({ lang, botUsername }: Props) {
   }
 
   return (
-    <div className="page">
-      <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 6 }}>{T.referral}</div>
-      <p className="muted" style={{ fontSize: 13, marginBottom: 18 }}>{T.ref_how}</p>
+    <div className="page" style={{ paddingTop: 12 }}>
+      <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>{T.ref_how}</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
         <div className="card" style={{ textAlign: 'center', padding: '12px 8px' }}>
