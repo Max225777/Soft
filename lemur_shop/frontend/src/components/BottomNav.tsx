@@ -56,14 +56,14 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
   }
 
   return (
-    <nav className="nav" style={{ overflow: 'visible', alignItems: 'flex-end', paddingBottom: 6 }}>
+    <nav className="nav" style={{ overflow: 'visible', alignItems: 'stretch', gap: 0 }}>
 
       {/* Ліво */}
       {leftTabs.map(tab => (
         <button
           key={tab}
           className={`nav-item ${active === tab ? 'active' : ''}`}
-          style={{ paddingBottom: 0 }}
+          style={{ flex: 1 }}
           onClick={() => onChange(tab)}
         >
           {icons[tab as Exclude<Tab, 'shop'>]}
@@ -73,26 +73,25 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
 
       {/* Центр — FAB */}
       <div style={{
-        flex: 1.2,
+        flex: 1,
         display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'flex-end',
+        alignItems: 'center', justifyContent: 'center',
         gap: 4, paddingBottom: 0,
       }}>
         <button
           onClick={() => onChange('shop')}
           style={{
-            width: 54, height: 54,
+            width: 46, height: 46,
             borderRadius: '50%',
-            transform: 'translateY(-10px)',
             background: active === 'shop'
               ? 'linear-gradient(135deg, #FF8C42, #FF5500)'
               : 'linear-gradient(135deg, #FF6B2B, #E8530A)',
             border: active === 'shop'
-              ? '2.5px solid rgba(255,255,255,.35)'
-              : '2.5px solid rgba(255,107,43,.2)',
+              ? '2px solid rgba(255,255,255,.35)'
+              : '2px solid rgba(255,107,43,.2)',
             boxShadow: active === 'shop'
-              ? '0 6px 24px rgba(255,107,43,.75), 0 0 0 5px rgba(255,107,43,.12)'
-              : '0 4px 18px rgba(255,107,43,.5)',
+              ? '0 4px 18px rgba(255,107,43,.7)'
+              : '0 3px 12px rgba(255,107,43,.4)',
             cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: 'white',
@@ -105,7 +104,6 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
         <span style={{
           fontSize: 11, fontWeight: active === 'shop' ? 700 : 500,
           color: active === 'shop' ? 'var(--orange)' : 'var(--muted)',
-          marginTop: -6,
           transition: 'color .18s',
           userSelect: 'none',
         }}>
@@ -118,7 +116,7 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
         <button
           key={tab}
           className={`nav-item ${active === tab ? 'active' : ''}`}
-          style={{ paddingBottom: 0 }}
+          style={{ flex: 1 }}
           onClick={() => onChange(tab)}
         >
           {icons[tab as Exclude<Tab, 'shop'>]}
