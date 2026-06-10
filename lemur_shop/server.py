@@ -704,6 +704,7 @@ REFERRAL_BONUS_STARS = 10  # зірок за кожну покупку рефе�
 @app.get("/api/referral")
 async def api_referral(user: User = Depends(get_current_user)):
     async with AsyncSessionLocal() as s:
+        # загальна статистика
         ref_count = await s.scalar(
             select(func.count()).where(User.referred_by_id == user.id)
         ) or 0
@@ -716,11 +717,38 @@ async def api_referral(user: User = Depends(get_current_user)):
             select(func.coalesce(func.sum(ReferralPayout.amount_stars), 0))
             .where(ReferralPayout.referrer_id == user.id)
         ) or 0
+
+        # список рефералів з позначкою is_buyer
+        refs_result = await s.execute(
+            select(User).where(User.referred_by_id == user.id)
+            .order_by(User.created_at.desc()).limit(100)
+        )
+        refs = refs_result.scalars().all()
+
+        # id тих, хто купив хоч раз
+        buyer_ids: set[int] = set()
+        if refs:
+            rows = await s.execute(
+                select(func.distinct(Order.user_id))
+                .where(Order.user_id.in_([r.id for r in refs]), Order.status == "delivered")
+            )
+            buyer_ids = {row[0] for row in rows}
+
+        referrals_list = [
+            {
+                "name":     r.full_name or r.username or str(r.id),
+                "username": r.username,
+                "is_buyer": r.id in buyer_ids,
+            }
+            for r in refs
+        ]
+
     return {
-        "referral_code": user.referral_code,
-        "ref_count":     ref_count,
-        "buyers_count":  buyers_count,
-        "earned_stars":  int(earned_stars),
+        "referral_code":   user.referral_code,
+        "ref_count":       ref_count,
+        "buyers_count":    buyers_count,
+        "earned_stars":    int(earned_stars),
+        "referrals":       referrals_list,
     }
 
 

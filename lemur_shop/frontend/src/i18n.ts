@@ -143,6 +143,7 @@ const UA = {
   ref_link:        'Твоє реферальне посилання',
   ref_copy:        'Скопіювати посилання',
   ref_copied:      'Скопійовано!',
+  ref_list:        'Список запрошених',
   ref_how:         'За першу покупку запрошеного — +⭐10 на твій баланс.',
 }
 
@@ -291,6 +292,7 @@ const RU: typeof UA = {
   ref_link:        'Твоя реферальная ссылка',
   ref_copy:        'Скопировать ссылку',
   ref_copied:      'Скопировано!',
+  ref_list:        'Список приглашённых',
   ref_how:         'За первую покупку приглашённого — +⭐10 на твой баланс.',
 }
 
@@ -439,6 +441,7 @@ const EN: typeof UA = {
   ref_link:        'Your referral link',
   ref_copy:        'Copy link',
   ref_copied:      'Copied!',
+  ref_list:        'Invited users',
   ref_how:         'For the first purchase by your invite — +⭐10 to your balance.',
 }
 

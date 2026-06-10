@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { api, type Referral } from '../api'
+import { api, type Referral, type ReferralUser } from '../api'
 import { getT, type Lang } from '../i18n'
 
 interface Props { lang: Lang; botUsername: string }
@@ -42,7 +42,7 @@ export default function ReferralPage({ lang, botUsername }: Props) {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card" style={{ marginBottom: 16 }}>
         <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{T.ref_link}</div>
         <div style={{
           background: 'rgba(255,255,255,.05)', border: '1px solid var(--border)',
@@ -55,6 +55,40 @@ export default function ReferralPage({ lang, botUsername }: Props) {
           {copied ? T.ref_copied : T.ref_copy}
         </button>
       </div>
+
+      {data.referrals.length > 0 && (
+        <div className="card">
+          <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>{T.ref_list}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {data.referrals.map((r, i) => (
+              <RefRow key={i} r={r} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RefRow({ r }: { r: ReferralUser }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '8px 10px', borderRadius: 10,
+      background: r.is_buyer ? 'rgba(255,107,43,.12)' : 'rgba(255,255,255,.04)',
+      border: `1px solid ${r.is_buyer ? 'rgba(255,107,43,.35)' : 'var(--border)'}`,
+    }}>
+      <div>
+        <span style={{ fontWeight: 600, fontSize: 14, color: r.is_buyer ? 'var(--orange)' : 'var(--text)' }}>
+          {r.name}
+        </span>
+        {r.username && (
+          <span className="muted" style={{ fontSize: 12, marginLeft: 6 }}>@{r.username}</span>
+        )}
+      </div>
+      {r.is_buyer && (
+        <span style={{ fontSize: 12, color: '#FFD700', fontWeight: 700 }}>⭐+10</span>
+      )}
     </div>
   )
 }

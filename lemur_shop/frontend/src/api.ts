@@ -17,11 +17,17 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
   return r.json()
 }
 
+export interface ReferralUser {
+  name: string
+  username: string | null
+  is_buyer: boolean
+}
 export interface Referral {
   referral_code: string
   ref_count: number
   buyers_count: number
   earned_stars: number
+  referrals: ReferralUser[]
 }
 
 export const api = {
