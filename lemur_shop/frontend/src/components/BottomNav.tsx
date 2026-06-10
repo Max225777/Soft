@@ -126,6 +126,7 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
           {labels[tab]}
         </button>
       ))}
+      <div style={{ flex: 0.7 }} />
 
     </nav>
   )
