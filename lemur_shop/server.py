@@ -568,43 +568,48 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
             log.info("BUY: user=%s category=%s item=#%s price=⭐%s balance %s→%s",
                      user.id, body.category, lolz_item_id, shop_price_stars, bal_before, u.balance_stars)
 
-    # Реферальна виплата — 10⭐ рефереру за покупку
+    # Реферальна виплата — 10⭐ рефереру за ПЕРШУ покупку рефералу (одноразово)
     if user.referred_by_id:
         try:
-            bonus_stars = REFERRAL_BONUS_STARS
-            bonus_usd   = Decimal(str(round(bonus_stars * settings.STAR_DISPLAY_USD, 4)))
             async with AsyncSessionLocal() as s:
                 async with s.begin():
-                    referrer = await s.get(User, user.referred_by_id, with_for_update=True)
-                    if referrer and not referrer.is_banned:
-                        referrer.balance_stars += bonus_stars
-                        referrer.balance_usd   += bonus_usd
-                        s.add(ReferralPayout(
-                            referrer_id=referrer.id,
-                            referred_id=user.id,
-                            order_id=order_id,
-                            bonus_usd=bonus_usd,
-                            amount_stars=bonus_stars,
-                        ))
-                        log.info("REF PAYOUT: referrer=%s referred=%s order=%s +⭐%s",
-                                 referrer.id, user.id, order_id, bonus_stars)
-                        if _bot:
-                            try:
-                                ref_lang = referrer.lang or "ru"
-                                ref_msgs = {
-                                    "ru": f"⭐ <b>+{bonus_stars} звёзд!</b>\n\nВаш реферал сделал покупку.",
-                                    "ua": f"⭐ <b>+{bonus_stars} зірок!</b>\n\nВаш реферал зробив покупку.",
-                                    "en": f"⭐ <b>+{bonus_stars} stars!</b>\n\nYour referral made a purchase.",
-                                }
-                                await _bot.send_message(
-                                    referrer.id,
-                                    ref_msgs.get(ref_lang, ref_msgs["ru"]),
-                                    parse_mode="HTML",
-                                )
-                            except Exception:
-                                pass
+                    # Вже платили за цього реферала? (будь-який попередній ордер)
+                    already_paid = await s.scalar(
+                        select(func.count()).where(ReferralPayout.referred_id == user.id)
+                    )
+                    if not already_paid:
+                        referrer = await s.get(User, user.referred_by_id, with_for_update=True)
+                        if referrer and not referrer.is_banned:
+                            bonus_stars = REFERRAL_BONUS_STARS
+                            bonus_usd   = Decimal(str(round(bonus_stars * settings.STAR_DISPLAY_USD, 4)))
+                            referrer.balance_stars += bonus_stars
+                            referrer.balance_usd   += bonus_usd
+                            s.add(ReferralPayout(
+                                referrer_id=referrer.id,
+                                referred_id=user.id,
+                                order_id=order_id,
+                                bonus_usd=bonus_usd,
+                                amount_stars=bonus_stars,
+                            ))
+                            log.info("REF PAYOUT: referrer=%s referred=%s order=%s +⭐%s",
+                                     referrer.id, user.id, order_id, bonus_stars)
+                            if _bot:
+                                try:
+                                    ref_lang = referrer.lang or "ru"
+                                    ref_msgs = {
+                                        "ru": f"⭐ <b>+{bonus_stars} звёзд!</b>\n\nВаш реферал сделал покупку.",
+                                        "ua": f"⭐ <b>+{bonus_stars} зірок!</b>\n\nВаш реферал зробив покупку.",
+                                        "en": f"⭐ <b>+{bonus_stars} stars!</b>\n\nYour referral made a purchase.",
+                                    }
+                                    await _bot.send_message(
+                                        referrer.id,
+                                        ref_msgs.get(ref_lang, ref_msgs["ru"]),
+                                        parse_mode="HTML",
+                                    )
+                                except Exception:
+                                    pass
         except IntegrityError:
-            pass  # order_id вже є в referral_payouts — дублікат, ігноруємо
+            pass  # race: два ордери одночасно — другий програє
         except Exception as e:
             log.warning("REF PAYOUT error order=%s: %s", order_id, e)
 
