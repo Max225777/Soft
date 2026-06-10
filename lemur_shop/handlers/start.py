@@ -90,9 +90,10 @@ async def cmd_start(message: Message) -> None:
                     # сповіщення рефереру
                     if referrer:
                         try:
+                            ref_lang = referrer.lang or "ru"
                             await message.bot.send_message(
                                 referrer.id,
-                                "👤 <b>Ваш реферал зашёл в бот!</b>",
+                                _REF_JOINED_MSG.get(ref_lang, _REF_JOINED_MSG["ru"]),
                                 parse_mode="HTML",
                             )
                         except Exception:

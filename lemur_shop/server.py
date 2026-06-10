@@ -597,9 +597,15 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
                                      referrer.id, user.id, order_id, bonus_stars)
                             if _bot:
                                 try:
+                                    ref_lang = referrer.lang or "ru"
+                                    ref_msgs = {
+                                        "ru": f"🛍 <b>Ваш реферал сделал покупку!</b>\n\n⭐ <b>+{bonus_stars} звёзд</b> зачислено на ваш баланс.",
+                                        "ua": f"🛍 <b>Ваш реферал зробив покупку!</b>\n\n⭐ <b>+{bonus_stars} зірок</b> зараховано на ваш баланс.",
+                                        "en": f"🛍 <b>Your referral made a purchase!</b>\n\n⭐ <b>+{bonus_stars} stars</b> added to your balance.",
+                                    }
                                     await _bot.send_message(
                                         referrer.id,
-                                        f"🛍 <b>Ваш реферал сделал покупку!</b>\n\n⭐ <b>+{bonus_stars} звёзд</b> зачислено на ваш баланс.",
+                                        ref_msgs.get(ref_lang, ref_msgs["ru"]),
                                         parse_mode="HTML",
                                     )
                                 except Exception:
