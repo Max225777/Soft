@@ -15,6 +15,12 @@ from lemur_shop.db.models import User
 from lemur_shop.db.session import AsyncSessionLocal
 from lemur_shop.services.referral import get_referrer_by_code
 
+_REF_JOINED_MSG = {
+    "ru": "👤 <b>Ваш реферал зашёл в бот!</b>",
+    "ua": "👤 <b>Ваш реферал зайшов у бот!</b>",
+    "en": "👤 <b>Your referral joined the bot!</b>",
+}
+
 log = logging.getLogger(__name__)
 router = Router()
 
@@ -81,6 +87,17 @@ async def cmd_start(message: Message) -> None:
                     )
                     s.add(user)
                     lang = "ru"
+                    # сповіщення рефереру
+                    if referrer:
+                        ref_lang = referrer.lang or "ru"
+                        try:
+                            await message.bot.send_message(
+                                referrer.id,
+                                _REF_JOINED_MSG.get(ref_lang, _REF_JOINED_MSG["ru"]),
+                                parse_mode="HTML",
+                            )
+                        except Exception:
+                            pass
                 else:
                     user.username = message.from_user.username
                     lang = user.lang if user.lang in WELCOME else "ru"

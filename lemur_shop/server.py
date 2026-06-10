@@ -599,9 +599,9 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
                                 try:
                                     ref_lang = referrer.lang or "ru"
                                     ref_msgs = {
-                                        "ru": f"⭐ <b>+{bonus_stars} звёзд!</b>\n\nВаш реферал сделал покупку.",
-                                        "ua": f"⭐ <b>+{bonus_stars} зірок!</b>\n\nВаш реферал зробив покупку.",
-                                        "en": f"⭐ <b>+{bonus_stars} stars!</b>\n\nYour referral made a purchase.",
+                                        "ru": f"🛍 <b>Ваш реферал сделал покупку!</b>\n\n⭐ <b>+{bonus_stars} звёзд</b> зачислено на ваш баланс.",
+                                        "ua": f"🛍 <b>Ваш реферал зробив покупку!</b>\n\n⭐ <b>+{bonus_stars} зірок</b> зараховано на ваш баланс.",
+                                        "en": f"🛍 <b>Your referral made a purchase!</b>\n\n⭐ <b>+{bonus_stars} stars</b> added to your balance.",
                                     }
                                     await _bot.send_message(
                                         referrer.id,
