@@ -68,6 +68,19 @@ const SMM_TITLES: Record<string, string> = {
   tg_react_neg_mix1:   '👎😁😢💩 Мікс',
 }
 
+function fmtUsd(v: number): string {
+  if (v === 0) return '0.00'
+  if (Math.abs(v) < 0.005) return v.toFixed(5)
+  if (Math.abs(v) < 0.05)  return v.toFixed(4)
+  if (Math.abs(v) < 0.5)   return v.toFixed(3)
+  return v.toFixed(2)
+}
+
+function marginPct(rev: number, cost: number): string {
+  if (rev <= 0) return ''
+  return Math.round((rev - cost) / rev * 100) + '%'
+}
+
 function GroupStats({
   label, group, profitColor, flags,
 }: {
@@ -96,13 +109,18 @@ function GroupStats({
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-              виручка <b style={{ color: 'var(--text)' }}>${group.revenue_usd.toFixed(2)}</b>
+              виручка <b style={{ color: 'var(--text)' }}>${fmtUsd(group.revenue_usd)}</b>
             </div>
             <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-              витрати <b style={{ color: 'var(--text)' }}>${group.cost_usd.toFixed(2)}</b>
+              витрати <b style={{ color: 'var(--text)' }}>${fmtUsd(group.cost_usd)}</b>
             </div>
             <div style={{ fontWeight: 800, fontSize: 16, color: profitColor(group.profit_usd), marginTop: 2 }}>
-              прибуток ${group.profit_usd.toFixed(2)}
+              прибуток ${fmtUsd(group.profit_usd)}
+              {group.revenue_usd > 0 && (
+                <span style={{ fontSize: 12, fontWeight: 600, marginLeft: 6, opacity: 0.75 }}>
+                  ({marginPct(group.revenue_usd, group.cost_usd)})
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -129,10 +147,15 @@ function GroupStats({
           <div style={{ textAlign: 'right' }}>
             <div style={{ color: 'var(--orange)', fontWeight: 700, fontSize: 13 }}>{c.count} замовл.</div>
             <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-              ${c.revenue_usd.toFixed(2)} / -${c.cost_usd.toFixed(2)}
+              ${fmtUsd(c.revenue_usd)} / -${fmtUsd(c.cost_usd)}
             </div>
             <div style={{ fontSize: 12, fontWeight: 700, color: profitColor(c.profit_usd) }}>
-              =${c.profit_usd.toFixed(2)}
+              =${fmtUsd(c.profit_usd)}
+              {c.revenue_usd > 0 && (
+                <span style={{ fontSize: 11, fontWeight: 500, marginLeft: 4, opacity: 0.7 }}>
+                  ({marginPct(c.revenue_usd, c.cost_usd)})
+                </span>
+              )}
             </div>
           </div>
         </div>
