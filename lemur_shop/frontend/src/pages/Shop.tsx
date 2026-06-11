@@ -535,9 +535,13 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           user_inactive:        { ru: 'Пост не найден или канал недоступен', ua: 'Пост не знайдено або канал недоступний', en: 'Post not found or channel unavailable' },
           invalid_link:         { ru: 'Неверная ссылка', ua: 'Неправильне посилання', en: 'Invalid link' },
         }
-        const k = Object.keys(errMap).find(k => msg.toLowerCase().includes(k.replace(/_/g, '')))
+        const k = Object.keys(errMap).find(k => msg.toLowerCase().includes(k.toLowerCase()))
         const friendly = k ? (errMap[k][lang] ?? errMap[k]['ru']) : (lang === 'ru' ? 'Ошибка сервиса — попробуйте позже' : lang === 'ua' ? 'Помилка сервісу — спробуйте пізніше' : 'Service error — try again later')
-        setSmmError(friendly)
+        if (msg === 'insufficient_balance') {
+          setSmmError(lang === 'ru' ? 'Недостаточно звёзд — пополните баланс' : lang === 'ua' ? 'Недостатньо зірок — поповніть баланс' : 'Not enough stars — please top up')
+        } else {
+          setSmmError(friendly)
+        }
       } finally { setSmmLoading(false) }
     }
 
@@ -718,8 +722,13 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           {smmError && (
             <div style={{
               background: 'rgba(255,68,68,.08)', border: '1px solid rgba(255,68,68,.25)',
-              borderRadius: 12, padding: '11px 14px', fontSize: 13, color: '#ff7070', marginBottom: 14,
+              borderRadius: 12, padding: '11px 14px', fontSize: 13, color: '#ff7070', marginBottom: 10,
             }}>❌ {smmError}</div>
+          )}
+          {smmError && balance < priceStars && (
+            <button className="btn btn-primary" style={{ width: '100%', marginBottom: 10 }} onClick={onGoToBalance}>
+              {lang === 'ru' ? '💰 Пополнить баланс' : lang === 'ua' ? '💰 Поповнити баланс' : '💰 Top up balance'}
+            </button>
           )}
 
           <button
@@ -762,9 +771,13 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           invalid_link:            { ru: 'Неверная ссылка', ua: 'Неправильне посилання', en: 'Invalid link' },
           reaction_not_configured: { ru: 'Эта реакция временно недоступна', ua: 'Ця реакція тимчасово недоступна', en: 'This reaction is temporarily unavailable' },
         }
-        const key = Object.keys(smmErrMap).find(k => msg.toLowerCase().includes(k.replace(/_/g, '')))
-        const friendly = key ? (smmErrMap[key][lang] ?? smmErrMap[key]['ru']) : (lang === 'ru' ? 'Ошибка сервиса — попробуйте позже' : 'Помилка сервісу — спробуйте пізніше')
-        setSmmError(friendly)
+        const key = Object.keys(smmErrMap).find(k => msg.toLowerCase().includes(k.toLowerCase()))
+        if (msg === 'insufficient_balance') {
+          setSmmError(lang === 'ru' ? 'Недостаточно звёзд — пополните баланс' : lang === 'ua' ? 'Недостатньо зірок — поповніть баланс' : 'Not enough stars — please top up')
+        } else {
+          const friendly = key ? (smmErrMap[key][lang] ?? smmErrMap[key]['ru']) : (lang === 'ru' ? 'Ошибка сервиса — попробуйте позже' : 'Помилка сервісу — спробуйте пізніше')
+          setSmmError(friendly)
+        }
       } finally { setSmmLoading(false) }
     }
 
@@ -966,8 +979,13 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
           {smmError && (
             <div style={{
               background: 'rgba(255,68,68,.08)', border: '1px solid rgba(255,68,68,.25)',
-              borderRadius: 12, padding: '11px 14px', fontSize: 13, color: '#ff7070', marginBottom: 14,
+              borderRadius: 12, padding: '11px 14px', fontSize: 13, color: '#ff7070', marginBottom: 10,
             }}>❌ {smmError}</div>
+          )}
+          {smmError && balance < priceStars && (
+            <button className="btn btn-primary" style={{ width: '100%', marginBottom: 10 }} onClick={onGoToBalance}>
+              {lang === 'ru' ? '💰 Пополнить баланс' : lang === 'ua' ? '💰 Поповнити баланс' : '💰 Top up balance'}
+            </button>
           )}
 
           <button
