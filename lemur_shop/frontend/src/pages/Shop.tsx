@@ -4,7 +4,7 @@ import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
 import BioPromoButton from '../components/BioPromoButton'
 
-interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void; onBuy?: () => void }
+interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void; onGoToProfile?: () => void; onBuy?: () => void }
 
 type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars' | 'smm' | 'smm_list' | 'smm_reactions'
 
@@ -110,7 +110,7 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
   )
 }
 
-export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
+export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: Props) {
   const T = getT(lang)
   const [view, setView]       = useState<View>('menu')
   const [cats, setCats]       = useState<Category[]>([])
@@ -1075,9 +1075,24 @@ export default function Shop({ lang, me, onGoToBalance, onBuy }: Props) {
         )}
       </div>
 
-      <button className="btn btn-secondary" onClick={() => { setResult(null); setCode(''); setView('menu') }}>
-        {T.back}
-      </button>
+      <div style={{
+        background: 'rgba(42,171,238,.07)', border: '1px solid rgba(42,171,238,.2)',
+        borderRadius: 12, padding: '12px 14px', fontSize: 13, color: 'var(--text2)',
+        textAlign: 'center', lineHeight: 1.5,
+      }}>
+        💡 {T.order_saved}
+      </div>
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setResult(null); setCode(''); setView('menu') }}>
+          {T.back}
+        </button>
+        {onGoToProfile && (
+          <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => { setResult(null); setCode(''); onGoToProfile() }}>
+            {T.go_to_profile}
+          </button>
+        )}
+      </div>
     </div>
     )
   }

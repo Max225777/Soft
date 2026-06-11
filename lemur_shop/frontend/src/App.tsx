@@ -89,7 +89,7 @@ export default function App() {
   return (
     <>
       <div style={{ flex: 1 }}>
-        {tab === 'shop'    && <Shop    key="shop"    lang={lang} me={me} onGoToBalance={() => { setTab('balance'); setBalSub('balance') }} onBuy={refreshMe} />}
+        {tab === 'shop'    && <Shop    key="shop"    lang={lang} me={me} onGoToBalance={() => { setTab('balance'); setBalSub('balance') }} onGoToProfile={() => setTab('profile')} onBuy={refreshMe} />}
         {tab === 'profile' && <Profile key="profile" me={me} lang={lang} onChangeLang={l => { setLang(l); localStorage.setItem(LANG_KEY, l); refreshMe() }} />}
         {tab === 'admin'   && <Admin   key="admin" />}
         {tab === 'balance' && (
