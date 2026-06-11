@@ -48,6 +48,13 @@ _MIGRATIONS = [
     )""",
     # Реферальні виплати — поле зірок
     "ALTER TABLE referral_payouts ADD COLUMN IF NOT EXISTS amount_stars INT DEFAULT 0",
+    # Розширюємо precision price_usd/cost_usd до 6dp (було 2dp → SMM-копійки округлялись)
+    "ALTER TABLE orders ALTER COLUMN price_usd TYPE NUMERIC(10,6)",
+    "ALTER TABLE orders ALTER COLUMN cost_usd TYPE NUMERIC(10,6)",
+    # Ре-бекфіл cost_usd для SMM (попередній бекфіл зберігся як 2dp і втратив точність)
+    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.4505, 6) WHERE category = 'tg_subscribers' AND status = 'delivered'",
+    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.6447, 6) WHERE category = 'tg_views' AND status = 'delivered'",
+    "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.02962, 6) WHERE category IN ('tg_reactions','tg_react_like','tg_react_dislike','tg_react_heart','tg_react_fire','tg_react_poop','tg_react_clown','tg_react_middlefinger','tg_react_vomit','tg_react_sunglasses','tg_react_angry','tg_react_neg_mix1') AND status = 'delivered'",
 ]
 
 
