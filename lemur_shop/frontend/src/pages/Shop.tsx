@@ -1076,11 +1076,12 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
       </div>
 
       <div style={{
-        background: 'rgba(42,171,238,.07)', border: '1px solid rgba(42,171,238,.2)',
-        borderRadius: 12, padding: '12px 14px', fontSize: 13, color: 'var(--text2)',
-        textAlign: 'center', lineHeight: 1.5,
+        background: 'rgba(42,171,238,.08)', border: '1px solid rgba(42,171,238,.25)',
+        borderRadius: 14, padding: '14px 16px', fontSize: 13, color: 'var(--text2)',
+        lineHeight: 1.6,
       }}>
-        💡 {T.order_saved}
+        <div style={{ fontWeight: 700, fontSize: 13, color: '#2AABEE', marginBottom: 4 }}>💾 Данные сохранены</div>
+        Вы сможете повторно найти номер, получить код и просмотреть все детали заказа, зайдя во вкладку <b>Профиль → Мои аккаунты</b>.
       </div>
 
       <div style={{ display: 'flex', gap: 10 }}>
@@ -1089,7 +1090,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
         </button>
         {onGoToProfile && (
           <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => { setResult(null); setCode(''); onGoToProfile() }}>
-            {T.go_to_profile}
+            👤 В профиль
           </button>
         )}
       </div>
