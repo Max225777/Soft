@@ -531,6 +531,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
         const msg: string = e.message ?? ''
         const errMap: Record<string, Record<string, string>> = {
           insufficient_balance: { ru: 'Недостаточно звёзд', ua: 'Недостатньо зірок', en: 'Insufficient stars' },
+          insufficient_funds:   { ru: 'Сервис временно недоступен — попробуйте позже', ua: 'Сервіс тимчасово недоступний — спробуйте пізніше', en: 'Service temporarily unavailable — try again later' },
           blocked_channel:      { ru: T.smm_blocked_channel, ua: T.smm_blocked_channel, en: T.smm_blocked_channel },
           user_inactive:        { ru: 'Пост не найден или канал недоступен', ua: 'Пост не знайдено або канал недоступний', en: 'Post not found or channel unavailable' },
           invalid_link:         { ru: 'Неверная ссылка', ua: 'Неправильне посилання', en: 'Invalid link' },
@@ -765,6 +766,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
         const msg: string = e.message ?? ''
         const smmErrMap: Record<string, Record<string, string>> = {
           insufficient_balance:    { ru: 'Недостаточно звёзд', ua: 'Недостатньо зірок', en: 'Insufficient stars' },
+          insufficient_funds:      { ru: 'Сервис временно недоступен — попробуйте позже', ua: 'Сервіс тимчасово недоступний — спробуйте пізніше', en: 'Service temporarily unavailable — try again later' },
           blocked_channel:         { ru: T.smm_blocked_channel, ua: T.smm_blocked_channel, en: T.smm_blocked_channel },
           user_inactive:           { ru: 'Канал не найден или недоступен. Проверьте, что канал публичный', ua: 'Канал не знайдено або недоступний. Перевірте, що канал публічний', en: 'Channel not found or unavailable. Make sure the channel is public' },
           neworder_invalid_link:   { ru: 'Неверная ссылка на канал', ua: 'Неправильне посилання на канал', en: 'Invalid channel link' },
