@@ -525,7 +525,7 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
             detail = "timeout"
         else:
             detail = "buy_failed"
-        log.warning("auto_buy_category failed for %s: %s", body.category, e)
+        log.warning("auto_buy_category failed for %s: %s (%s)", body.category, type(e).__name__, e)
         if _bot and settings.ADMIN_IDS:
             cat_label = body.category.upper()
             err_txt = (

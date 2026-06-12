@@ -166,8 +166,8 @@ async def _macro_buy(cat: dict) -> tuple[str, int, float]:
                     spam="no", password=None,
                 )
                 break
-            except LolzApiError as e:
-                log.warning("%s macro %d search attempt %d failed: %s", country, macro, attempt + 1, e)
+            except (LolzApiError, httpx.TimeoutException) as e:
+                log.warning("%s macro %d search attempt %d failed: %s (%s)", country, macro, attempt + 1, type(e).__name__, e)
                 if attempt < 2:
                     await asyncio.sleep(2)
 
@@ -176,6 +176,7 @@ async def _macro_buy(cat: dict) -> tuple[str, int, float]:
             break
 
         items_sorted = sorted(items, key=lambda x: float(x.get("price") or x.get("price_usd") or 999))
+
         log.info("%s macro %d: %d items, cheapest=%.2f", country, macro, len(items_sorted),
                  float(items_sorted[0].get("price") or items_sorted[0].get("price_usd") or 0))
 
@@ -211,7 +212,7 @@ async def auto_buy_category(category: str) -> tuple[str, int, float]:
     for pmax in tiers:
         try:
             items = await lolz.search_telegram(country=country, pmax=pmax, count=50)
-        except LolzApiError:
+        except (LolzApiError, httpx.TimeoutException):
             items = []
         if items:
             log.info("Found %d accounts for %s at pmax=%.2f", len(items), category, pmax)
