@@ -693,9 +693,43 @@ async def api_orders(user: User = Depends(get_current_user)):
         orders = result.scalars().all()
     return [
         {"id": o.id, "price_usd": float(o.price_usd), "status": o.status,
+         "category": o.category, "smm_quantity": o.smm_quantity,
          "created_at": o.created_at.isoformat(), "delivered_data": o.delivered_data}
         for o in orders
     ]
+
+
+@app.get("/api/leaderboard")
+async def api_leaderboard(user: User = Depends(get_current_user)):
+    async with AsyncSessionLocal() as s:
+        rows = await s.execute(
+            select(
+                User.id,
+                User.full_name,
+                User.username,
+                func.count(Order.id).label("orders_count"),
+                func.sum(Order.price_usd).label("total_usd"),
+            )
+            .join(Order, Order.user_id == User.id)
+            .where(Order.status == "delivered")
+            .group_by(User.id, User.full_name, User.username)
+            .order_by(func.sum(Order.price_usd).desc())
+            .limit(20)
+        )
+        leaders = rows.all()
+    result = []
+    for i, row in enumerate(leaders):
+        name = row.full_name or row.username or f"User {row.id}"
+        is_me = row.id == user.id
+        result.append({
+            "rank": i + 1,
+            "name": name,
+            "username": row.username,
+            "orders_count": row.orders_count,
+            "total_stars": round(float(row.total_usd or 0) / 0.013),
+            "is_me": is_me,
+        })
+    return result
 
 
 REFERRAL_BONUS_STARS = 10  # зірок за кожну покупку рефералу

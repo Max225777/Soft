@@ -43,6 +43,7 @@ export const api = {
   starsInvoice: (stars: number) => req<{ invoice_url: string; stars: number; amount_usd: number }>('/stars/invoice', { method: 'POST', body: JSON.stringify({ stars }) }),
   starsBuy:     (stars: number, amount_usd: number) => req<{ ok: boolean }>('/stars/buy', { method: 'POST', body: JSON.stringify({ stars, amount_usd }) }),
   referral:     () => req<Referral>('/referral'),
+  leaderboard:  () => req<LeaderRow[]>('/leaderboard'),
 }
 
 export const smmApi = {
@@ -133,7 +134,12 @@ export interface Category { category: string; flag: string; title: string; title
 export interface BuyResult { order_id: number; phone: string; created_at: string }
 export interface Order {
   id: number; price_usd: number; status: string
+  category: string | null; smm_quantity: number
   created_at: string; delivered_data: string | null
+}
+export interface LeaderRow {
+  rank: number; name: string; username: string | null
+  orders_count: number; total_stars: number; is_me: boolean
 }
 
 export interface StatsCatRow {

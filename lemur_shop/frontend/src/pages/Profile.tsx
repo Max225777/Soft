@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { api, type Me, type Order } from '../api'
+import { api, type Me, type LeaderRow } from '../api'
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
 
@@ -12,17 +12,16 @@ const LANG_LABELS: Record<string, string> = {
 }
 const LANG_KEY = 'lemur_lang'
 
+const MEDALS = ['🥇', '🥈', '🥉']
+
 export default function Profile({ me, lang, onChangeLang }: Props) {
   const T = getT(lang)
-  const [orders, setOrders] = useState<Order[]>([])
-  const [loadingOrders, setLoadingOrders] = useState(true)
-  const [openOrder, setOpenOrder] = useState<number | null>(null)
-  const [codes, setCodes] = useState<Record<number, string>>({})
-  const [gettingCode, setGettingCode] = useState<number | null>(null)
-  const [copied, setCopied] = useState<string>('')
+  const [leaders, setLeaders] = useState<LeaderRow[]>([])
+  const [loadingLeaders, setLoadingLeaders] = useState(true)
+  const [lbTab, setLbTab] = useState<'stars' | 'orders'>('stars')
 
   useEffect(() => {
-    api.orders().then(o => { setOrders(o); setLoadingOrders(false) }).catch(() => setLoadingOrders(false))
+    api.leaderboard().then(r => { setLeaders(r); setLoadingLeaders(false) }).catch(() => setLoadingLeaders(false))
   }, [])
 
   function changeLang(l: Lang) {
@@ -31,29 +30,19 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
     onChangeLang(l)
   }
 
-  function copy(text: string, key: string) {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(key)
-      setTimeout(() => setCopied(''), 2000)
-    })
-  }
-
-  async function getCode(orderId: number) {
-    setGettingCode(orderId)
-    try {
-      const res = await api.getCode(orderId)
-      setCodes(prev => ({ ...prev, [orderId]: res.code }))
-    } catch (e: any) {
-      setCodes(prev => ({ ...prev, [orderId]: '❌ ' + (e.message ?? 'error') }))
-    } finally {
-      setGettingCode(null)
-    }
-  }
-
   if (!me) return <div className="page"><p className="muted">{T.loading}</p></div>
 
   const starsBalance = me.balance_stars
   const usdDisplay = (starsBalance * 0.013).toFixed(2)
+
+  const lbLabel = {
+    stars:  { ru: 'По тратам', ua: 'За витратами', en: 'By spending' },
+    orders: { ru: 'По покупкам', ua: 'За покупками', en: 'By purchases' },
+  }
+
+  const sorted = [...leaders].sort((a, b) =>
+    lbTab === 'stars' ? b.total_stars - a.total_stars : b.orders_count - a.orders_count
+  )
 
   return (
     <div className="page">
@@ -75,7 +64,6 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
           pointerEvents: 'none',
         }} />
 
-        {/* User row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
           <div style={{
             width: 52, height: 52, borderRadius: 16,
@@ -92,7 +80,6 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
           </div>
         </div>
 
-        {/* Balance */}
         <div>
           <div style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6 }}>
             {T.balance.toUpperCase()}
@@ -113,15 +100,11 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
             borderRadius: 14, padding: '12px 10px',
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            <div style={{
-              width: 30, height: 30, borderRadius: 9, flexShrink: 0,
-              background: 'linear-gradient(135deg, #2AABEE, #1178B8)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15,
-            }}>📢</div>
+            <div style={{ width: 30, height: 30, borderRadius: 9, flexShrink: 0, background: 'linear-gradient(135deg, #2AABEE, #1178B8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>📢</div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: 12, color: '#2AABEE', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@LEMUR_SHOP</div>
               <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 1 }}>
-                {lang === 'ua' ? 'Канал' : lang === 'ru' ? 'Канал' : 'Channel'}
+                {lang === 'ua' ? 'Канал' : 'Канал'}
               </div>
             </div>
           </div>
@@ -133,15 +116,11 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
             borderRadius: 14, padding: '12px 10px',
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            <div style={{
-              width: 30, height: 30, borderRadius: 9, flexShrink: 0,
-              background: 'linear-gradient(135deg, #4CAF72, #2e7a4e)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15,
-            }}>💬</div>
+            <div style={{ width: 30, height: 30, borderRadius: 9, flexShrink: 0, background: 'linear-gradient(135deg, #4CAF72, #2e7a4e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>💬</div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: 12, color: '#4CAF72', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@LEMUR_MANEGER</div>
               <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 1 }}>
-                {lang === 'ua' ? 'Підтримка' : lang === 'ru' ? 'Поддержка' : 'Support'}
+                {lang === 'ua' ? 'Підтримка' : 'Поддержка'}
               </div>
             </div>
           </div>
@@ -165,98 +144,61 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
         </div>
       </div>
 
-      {/* ── My accounts ── */}
-      <div style={{ fontWeight: 700, fontSize: 15, margin: '16px 0 10px' }}>{T.my_accounts}</div>
+      {/* ── Leaderboard ── */}
+      <div style={{ fontWeight: 800, fontSize: 16, margin: '18px 0 10px' }}>
+        🏆 {lang === 'ru' ? 'Таблица лидеров' : lang === 'ua' ? 'Таблиця лідерів' : 'Leaderboard'}
+      </div>
 
-      {loadingOrders ? (
-        <>
-          <div className="card"><div className="skeleton" style={{ height: 52 }} /></div>
-          <div className="card"><div className="skeleton" style={{ height: 52 }} /></div>
-        </>
-      ) : orders.length === 0 ? (
+      {/* Sub-tabs */}
+      <div style={{ display: 'flex', gap: 0, background: 'var(--bg2)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 10 }}>
+        {(['stars', 'orders'] as const).map(t => (
+          <button key={t} onClick={() => setLbTab(t)} style={{
+            flex: 1, padding: '9px 6px', fontSize: 12, fontWeight: lbTab === t ? 700 : 500,
+            background: lbTab === t ? 'rgba(255,107,43,.18)' : 'transparent',
+            color: lbTab === t ? 'var(--orange)' : 'var(--muted)',
+            border: 'none', cursor: 'pointer',
+            borderRight: t === 'stars' ? '1px solid var(--border)' : 'none',
+          }}>
+            {lbTab === t ? '▶ ' : ''}{lbLabel[t][lang]}
+          </button>
+        ))}
+      </div>
+
+      {loadingLeaders ? (
+        <div className="card"><div className="skeleton" style={{ height: 200 }} /></div>
+      ) : sorted.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', color: 'var(--muted)', padding: '28px 16px' }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>📭</div>
-          {T.no_orders}
+          {lang === 'ru' ? 'Нет данных' : lang === 'ua' ? 'Немає даних' : 'No data'}
         </div>
       ) : (
-        orders.map(o => {
-          const phone = o.delivered_data || ''
-          const isOpen = openOrder === o.id
-          const orderCode = codes[o.id] || ''
-          const isGetting = gettingCode === o.id
-
-          return (
-            <div key={o.id} className="card" style={{ marginBottom: 8, padding: 0, overflow: 'hidden' }}>
-              <div
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', cursor: 'pointer' }}
-                onClick={() => setOpenOrder(isOpen ? null : o.id)}
-              >
-                <div style={{
-                  width: 36, height: 36, borderRadius: 10,
-                  background: 'rgba(255,107,43,.12)', border: '1px solid rgba(255,107,43,.2)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 18, flexShrink: 0,
-                }}>📱</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>
-                    {T.order_num} #{String(o.id).padStart(5, '0')}
-                  </div>
-                  <div className="muted" style={{ fontSize: 12, marginTop: 1 }}>
-                    {new Date(o.created_at).toLocaleString(
-                      lang === 'en' ? 'en-GB' : lang === 'ua' ? 'uk-UA' : 'ru-RU',
-                      { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }
-                    )} · ⭐{Math.round(o.price_usd / 0.013)}
-                  </div>
-                </div>
-                <div style={{ color: 'var(--muted)', fontSize: 18, transition: 'transform .2s', transform: isOpen ? 'rotate(180deg)' : '' }}>▾</div>
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          {sorted.map((row, i) => (
+            <div key={row.rank} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '11px 14px',
+              borderBottom: i < sorted.length - 1 ? '1px solid var(--border)' : 'none',
+              background: row.is_me ? 'rgba(255,107,43,.07)' : 'transparent',
+            }}>
+              <div style={{ width: 28, textAlign: 'center', fontSize: i < 3 ? 18 : 13, fontWeight: 700, color: i < 3 ? undefined : 'var(--muted)', flexShrink: 0 }}>
+                {i < 3 ? MEDALS[i] : `#${i + 1}`}
               </div>
-
-              {isOpen && phone && (
-                <div style={{ borderTop: '1px solid var(--border)', padding: '14px 16px', background: 'var(--bg2)' }}>
-                  <div style={{ marginBottom: 12 }}>
-                    <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>📱 {T.your_phone}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <code style={{ flex: 1, fontSize: 15, fontWeight: 700 }}>{phone}</code>
-                      <button className="btn btn-secondary" style={{ width: 'auto', padding: '6px 12px', fontSize: 12 }}
-                        onClick={() => copy(phone, `phone-${o.id}`)}>
-                        {copied === `phone-${o.id}` ? T.copied : T.copy}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div style={{ background: 'rgba(255,107,43,.06)', border: '1px solid rgba(255,107,43,.12)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 13 }}>
-                    <ol style={{ paddingLeft: 16, lineHeight: 1.9, margin: 0, color: 'var(--text2)' }}>
-                      <li>{T.step1}</li>
-                      <li>{T.step2}: <code>{phone}</code></li>
-                      <li>{T.step3}</li>
-                      <li>{T.step4}</li>
-                    </ol>
-                  </div>
-
-                  <div>
-                    <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>🔑 {T.your_code}</div>
-                    <button className="btn btn-primary" style={{ fontSize: 14, marginBottom: orderCode ? 10 : 0 }}
-                      disabled={isGetting} onClick={() => getCode(o.id)}>
-                      {isGetting ? T.getting_code : T.get_code}
-                    </button>
-                    {orderCode && !orderCode.startsWith('❌') && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                        <code style={{ flex: 1, fontSize: 24, fontWeight: 800, letterSpacing: 6 }}>{orderCode}</code>
-                        <button className="btn btn-secondary" style={{ width: 'auto', padding: '6px 12px', fontSize: 12 }}
-                          onClick={() => copy(orderCode, `code-${o.id}`)}>
-                          {copied === `code-${o.id}` ? T.copied : T.copy}
-                        </button>
-                      </div>
-                    )}
-                    {orderCode && orderCode.startsWith('❌') && (
-                      <p style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{orderCode}</p>
-                    )}
-                  </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: row.is_me ? 800 : 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: row.is_me ? 'var(--orange)' : 'var(--text)' }}>
+                  {row.name}{row.is_me ? ' 👈' : ''}
                 </div>
-              )}
+                {row.username && <div className="muted" style={{ fontSize: 11, marginTop: 1 }}>@{row.username}</div>}
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>
+                  {lbTab === 'stars' ? `⭐${row.total_stars.toLocaleString()}` : `${row.orders_count} ${lang === 'ru' ? 'шт.' : 'шт.'}`}
+                </div>
+                <div className="muted" style={{ fontSize: 10, marginTop: 1 }}>
+                  {lbTab === 'stars' ? `${row.orders_count} замовл.` : `⭐${row.total_stars.toLocaleString()}`}
+                </div>
+              </div>
             </div>
-          )
-        })
+          ))}
+        </div>
       )}
 
       {me.is_admin && (
