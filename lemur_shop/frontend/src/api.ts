@@ -44,6 +44,7 @@ export const api = {
   starsBuy:     (stars: number, amount_usd: number) => req<{ ok: boolean }>('/stars/buy', { method: 'POST', body: JSON.stringify({ stars, amount_usd }) }),
   referral:     () => req<Referral>('/referral'),
   leaderboard:  () => req<LeaderRow[]>('/leaderboard'),
+  promoRedeem:  (code: string) => req<{ ok: boolean; stars: number }>('/promo/redeem', { method: 'POST', body: JSON.stringify({ code }) }),
 }
 
 export const smmApi = {
@@ -115,6 +116,10 @@ export const adminApi = {
   resetStats:      () => req<{ ok: boolean }>('/admin/reset-stats', { method: 'POST' }),
   bioPromoList:    (page: number, limit = 30) => req<BioPromoParticipantsPage>(`/admin/bio-promo?page=${page}&limit=${limit}`),
   referralStats:   () => req<AdminReferralStats>('/admin/referrals'),
+  promoList:       () => req<AdminPromoCode[]>('/admin/promo/list'),
+  promoCreate:     (code: string, reward_stars: number, max_activations: number) =>
+                     req<{ ok: boolean }>('/admin/promo/create', { method: 'POST', body: JSON.stringify({ code, reward_stars, max_activations }) }),
+  promoToggle:     (id: number) => req<{ ok: boolean; is_active: boolean }>(`/admin/promo/${id}/toggle`, { method: 'POST' }),
 }
 
 export interface Me {
@@ -201,6 +206,11 @@ export interface AdminReferrerRow {
 export interface AdminReferralStats {
   invited_today: number; invited_total: number
   referrers: AdminReferrerRow[]
+}
+export interface AdminPromoCode {
+  id: number; code: string; reward_stars: number
+  max_activations: number; activations: number
+  is_active: boolean; created_at: string
 }
 
 declare global {

@@ -55,6 +55,23 @@ _MIGRATIONS = [
     "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.4505, 6) WHERE category = 'tg_subscribers' AND status = 'delivered'",
     "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.6447, 6) WHERE category = 'tg_views' AND status = 'delivered'",
     "UPDATE orders SET cost_usd = ROUND(CAST(price_usd AS NUMERIC) * 0.02962, 6) WHERE category IN ('tg_reactions','tg_react_like','tg_react_dislike','tg_react_heart','tg_react_fire','tg_react_poop','tg_react_clown','tg_react_middlefinger','tg_react_vomit','tg_react_sunglasses','tg_react_angry','tg_react_neg_mix1') AND status = 'delivered'",
+    """CREATE TABLE IF NOT EXISTS promo_codes (
+        id SERIAL PRIMARY KEY,
+        code VARCHAR(32) UNIQUE NOT NULL,
+        reward_stars INT DEFAULT 0,
+        max_activations INT DEFAULT 1,
+        activations INT DEFAULT 0,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_by BIGINT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+    )""",
+    """CREATE TABLE IF NOT EXISTS promo_activations (
+        id SERIAL PRIMARY KEY,
+        code_id INT NOT NULL REFERENCES promo_codes(id),
+        user_id BIGINT NOT NULL REFERENCES users(id),
+        activated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(code_id, user_id)
+    )""",
 ]
 
 

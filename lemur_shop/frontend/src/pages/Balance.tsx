@@ -51,6 +51,9 @@ function ExpandPanel({ children }: { children: React.ReactNode }) {
 export default function Balance({ me, lang, balanceDiff }: Props) {
   const T = getT(lang)
   const [open, setOpen] = useState<'crypto' | 'stars' | null>(null)
+  const [promoCode, setPromoCode] = useState('')
+  const [promoLoading, setPromoLoading] = useState(false)
+  const [promoResult, setPromoResult] = useState<{ ok: boolean; stars?: number; error?: string } | null>(null)
   const [cryptoAmount, setCryptoAmount] = useState(0)
   const [customUsd, setCustomUsd] = useState('')
   const [starsCount, setStarsCount] = useState(0)
@@ -106,6 +109,24 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
       setStarsError(e.message ?? 'Error')
       setStarsLoading(false)
     }
+  }
+
+  async function redeemPromo() {
+    if (!promoCode.trim() || promoLoading) return
+    setPromoLoading(true); setPromoResult(null)
+    try {
+      const res = await api.promoRedeem(promoCode.trim())
+      setPromoResult({ ok: true, stars: res.stars })
+      setPromoCode('')
+    } catch (e: any) {
+      const msg = e.message ?? ''
+      const errText =
+        msg === 'promo_not_found'    ? (lang === 'ru' ? 'Промокод не найден' : lang === 'ua' ? 'Промокод не знайдено' : 'Promo code not found') :
+        msg === 'promo_limit_reached' ? (lang === 'ru' ? 'Промокод уже исчерпан' : lang === 'ua' ? 'Промокод вичерпано' : 'Promo code exhausted') :
+        msg === 'promo_already_used'  ? (lang === 'ru' ? 'Вы уже использовали этот промокод' : lang === 'ua' ? 'Ви вже використали цей промокод' : 'Already used') :
+        (lang === 'ru' ? 'Ошибка активации' : lang === 'ua' ? 'Помилка активації' : 'Activation error')
+      setPromoResult({ ok: false, error: errText })
+    } finally { setPromoLoading(false) }
   }
 
   function toggleCrypto() {
@@ -314,6 +335,49 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
               {lang === 'ru' ? 'Оплата через Telegram Stars' : lang === 'ua' ? 'Оплата через Telegram Stars' : 'Pay via Telegram Stars'}
             </div>
           </ExpandPanel>
+        )}
+      </div>
+
+      {/* Promo code */}
+      <div style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: 1, margin: '16px 0 8px', paddingLeft: 4 }}>
+        {lang === 'ru' ? 'ПРОМОКОД' : lang === 'ua' ? 'ПРОМОКОД' : 'PROMO CODE'}
+      </div>
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(255,107,43,.06), rgba(255,107,43,.02))',
+        border: '1px solid rgba(255,107,43,.2)',
+        borderRadius: 14, padding: '14px 16px',
+      }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            type="text"
+            placeholder={lang === 'ru' ? 'Введите промокод...' : lang === 'ua' ? 'Введіть промокод...' : 'Enter promo code...'}
+            value={promoCode}
+            onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoResult(null) }}
+            onKeyDown={e => e.key === 'Enter' && redeemPromo()}
+            style={{
+              flex: 1, background: 'var(--card2)', border: '1px solid var(--border)',
+              borderRadius: 10, padding: '11px 14px', color: 'var(--text)',
+              fontSize: 15, fontWeight: 700, letterSpacing: 1, outline: 'none',
+            }}
+          />
+          <button
+            className="btn btn-primary"
+            style={{ width: 'auto', padding: '0 18px', fontSize: 14 }}
+            disabled={!promoCode.trim() || promoLoading}
+            onClick={redeemPromo}
+          >
+            {promoLoading ? '⏳' : (lang === 'ru' ? 'Активировать' : lang === 'ua' ? 'Активувати' : 'Activate')}
+          </button>
+        </div>
+        {promoResult?.ok && (
+          <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(76,175,114,.12)', border: '1px solid rgba(76,175,114,.3)', borderRadius: 10, color: '#4CAF72', fontWeight: 700, fontSize: 14 }}>
+            ✅ +{promoResult.stars}⭐ {lang === 'ru' ? 'начислено!' : lang === 'ua' ? 'зараховано!' : 'credited!'}
+          </div>
+        )}
+        {promoResult?.error && (
+          <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(255,59,48,.08)', border: '1px solid rgba(255,59,48,.25)', borderRadius: 10, color: 'var(--red)', fontSize: 13 }}>
+            ❌ {promoResult.error}
+          </div>
         )}
       </div>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats } from '../api'
+import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminPromoCode } from '../api'
 
 type DateMode = 'today' | 'all' | 'custom'
 
@@ -14,7 +14,7 @@ function useOverviewStats(dateFrom: string, dateTo: string) {
   return { stats, loading, reload }
 }
 
-type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'broadcast' | 'promo' | 'referrals'
+type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'broadcast' | 'promo' | 'referrals' | 'codes'
 
 const CATEGORY_FLAGS: Record<string, string> = { us: '🇺🇸', ua: '🇺🇦', kz: '🇰🇿' }
 
@@ -846,6 +846,112 @@ function ReferralsTab() {
   )
 }
 
+// ── Promo Codes Tab ───────────────────────────────────────────────────────────
+function PromoCodesTab() {
+  const [codes, setCodes] = useState<AdminPromoCode[]>([])
+  const [loading, setLoading] = useState(true)
+  const [newCode, setNewCode] = useState('')
+  const [newStars, setNewStars] = useState('')
+  const [newMax, setNewMax] = useState('1')
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [createOk, setCreateOk] = useState(false)
+
+  function load() {
+    setLoading(true)
+    adminApi.promoList().then(r => { setCodes(r); setLoading(false) }).catch(() => setLoading(false))
+  }
+
+  useEffect(() => { load() }, [])
+
+  async function create() {
+    const code = newCode.trim().toUpperCase()
+    const stars = parseInt(newStars)
+    const max = parseInt(newMax) || 1
+    if (!code || !stars || stars < 1) { setCreateError('Заповніть всі поля'); return }
+    setCreating(true); setCreateError(null); setCreateOk(false)
+    try {
+      await adminApi.promoCreate(code, stars, max)
+      setNewCode(''); setNewStars(''); setNewMax('1')
+      setCreateOk(true)
+      setTimeout(() => setCreateOk(false), 3000)
+      load()
+    } catch (e: any) {
+      setCreateError(e.message === 'code_exists' ? 'Такой код уже существует' : e.message)
+    } finally { setCreating(false) }
+  }
+
+  async function toggle(id: number) {
+    await adminApi.promoToggle(id)
+    load()
+  }
+
+  const inputS: React.CSSProperties = {
+    background: 'var(--card2)', border: '1px solid var(--border)',
+    borderRadius: 10, padding: '10px 12px', color: 'var(--text)',
+    fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box',
+  }
+
+  return (
+    <div>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>🎟 Новий промокод</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <input style={inputS} placeholder="КОД (ВЕЛИКИМИ)" value={newCode}
+            onChange={e => setNewCode(e.target.value.toUpperCase())} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <input style={inputS} type="number" min="1" placeholder="Зірок ⭐"
+              value={newStars} onChange={e => setNewStars(e.target.value)} />
+            <input style={inputS} type="number" min="1" placeholder="Макс. активацій"
+              value={newMax} onChange={e => setNewMax(e.target.value)} />
+          </div>
+          {createError && <div style={{ color: 'var(--red)', fontSize: 13 }}>❌ {createError}</div>}
+          {createOk    && <div style={{ color: '#4CAF72', fontSize: 13 }}>✅ Промокод створено!</div>}
+          <button className="btn btn-primary" disabled={creating} onClick={create}>
+            {creating ? '⏳...' : '+ Створити промокод'}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>Список промокодів ({codes.length})</div>
+      {loading ? (
+        <div className="card"><div className="skeleton" style={{ height: 100 }} /></div>
+      ) : codes.length === 0 ? (
+        <div className="card" style={{ color: 'var(--muted)', textAlign: 'center', padding: 24 }}>Немає промокодів</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {codes.map(c => (
+            <div key={c.id} className="card" style={{ padding: '12px 14px', opacity: c.is_active ? 1 : 0.5 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, letterSpacing: 1 }}>{c.code}</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>
+                    ⭐{c.reward_stars} · {c.activations}/{c.max_activations} активацій · {fmt(c.created_at)}
+                  </div>
+                </div>
+                <div style={{
+                  fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8,
+                  background: c.is_active ? 'rgba(76,175,114,.15)' : 'rgba(255,59,48,.1)',
+                  color: c.is_active ? '#4CAF72' : 'var(--red)',
+                }}>
+                  {c.is_active ? 'Активний' : 'Вимкнено'}
+                </div>
+                <button
+                  className="btn btn-secondary"
+                  style={{ width: 'auto', padding: '6px 12px', fontSize: 12 }}
+                  onClick={() => toggle(c.id)}
+                >
+                  {c.is_active ? 'Вимкнути' : 'Увімкнути'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main Admin page ───────────────────────────────────────────────────────────
 const TABS: { id: AdminTab; label: string }[] = [
   { id: 'overview',  label: '📊 Огляд' },
@@ -855,6 +961,7 @@ const TABS: { id: AdminTab; label: string }[] = [
   { id: 'broadcast', label: '📢 Розсилка' },
   { id: 'promo',     label: '⭐ Промо' },
   { id: 'referrals', label: '👥 Рефи' },
+  { id: 'codes',     label: '🎟 Промокоди' },
 ]
 
 export default function Admin() {
@@ -905,6 +1012,7 @@ export default function Admin() {
       {tab === 'broadcast' && <Broadcast />}
       {tab === 'promo'     && <BioPromoTab />}
       {tab === 'referrals' && <ReferralsTab />}
+      {tab === 'codes'     && <PromoCodesTab />}
     </div>
   )
 }

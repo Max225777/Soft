@@ -132,6 +132,29 @@ class BioPromo(Base):
     reward_tier: Mapped[int] = mapped_column(Integer, default=1)  # 1 = @username only, 2 = full phrase
 
 
+class PromoCode(Base):
+    __tablename__ = "promo_codes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    reward_stars: Mapped[int] = mapped_column(Integer, default=0)
+    max_activations: Mapped[int] = mapped_column(Integer, default=1)
+    activations: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_by: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class PromoActivation(Base):
+    __tablename__ = "promo_activations"
+    __table_args__ = (UniqueConstraint("code_id", "user_id", name="uq_promo_user"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code_id: Mapped[int] = mapped_column(Integer, ForeignKey("promo_codes.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
+    activated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class WheelRoom(Base):
     __tablename__ = "wheel_rooms"
 

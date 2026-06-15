@@ -27,7 +27,7 @@ from sqlalchemy.exc import IntegrityError
 from lemur_shop.api.lolz import LolzApiError
 from lemur_shop.config import settings
 from lemur_shop.db.init import create_tables
-from lemur_shop.db.models import BioPromo, Order, ReferralPayout, TopUp, User
+from lemur_shop.db.models import BioPromo, Order, PromoCode, PromoActivation, ReferralPayout, TopUp, User
 from lemur_shop.db.session import AsyncSessionLocal
 from decimal import Decimal
 
@@ -730,6 +730,87 @@ async def api_leaderboard(user: User = Depends(get_current_user)):
             "is_me": is_me,
         })
     return result
+
+
+class PromoRedeemRequest(BaseModel):
+    code: str
+
+@app.post("/api/promo/redeem")
+async def api_promo_redeem(body: PromoRedeemRequest, user: User = Depends(get_current_user)):
+    code_str = body.code.strip().upper()
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            promo = await s.scalar(select(PromoCode).where(PromoCode.code == code_str).with_for_update())
+            if not promo or not promo.is_active:
+                raise HTTPException(404, "promo_not_found")
+            if promo.activations >= promo.max_activations:
+                raise HTTPException(409, "promo_limit_reached")
+            exists = await s.scalar(
+                select(PromoActivation.id).where(
+                    PromoActivation.code_id == promo.id,
+                    PromoActivation.user_id == user.id,
+                )
+            )
+            if exists:
+                raise HTTPException(409, "promo_already_used")
+            promo.activations += 1
+            u = await s.get(User, user.id, with_for_update=True)
+            u.balance_stars += promo.reward_stars
+            s.add(PromoActivation(code_id=promo.id, user_id=user.id))
+    return {"ok": True, "stars": promo.reward_stars}
+
+
+class PromoCreateRequest(BaseModel):
+    code: str
+    reward_stars: int
+    max_activations: int = 1
+
+@app.post("/api/admin/promo/create")
+async def api_admin_promo_create(body: PromoCreateRequest, user: User = Depends(get_current_user)):
+    if not user.is_admin:
+        raise HTTPException(403, "forbidden")
+    code_str = body.code.strip().upper()
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            existing = await s.scalar(select(PromoCode).where(PromoCode.code == code_str))
+            if existing:
+                raise HTTPException(409, "code_exists")
+            promo = PromoCode(
+                code=code_str,
+                reward_stars=body.reward_stars,
+                max_activations=body.max_activations,
+                created_by=user.id,
+            )
+            s.add(promo)
+    return {"ok": True}
+
+@app.get("/api/admin/promo/list")
+async def api_admin_promo_list(user: User = Depends(get_current_user)):
+    if not user.is_admin:
+        raise HTTPException(403, "forbidden")
+    async with AsyncSessionLocal() as s:
+        rows = await s.execute(select(PromoCode).order_by(PromoCode.created_at.desc()).limit(50))
+        promos = rows.scalars().all()
+    return [
+        {
+            "id": p.id, "code": p.code, "reward_stars": p.reward_stars,
+            "max_activations": p.max_activations, "activations": p.activations,
+            "is_active": p.is_active, "created_at": p.created_at.isoformat(),
+        }
+        for p in promos
+    ]
+
+@app.post("/api/admin/promo/{promo_id}/toggle")
+async def api_admin_promo_toggle(promo_id: int, user: User = Depends(get_current_user)):
+    if not user.is_admin:
+        raise HTTPException(403, "forbidden")
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            promo = await s.get(PromoCode, promo_id)
+            if not promo:
+                raise HTTPException(404, "not_found")
+            promo.is_active = not promo.is_active
+    return {"ok": True, "is_active": promo.is_active}
 
 
 REFERRAL_BONUS_STARS = 10  # зірок за кожну покупку рефералу
