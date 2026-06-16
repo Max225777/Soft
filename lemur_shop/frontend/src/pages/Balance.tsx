@@ -347,28 +347,27 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
         border: '1px solid rgba(255,107,43,.2)',
         borderRadius: 14, padding: '14px 16px',
       }}>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input
-            type="text"
-            placeholder={lang === 'ru' ? 'Введите промокод...' : lang === 'ua' ? 'Введіть промокод...' : 'Enter promo code...'}
-            value={promoCode}
-            onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoResult(null) }}
-            onKeyDown={e => e.key === 'Enter' && redeemPromo()}
-            style={{
-              flex: 1, background: 'var(--card2)', border: '1px solid var(--border)',
-              borderRadius: 10, padding: '11px 14px', color: 'var(--text)',
-              fontSize: 15, fontWeight: 700, letterSpacing: 1, outline: 'none',
-            }}
-          />
-          <button
-            className="btn btn-primary"
-            style={{ width: 'auto', padding: '0 18px', fontSize: 14 }}
-            disabled={!promoCode.trim() || promoLoading}
-            onClick={redeemPromo}
-          >
-            {promoLoading ? '⏳' : (lang === 'ru' ? 'Активировать' : lang === 'ua' ? 'Активувати' : 'Activate')}
-          </button>
-        </div>
+        <input
+          type="text"
+          placeholder={lang === 'ru' ? 'Введите промокод...' : lang === 'ua' ? 'Введіть промокод...' : 'Enter promo code...'}
+          value={promoCode}
+          onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoResult(null) }}
+          onKeyDown={e => e.key === 'Enter' && redeemPromo()}
+          style={{
+            width: '100%', background: 'var(--card2)', border: '1px solid var(--border)',
+            borderRadius: 10, padding: '13px 16px', color: 'var(--text)',
+            fontSize: 16, fontWeight: 700, letterSpacing: 2, outline: 'none',
+            boxSizing: 'border-box', marginBottom: 10, textAlign: 'center',
+          }}
+        />
+        <button
+          className="btn btn-primary"
+          style={{ width: '100%', fontSize: 15, padding: '13px' }}
+          disabled={!promoCode.trim() || promoLoading}
+          onClick={redeemPromo}
+        >
+          {promoLoading ? '⏳ ...' : (lang === 'ru' ? '🎟 Активировать промокод' : lang === 'ua' ? '🎟 Активувати промокод' : '🎟 Activate promo code')}
+        </button>
         {promoResult?.ok && (
           <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(76,175,114,.12)', border: '1px solid rgba(76,175,114,.3)', borderRadius: 10, color: '#4CAF72', fontWeight: 700, fontSize: 14 }}>
             ✅ +{promoResult.stars}⭐ {lang === 'ru' ? 'начислено!' : lang === 'ua' ? 'зараховано!' : 'credited!'}

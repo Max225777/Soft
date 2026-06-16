@@ -4,18 +4,36 @@ import { getT, type Lang } from '../i18n'
 
 interface Props { lang: Lang }
 
+const COUNTRY_FLAGS: Record<string, string> = {
+  us: '🇺🇸', ua: '🇺🇦', kz: '🇰🇿', mm: '🇲🇲', ru: '🇷🇺',
+}
+const COUNTRY_NAMES: Record<string, Record<string, string>> = {
+  us: { ru: 'США', ua: 'США', en: 'USA' },
+  ua: { ru: 'Украина', ua: 'Україна', en: 'Ukraine' },
+  kz: { ru: 'Казахстан', ua: 'Казахстан', en: 'Kazakhstan' },
+  mm: { ru: 'Мьянма', ua: 'М\'янма', en: 'Myanmar' },
+  ru: { ru: 'Россия', ua: 'Росія', en: 'Russia' },
+}
 const SMM_LABELS: Record<string, string> = {
   tg_subscribers: '👥 Підписники',
   tg_views:       '👁 Перегляди',
   tg_reactions:   '⚡ Реакції',
 }
 
-function categoryLabel(o: Order): string {
-  if (!o.category) return '📱 Акаунт'
+function categoryLabel(o: Order, lang: string): { icon: string; label: string; isAccount: boolean } {
+  if (!o.category || o.category in COUNTRY_FLAGS || (!o.category.startsWith('tg_') && COUNTRY_FLAGS[o.category])) {
+    const cat = o.category || ''
+    const flag = COUNTRY_FLAGS[cat] || '📱'
+    const name = COUNTRY_NAMES[cat]?.[lang] || COUNTRY_NAMES[cat]?.['ru'] || cat.toUpperCase()
+    return { icon: flag, label: `TG-акаунт ${name}`, isAccount: true }
+  }
+  if (o.category.startsWith('tg_react')) return { icon: '⚡', label: 'Реакція', isAccount: false }
   const smm = SMM_LABELS[o.category]
-  if (smm) return smm
-  if (o.category.startsWith('tg_react')) return '⚡ Реакція'
-  return `📱 ${o.category.toUpperCase()}`
+  if (smm) {
+    const [icon, ...rest] = smm.split(' ')
+    return { icon, label: rest.join(' '), isAccount: false }
+  }
+  return { icon: '📱', label: o.category.toUpperCase(), isAccount: true }
 }
 
 export default function Orders({ lang }: Props) {
@@ -73,45 +91,64 @@ export default function Orders({ lang }: Props) {
           const isOpen = openOrder === o.id
           const orderCode = codes[o.id] || ''
           const isGetting = gettingCode === o.id
-          const isAccount = !!phone
           const priceStars = Math.round(o.price_usd / 0.013)
-          const label = categoryLabel(o)
+          const { icon, label, isAccount } = categoryLabel(o, lang)
 
           return (
-            <div key={o.id} className="card" style={{ marginBottom: 8, padding: 0, overflow: 'hidden' }}>
+            <div key={o.id} style={{
+              marginBottom: 10, borderRadius: 16, overflow: 'hidden',
+              background: 'var(--bg2)',
+              border: isAccount ? '1px solid rgba(255,107,43,.2)' : '1px solid rgba(42,171,238,.15)',
+              boxShadow: '0 2px 12px rgba(0,0,0,.18)',
+            }}>
               <div
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', cursor: isAccount ? 'pointer' : 'default' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: isAccount ? 'pointer' : 'default' }}
                 onClick={() => isAccount && setOpenOrder(isOpen ? null : o.id)}
               >
+                {/* Icon */}
                 <div style={{
-                  width: 38, height: 38, borderRadius: 11,
-                  background: isAccount ? 'rgba(255,107,43,.12)' : 'rgba(42,171,238,.1)',
-                  border: isAccount ? '1px solid rgba(255,107,43,.2)' : '1px solid rgba(42,171,238,.2)',
+                  width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                  background: isAccount ? 'linear-gradient(135deg, rgba(255,107,43,.2), rgba(255,107,43,.08))' : 'linear-gradient(135deg, rgba(42,171,238,.2), rgba(42,171,238,.08))',
+                  border: isAccount ? '1.5px solid rgba(255,107,43,.3)' : '1.5px solid rgba(42,171,238,.3)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 18, flexShrink: 0,
-                }}>{isAccount ? '📱' : '⚡'}</div>
+                  fontSize: 22,
+                }}>{icon}</div>
+
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{label}</div>
-                  <div className="muted" style={{ fontSize: 12, marginTop: 1 }}>
-                    {new Date(o.created_at).toLocaleString(locale, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    {' · '}⭐{priceStars}
-                    {o.smm_quantity > 0 && ` · ${o.smm_quantity} шт.`}
+                  <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>
+                    {isAccount && <span style={{ opacity: .6, fontSize: 12 }}>Telegram · </span>}{label}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <span>{new Date(o.created_at).toLocaleString(locale, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                    <span>·</span><span>⭐{priceStars}</span>
+                    {o.smm_quantity > 0 && <><span>·</span><span>{o.smm_quantity} шт.</span></>}
                   </div>
                 </div>
-                <div style={{
-                  fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 7,
-                  background: o.status === 'delivered' ? 'rgba(76,175,114,.15)' : o.status === 'pending' ? 'rgba(255,184,48,.12)' : 'rgba(255,107,43,.12)',
-                  color: o.status === 'delivered' ? '#4CAF72' : o.status === 'pending' ? '#FFB830' : 'var(--orange)',
-                }}>
-                  {o.status === 'delivered' ? '✓' : o.status === 'pending' ? '⏳' : o.status}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{
+                    fontSize: 11, fontWeight: 700, padding: '4px 9px', borderRadius: 8,
+                    background: o.status === 'delivered' ? 'rgba(76,175,114,.15)' : o.status === 'pending' ? 'rgba(255,184,48,.12)' : 'rgba(255,107,43,.12)',
+                    color: o.status === 'delivered' ? '#4CAF72' : o.status === 'pending' ? '#FFB830' : 'var(--orange)',
+                  }}>
+                    {o.status === 'delivered' ? '✓ Виконано' : o.status === 'pending' ? '⏳' : o.status}
+                  </div>
+                  {isAccount && (
+                    <div style={{
+                      width: 28, height: 28, borderRadius: 8,
+                      background: isOpen ? 'rgba(255,107,43,.2)' : 'rgba(255,255,255,.06)',
+                      border: isOpen ? '1px solid rgba(255,107,43,.4)' : '1px solid var(--border)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 13, color: isOpen ? 'var(--orange)' : 'var(--muted)',
+                      transition: 'all .2s', transform: isOpen ? 'rotate(180deg)' : '',
+                      flexShrink: 0,
+                    }}>▼</div>
+                  )}
                 </div>
-                {isAccount && (
-                  <div style={{ color: 'var(--muted)', fontSize: 18, transition: 'transform .2s', transform: isOpen ? 'rotate(180deg)' : '' }}>▾</div>
-                )}
               </div>
 
               {isOpen && isAccount && (
-                <div style={{ borderTop: '1px solid var(--border)', padding: '14px 16px', background: 'var(--bg2)' }}>
+                <div style={{ borderTop: '1px solid rgba(255,107,43,.15)', padding: '16px', background: 'rgba(255,107,43,.03)' }}>
                   <div style={{ marginBottom: 12 }}>
                     <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>📱 {T.your_phone}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
