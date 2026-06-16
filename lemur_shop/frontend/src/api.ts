@@ -43,7 +43,8 @@ export const api = {
   starsInvoice: (stars: number) => req<{ invoice_url: string; stars: number; amount_usd: number }>('/stars/invoice', { method: 'POST', body: JSON.stringify({ stars }) }),
   starsBuy:     (stars: number, amount_usd: number) => req<{ ok: boolean }>('/stars/buy', { method: 'POST', body: JSON.stringify({ stars, amount_usd }) }),
   referral:     () => req<Referral>('/referral'),
-  leaderboard:  (period: 'all' | 'today') => req<LeaderRow[]>(`/leaderboard?period=${period}`),
+  leaderboard:        (period: 'all' | 'today') => req<LeaderRow[]>(`/leaderboard?period=${period}`),
+  leaderboardRefs:    () => req<RefLeaderRow[]>('/leaderboard/referrals'),
   promoRedeem:  (code: string) => req<{ ok: boolean; stars: number }>('/promo/redeem', { method: 'POST', body: JSON.stringify({ code }) }),
 }
 
@@ -145,6 +146,10 @@ export interface Order {
 export interface LeaderRow {
   rank: number; name: string; username: string | null
   orders_count: number; total_stars: number; is_me: boolean
+}
+export interface RefLeaderRow {
+  rank: number; name: string; username: string | null
+  invited_count: number; earned_stars: number; is_me: boolean
 }
 
 export interface StatsCatRow {

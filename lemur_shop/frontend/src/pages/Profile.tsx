@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { api, type Me, type LeaderRow } from '../api'
+import { api, type Me, type LeaderRow, type RefLeaderRow } from '../api'
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
 
@@ -16,7 +16,9 @@ const MEDALS = ['🥇', '🥈', '🥉']
 
 export default function Profile({ me, lang, onChangeLang }: Props) {
   const T = getT(lang)
+  const [lbType, setLbType] = useState<'spending' | 'referrals'>('spending')
   const [leaders, setLeaders] = useState<LeaderRow[]>([])
+  const [refLeaders, setRefLeaders] = useState<RefLeaderRow[]>([])
   const [loadingLeaders, setLoadingLeaders] = useState(true)
   const [period, setPeriod] = useState<'all' | 'today'>('all')
 
@@ -24,6 +26,10 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
     setLoadingLeaders(true)
     api.leaderboard(period).then(r => { setLeaders(r); setLoadingLeaders(false) }).catch(() => setLoadingLeaders(false))
   }, [period])
+
+  useEffect(() => {
+    api.leaderboardRefs().then(r => setRefLeaders(r)).catch(() => {})
+  }, [])
 
   function changeLang(l: Lang) {
     localStorage.setItem(LANG_KEY, l)
@@ -137,21 +143,19 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
       </div>
 
       {/* ── Leaderboard ── */}
-      <div style={{ fontWeight: 800, fontSize: 16, margin: '18px 0 10px' }}>
-        🏆 {lang === 'ru' ? 'Таблица лидеров — по тратам' : lang === 'ua' ? 'Таблиця лідерів — за витратами' : 'Leaderboard — by spending'}
-      </div>
+      <div style={{ fontWeight: 800, fontSize: 16, margin: '18px 0 10px' }}>🏆 {lang === 'ru' ? 'Таблица лидеров' : lang === 'ua' ? 'Таблиця лідерів' : 'Leaderboard'}</div>
 
-      {/* Period switch */}
-      <div style={{ display: 'flex', gap: 0, background: 'var(--bg2)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 10 }}>
-        {(['all', 'today'] as const).map((p, i) => {
-          const label = p === 'all'
-            ? (lang === 'ru' ? 'За всё время' : lang === 'ua' ? 'За весь час' : 'All time')
-            : (lang === 'ru' ? 'За сегодня' : lang === 'ua' ? 'За сьогодні' : 'Today')
+      {/* Type switch */}
+      <div style={{ display: 'flex', gap: 0, background: 'var(--bg2)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 8 }}>
+        {(['spending', 'referrals'] as const).map((t, i) => {
+          const label = t === 'spending'
+            ? (lang === 'ru' ? '💸 По тратам' : lang === 'ua' ? '💸 За витратами' : '💸 By spending')
+            : (lang === 'ru' ? '👥 По рефералам' : lang === 'ua' ? '👥 За рефералами' : '👥 By referrals')
           return (
-            <button key={p} onClick={() => setPeriod(p)} style={{
-              flex: 1, padding: '9px 6px', fontSize: 12, fontWeight: period === p ? 700 : 500,
-              background: period === p ? 'rgba(255,107,43,.18)' : 'transparent',
-              color: period === p ? 'var(--orange)' : 'var(--muted)',
+            <button key={t} onClick={() => setLbType(t)} style={{
+              flex: 1, padding: '9px 6px', fontSize: 12, fontWeight: lbType === t ? 700 : 500,
+              background: lbType === t ? 'rgba(255,107,43,.18)' : 'transparent',
+              color: lbType === t ? 'var(--orange)' : 'var(--muted)',
               border: 'none', cursor: 'pointer',
               borderRight: i === 0 ? '1px solid var(--border)' : 'none',
             }}>{label}</button>
@@ -159,37 +163,92 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
         })}
       </div>
 
-      {loadingLeaders ? (
-        <div className="card"><div className="skeleton" style={{ height: 200 }} /></div>
-      ) : leaders.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', color: 'var(--muted)', padding: '28px 16px' }}>
-          {lang === 'ru' ? 'Нет данных' : lang === 'ua' ? 'Немає даних' : 'No data'}
+      {/* Period switch — only for spending */}
+      {lbType === 'spending' && (
+        <div style={{ display: 'flex', gap: 0, background: 'var(--bg2)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 10 }}>
+          {(['all', 'today'] as const).map((p, i) => {
+            const label = p === 'all'
+              ? (lang === 'ru' ? 'За всё время' : lang === 'ua' ? 'За весь час' : 'All time')
+              : (lang === 'ru' ? 'За сегодня' : lang === 'ua' ? 'За сьогодні' : 'Today')
+            return (
+              <button key={p} onClick={() => setPeriod(p)} style={{
+                flex: 1, padding: '8px 6px', fontSize: 11, fontWeight: period === p ? 700 : 500,
+                background: period === p ? 'rgba(42,171,238,.15)' : 'transparent',
+                color: period === p ? '#2AABEE' : 'var(--muted)',
+                border: 'none', cursor: 'pointer',
+                borderRight: i === 0 ? '1px solid var(--border)' : 'none',
+              }}>{label}</button>
+            )
+          })}
         </div>
-      ) : (
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          {leaders.map((row, i) => (
-            <div key={row.rank} style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '11px 14px',
-              borderBottom: i < leaders.length - 1 ? '1px solid var(--border)' : 'none',
-              background: row.is_me ? 'rgba(255,107,43,.07)' : 'transparent',
-            }}>
-              <div style={{ width: 28, textAlign: 'center', fontSize: i < 3 ? 18 : 13, fontWeight: 700, color: i < 3 ? undefined : 'var(--muted)', flexShrink: 0 }}>
-                {i < 3 ? MEDALS[i] : `#${i + 1}`}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: row.is_me ? 800 : 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: row.is_me ? 'var(--orange)' : 'var(--text)' }}>
-                  {row.name}{row.is_me ? ' 👈' : ''}
+      )}
+
+      {/* Spending table */}
+      {lbType === 'spending' && (
+        loadingLeaders ? (
+          <div className="card"><div className="skeleton" style={{ height: 200 }} /></div>
+        ) : leaders.length === 0 ? (
+          <div className="card" style={{ textAlign: 'center', color: 'var(--muted)', padding: '28px 16px' }}>
+            {lang === 'ru' ? 'Нет данных' : 'Немає даних'}
+          </div>
+        ) : (
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            {leaders.map((row, i) => (
+              <div key={row.rank} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
+                borderBottom: i < leaders.length - 1 ? '1px solid var(--border)' : 'none',
+                background: row.is_me ? 'rgba(255,107,43,.07)' : 'transparent',
+              }}>
+                <div style={{ width: 28, textAlign: 'center', fontSize: i < 3 ? 18 : 13, fontWeight: 700, color: i < 3 ? undefined : 'var(--muted)', flexShrink: 0 }}>
+                  {i < 3 ? MEDALS[i] : `#${i + 1}`}
                 </div>
-                {row.username && <div className="muted" style={{ fontSize: 11, marginTop: 1 }}>@{row.username}</div>}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: row.is_me ? 800 : 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: row.is_me ? 'var(--orange)' : 'var(--text)' }}>
+                    {row.name}{row.is_me ? ' 👈' : ''}
+                  </div>
+                  {row.username && <div className="muted" style={{ fontSize: 11, marginTop: 1 }}>@{row.username}</div>}
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>⭐{row.total_stars.toLocaleString()}</div>
+                  <div className="muted" style={{ fontSize: 10, marginTop: 1 }}>{row.orders_count} замовл.</div>
+                </div>
               </div>
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>⭐{row.total_stars.toLocaleString()}</div>
-                <div className="muted" style={{ fontSize: 10, marginTop: 1 }}>{row.orders_count} замовл.</div>
+            ))}
+          </div>
+        )
+      )}
+
+      {/* Referrals table */}
+      {lbType === 'referrals' && (
+        refLeaders.length === 0 ? (
+          <div className="card" style={{ textAlign: 'center', color: 'var(--muted)', padding: '28px 16px' }}>
+            {lang === 'ru' ? 'Нет данных' : 'Немає даних'}
+          </div>
+        ) : (
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            {refLeaders.map((row, i) => (
+              <div key={row.rank} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
+                borderBottom: i < refLeaders.length - 1 ? '1px solid var(--border)' : 'none',
+                background: row.is_me ? 'rgba(255,107,43,.07)' : 'transparent',
+              }}>
+                <div style={{ width: 28, textAlign: 'center', fontSize: i < 3 ? 18 : 13, fontWeight: 700, color: i < 3 ? undefined : 'var(--muted)', flexShrink: 0 }}>
+                  {i < 3 ? MEDALS[i] : `#${i + 1}`}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: row.is_me ? 800 : 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: row.is_me ? 'var(--orange)' : 'var(--text)' }}>
+                    {row.name}{row.is_me ? ' 👈' : ''}
+                  </div>
+                  {row.username && <div className="muted" style={{ fontSize: 11, marginTop: 1 }}>@{row.username}</div>}
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>👥 {row.invited_count}</div>
+                  <div className="muted" style={{ fontSize: 10, marginTop: 1 }}>⭐{row.earned_stars} зароблено</div>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       )}
 
       {me.is_admin && (

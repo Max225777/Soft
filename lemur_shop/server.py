@@ -735,6 +735,46 @@ async def api_leaderboard(user: User = Depends(get_current_user), period: str = 
     return result
 
 
+@app.get("/api/leaderboard/referrals")
+async def api_leaderboard_referrals(user: User = Depends(get_current_user)):
+    async with AsyncSessionLocal() as s:
+        # кількість запрошених по referrer_id
+        invited_sub = (
+            select(User.referred_by_id, func.count(User.id).label("invited_count"))
+            .where(User.referred_by_id.isnot(None))
+            .group_by(User.referred_by_id)
+            .subquery()
+        )
+        earned_sub = (
+            select(ReferralPayout.referrer_id, func.sum(ReferralPayout.amount_stars).label("earned_stars"))
+            .group_by(ReferralPayout.referrer_id)
+            .subquery()
+        )
+        rows = await s.execute(
+            select(
+                User.id, User.full_name, User.username,
+                func.coalesce(invited_sub.c.invited_count, 0).label("invited_count"),
+                func.coalesce(earned_sub.c.earned_stars, 0).label("earned_stars"),
+            )
+            .join(invited_sub, invited_sub.c.referred_by_id == User.id)
+            .outerjoin(earned_sub, earned_sub.c.referrer_id == User.id)
+            .order_by(func.coalesce(invited_sub.c.invited_count, 0).desc())
+            .limit(20)
+        )
+        leaders = rows.all()
+    result = []
+    for i, row in enumerate(leaders):
+        result.append({
+            "rank": i + 1,
+            "name": row.full_name or row.username or f"User {row.id}",
+            "username": row.username,
+            "invited_count": int(row.invited_count or 0),
+            "earned_stars": int(row.earned_stars or 0),
+            "is_me": row.id == user.id,
+        })
+    return result
+
+
 class PromoRedeemRequest(BaseModel):
     code: str
 
