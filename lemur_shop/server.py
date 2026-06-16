@@ -1489,17 +1489,19 @@ async def api_admin_topups(page: int = 1, limit: int = 30, admin: User = Depends
         async with AsyncSessionLocal() as s:
             method_rows = (await s.execute(
                 select(
-                    func.coalesce(TopUp.method, 'admin').label('method'),
+                    TopUp.method,
                     func.count(TopUp.id).label('cnt'),
                     func.coalesce(func.sum(TopUp.amount_stars), 0).label('stars'),
                     func.coalesce(func.sum(TopUp.amount_usd), 0).label('usd'),
-                ).group_by(func.coalesce(TopUp.method, 'admin'))
+                ).group_by(TopUp.method)
             )).all()
             for r in method_rows:
-                method_stats[r.method] = {
-                    "count": int(r.cnt),
-                    "stars": int(r.stars or 0),
-                    "usd":   float(r.usd or 0),
+                key = r.method or 'admin'
+                existing = method_stats.get(key, {"count": 0, "stars": 0, "usd": 0.0})
+                method_stats[key] = {
+                    "count": existing["count"] + int(r.cnt),
+                    "stars": existing["stars"] + int(r.stars or 0),
+                    "usd":   existing["usd"]   + float(r.usd or 0),
                 }
             total_stars = sum(v["stars"] for v in method_stats.values())
             total_usd   = sum(v["usd"]   for v in method_stats.values())
