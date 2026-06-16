@@ -22,9 +22,40 @@ export default function ReferralPage({ lang, botUsername }: Props) {
     })
   }
 
+  const condTitle = lang === 'ru' ? 'Условия программы' : lang === 'ua' ? 'Умови програми' : 'Program conditions'
+  const perBuyer  = lang === 'ru' ? 'за каждую первую покупку акаунта реферала' : lang === 'ua' ? 'за кожну першу покупку акаунту реферала' : 'for each referee\'s first account purchase'
+  const onlyAccs  = lang === 'ru' ? 'Работает только с TG-аккаунтами' : lang === 'ua' ? 'Працює тільки з TG-акаунтами' : 'Works with TG accounts only'
+
   return (
     <div className="page" style={{ paddingTop: 12 }}>
-      <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>{T.ref_how}</p>
+
+      {/* Умови */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(255,184,48,.08), rgba(255,184,48,.03))',
+        border: '1px solid rgba(255,184,48,.25)',
+        borderRadius: 16, padding: '16px', marginBottom: 16,
+      }}>
+        <div style={{ fontWeight: 700, fontSize: 13, color: '#FFB830', marginBottom: 12 }}>
+          🎁 {condTitle}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{
+            background: 'rgba(255,184,48,.15)', border: '1px solid rgba(255,184,48,.3)',
+            borderRadius: 14, padding: '10px 16px', textAlign: 'center', flexShrink: 0,
+          }}>
+            <div style={{ fontWeight: 900, fontSize: 28, color: '#FFD700', lineHeight: 1 }}>+10</div>
+            <div style={{ fontWeight: 700, fontSize: 18, color: '#FFD700' }}>⭐</div>
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)', lineHeight: 1.4 }}>
+              {perBuyer}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+              {onlyAccs}
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
         <div className="card" style={{ textAlign: 'center', padding: '12px 8px' }}>
