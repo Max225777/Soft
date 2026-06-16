@@ -351,7 +351,7 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
           type="text"
           placeholder={lang === 'ru' ? 'Введите промокод...' : lang === 'ua' ? 'Введіть промокод...' : 'Enter promo code...'}
           value={promoCode}
-          onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoResult(null) }}
+          onChange={e => { setPromoCode(e.target.value); setPromoResult(null) }}
           onKeyDown={e => e.key === 'Enter' && redeemPromo()}
           style={{
             width: '100%', background: 'var(--card2)', border: '1px solid var(--border)',

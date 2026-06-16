@@ -5,14 +5,23 @@ import { getT, type Lang } from '../i18n'
 interface Props { lang: Lang }
 
 const COUNTRY_FLAGS: Record<string, string> = {
-  us: '🇺🇸', ua: '🇺🇦', kz: '🇰🇿', mm: '🇲🇲', ru: '🇷🇺',
+  us: '🇺🇸', ua: '🇺🇦', kz: '🇰🇿', mm: '🇲🇲',
+  co: '🇨🇴', de: '🇩🇪', ru: '🇷🇺', gb: '🇬🇧',
+  fr: '🇫🇷', pl: '🇵🇱', br: '🇧🇷', in: '🇮🇳',
 }
 const COUNTRY_NAMES: Record<string, Record<string, string>> = {
-  us: { ru: 'США', ua: 'США', en: 'USA' },
-  ua: { ru: 'Украина', ua: 'Україна', en: 'Ukraine' },
+  us: { ru: 'США',       ua: 'США',       en: 'USA' },
+  ua: { ru: 'Украина',   ua: 'Україна',   en: 'Ukraine' },
   kz: { ru: 'Казахстан', ua: 'Казахстан', en: 'Kazakhstan' },
-  mm: { ru: 'Мьянма', ua: 'М\'янма', en: 'Myanmar' },
-  ru: { ru: 'Россия', ua: 'Росія', en: 'Russia' },
+  mm: { ru: 'Мьянма',    ua: "М'янма",    en: 'Myanmar' },
+  co: { ru: 'Колумбия',  ua: 'Колумбія',  en: 'Colombia' },
+  de: { ru: 'Германия',  ua: 'Німеччина', en: 'Germany' },
+  ru: { ru: 'Россия',    ua: 'Росія',     en: 'Russia' },
+  gb: { ru: 'Британия',  ua: 'Британія',  en: 'UK' },
+  fr: { ru: 'Франция',   ua: 'Франція',   en: 'France' },
+  pl: { ru: 'Польша',    ua: 'Польща',    en: 'Poland' },
+  br: { ru: 'Бразилия',  ua: 'Бразилія',  en: 'Brazil' },
+  in: { ru: 'Индия',     ua: 'Індія',     en: 'India' },
 }
 const SMM_LABELS: Record<string, string> = {
   tg_subscribers: '👥 Підписники',

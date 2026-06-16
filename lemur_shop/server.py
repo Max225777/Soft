@@ -780,10 +780,12 @@ class PromoRedeemRequest(BaseModel):
 
 @app.post("/api/promo/redeem")
 async def api_promo_redeem(body: PromoRedeemRequest, user: User = Depends(get_current_user)):
-    code_str = body.code.strip().upper()
+    code_str = body.code.strip()
     async with AsyncSessionLocal() as s:
         async with s.begin():
-            promo = await s.scalar(select(PromoCode).where(PromoCode.code == code_str).with_for_update())
+            promo = await s.scalar(
+                select(PromoCode).where(func.lower(PromoCode.code) == func.lower(code_str)).with_for_update()
+            )
             if not promo or not promo.is_active:
                 raise HTTPException(404, "promo_not_found")
             if promo.activations >= promo.max_activations:
@@ -812,10 +814,12 @@ class PromoCreateRequest(BaseModel):
 async def api_admin_promo_create(body: PromoCreateRequest, user: User = Depends(get_current_user)):
     if not user.is_admin:
         raise HTTPException(403, "forbidden")
-    code_str = body.code.strip().upper()
+    code_str = body.code.strip()
     async with AsyncSessionLocal() as s:
         async with s.begin():
-            existing = await s.scalar(select(PromoCode).where(PromoCode.code == code_str))
+            existing = await s.scalar(
+                select(PromoCode).where(func.lower(PromoCode.code) == func.lower(code_str))
+            )
             if existing:
                 raise HTTPException(409, "code_exists")
             promo = PromoCode(

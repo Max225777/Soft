@@ -865,7 +865,7 @@ function PromoCodesTab() {
   useEffect(() => { load() }, [])
 
   async function create() {
-    const code = newCode.trim().toUpperCase()
+    const code = newCode.trim()
     const stars = parseInt(newStars)
     const max = parseInt(newMax) || 1
     if (!code || !stars || stars < 1) { setCreateError('Заповніть всі поля'); return }
@@ -897,8 +897,8 @@ function PromoCodesTab() {
       <div className="card" style={{ marginBottom: 14 }}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>🎟 Новий промокод</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <input style={inputS} placeholder="КОД (ВЕЛИКИМИ)" value={newCode}
-            onChange={e => setNewCode(e.target.value.toUpperCase())} />
+          <input style={inputS} placeholder="Промокод (будь-які символи)" value={newCode}
+            onChange={e => setNewCode(e.target.value)} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <input style={inputS} type="number" min="1" placeholder="Зірок ⭐"
               value={newStars} onChange={e => setNewStars(e.target.value)} />
