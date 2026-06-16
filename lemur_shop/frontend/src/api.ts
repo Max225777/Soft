@@ -202,7 +202,11 @@ export interface AdminTopupRow {
   amount_usd: number; amount_stars: number; method: string; charge_id: string | null
   admin_id: number; created_at: string
 }
-export interface AdminTopupsPage { total: number; page: number; pages: number; topups: AdminTopupRow[] }
+export interface TopupMethodStat { count: number; stars: number; usd: number }
+export interface AdminTopupsPage {
+  total: number; page: number; pages: number; topups: AdminTopupRow[]
+  stats: { by_method: Record<string, TopupMethodStat>; total_stars: number; total_usd: number }
+}
 
 export interface AdminReferrerRow {
   id: number; name: string; username: string | null

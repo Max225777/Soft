@@ -386,10 +386,12 @@ async def get_current_user(x_init_data: str = Header(...)) -> User:
     tg_id = int(tg_user["id"])
     async with AsyncSessionLocal() as s:
         user = await s.get(User, tg_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found. Start bot first.")
-    if user.is_banned:
-        raise HTTPException(status_code=403, detail="banned")
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found. Start bot first.")
+        if user.is_banned:
+            raise HTTPException(status_code=403, detail="banned")
+        # expunge щоб атрибути залишились доступні після закриття сесії
+        s.expunge(user)
     return user
 
 
@@ -1460,6 +1462,19 @@ async def api_admin_topups(page: int = 1, limit: int = 30, admin: User = Depends
             .offset((page - 1) * limit).limit(limit)
         )).scalars().all()
 
+        # stats by method
+        method_rows = (await s.execute(
+            select(
+                func.coalesce(TopUp.method, 'admin').label('method'),
+                func.count(TopUp.id).label('cnt'),
+                func.coalesce(func.sum(TopUp.amount_stars), 0).label('stars'),
+                func.coalesce(func.sum(TopUp.amount_usd), 0).label('usd'),
+            ).group_by(func.coalesce(TopUp.method, 'admin'))
+        )).all()
+        method_stats = {r.method: {"count": r.cnt, "stars": int(r.stars), "usd": float(r.usd)} for r in method_rows}
+        total_stars = sum(v["stars"] for v in method_stats.values())
+        total_usd   = sum(v["usd"]   for v in method_stats.values())
+
         result = []
         for t in topups:
             u = await s.get(User, t.user_id)
@@ -1476,7 +1491,15 @@ async def api_admin_topups(page: int = 1, limit: int = 30, admin: User = Depends
                 "created_at":   t.created_at.isoformat(),
             })
 
-    return {"total": total, "page": page, "pages": ceil(total / limit) if total else 1, "topups": result}
+    return {
+        "total": total, "page": page, "pages": ceil(total / limit) if total else 1,
+        "topups": result,
+        "stats": {
+            "by_method": method_stats,
+            "total_stars": total_stars,
+            "total_usd": total_usd,
+        },
+    }
 
 
 # ─── Broadcast ────────────────────────────────────────────────────────────────

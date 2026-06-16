@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminPromoCode } from '../api'
+import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminPromoCode } from '../api'
 
 type DateMode = 'today' | 'all' | 'custom'
 
@@ -600,9 +600,15 @@ function Orders() {
 }
 
 // ── Topups ────────────────────────────────────────────────────────────────────
+const METHOD_LABEL: Record<string, string> = {
+  stars: '⭐ Stars',
+  crypto: '💎 Crypto',
+  admin: '👤 Admin',
+}
+
 function Topups() {
   const [page, setPage] = useState(1)
-  const [data, setData] = useState<{ total: number; pages: number; topups: AdminTopupRow[] } | null>(null)
+  const [data, setData] = useState<{ total: number; pages: number; topups: AdminTopupRow[]; stats?: { by_method: Record<string, TopupMethodStat>; total_stars: number; total_usd: number } } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -610,9 +616,42 @@ function Topups() {
     adminApi.topups(page).then(setData).finally(() => setLoading(false))
   }, [page])
 
+  const stats = data?.stats
+
   return (
     <div>
-      {data && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Всього поповнень: {data.total}</div>}
+      {stats && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            {(['stars', 'crypto', 'admin'] as const).map(m => {
+              const s = stats.by_method[m]
+              if (!s) return null
+              const color = m === 'stars' ? '#2AABEE' : m === 'crypto' ? '#5fba47' : 'var(--muted)'
+              return (
+                <div key={m} style={{
+                  flex: 1, background: 'var(--bg2)', border: '1px solid var(--border)',
+                  borderRadius: 12, padding: '10px 12px', minWidth: 0,
+                }}>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{METHOD_LABEL[m]}</div>
+                  <div style={{ fontWeight: 800, fontSize: 16, color }}>⭐{s.stars.toLocaleString()}</div>
+                  <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>${s.usd.toFixed(2)} · {s.count} поп.</div>
+                </div>
+              )
+            })}
+          </div>
+          <div style={{
+            background: 'rgba(255,184,48,.06)', border: '1px solid rgba(255,184,48,.2)',
+            borderRadius: 12, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          }}>
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>Всього поповнено</span>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: 800, fontSize: 16, color: '#FFD700' }}>⭐{stats.total_stars.toLocaleString()}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)' }}>${stats.total_usd.toFixed(2)}</div>
+            </div>
+          </div>
+        </div>
+      )}
+      {data && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Всього записів: {data.total}</div>}
 
       {loading ? (
         [0,1,2,3].map(i => <div key={i} className="card" style={{ marginBottom: 6 }}><div className="skeleton" style={{ height: 48 }} /></div>)
