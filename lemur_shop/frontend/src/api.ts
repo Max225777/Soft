@@ -205,7 +205,11 @@ export interface AdminTopupRow {
 export interface TopupMethodStat { count: number; stars: number; usd: number }
 export interface AdminTopupsPage {
   total: number; page: number; pages: number; topups: AdminTopupRow[]
-  stats: { by_method: Record<string, TopupMethodStat>; total_stars: number; total_usd: number }
+  stats: {
+    by_method: Record<string, TopupMethodStat>
+    total_stars: number; total_usd: number
+    promo: { count: number; stars: number }
+  }
 }
 
 export interface AdminReferrerRow {

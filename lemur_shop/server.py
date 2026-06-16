@@ -1481,9 +1481,22 @@ async def api_admin_topups(page: int = 1, limit: int = 30, admin: User = Depends
                 }
             total_stars = sum(v["stars"] for v in method_stats.values())
             total_usd   = sum(v["usd"]   for v in method_stats.values())
+
+            # promo codes stats
+            promo_row = (await s.execute(
+                select(
+                    func.count(PromoActivation.id).label('cnt'),
+                    func.coalesce(func.sum(PromoCode.reward_stars), 0).label('stars'),
+                ).join(PromoCode, PromoCode.id == PromoActivation.code_id)
+            )).one()
+            promo_stats = {
+                "count": int(promo_row.cnt or 0),
+                "stars": int(promo_row.stars or 0),
+            }
         except Exception as e:
             log.warning("topup stats query failed: %s", e)
             method_stats, total_stars, total_usd = {}, 0, 0.0
+            promo_stats = {"count": 0, "stars": 0}
 
         result = []
         for t in topups:
@@ -1508,6 +1521,7 @@ async def api_admin_topups(page: int = 1, limit: int = 30, admin: User = Depends
             "by_method":   method_stats,
             "total_stars": total_stars,
             "total_usd":   round(total_usd, 2),
+            "promo":       promo_stats,
         },
     }
 

@@ -608,7 +608,7 @@ const METHOD_LABEL: Record<string, string> = {
 
 function Topups() {
   const [page, setPage] = useState(1)
-  const [data, setData] = useState<{ total: number; pages: number; topups: AdminTopupRow[]; stats?: { by_method: Record<string, TopupMethodStat>; total_stars: number; total_usd: number } } | null>(null)
+  const [data, setData] = useState<{ total: number; pages: number; topups: AdminTopupRow[]; stats?: { by_method: Record<string, TopupMethodStat>; total_stars: number; total_usd: number; promo: { count: number; stars: number } } } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -639,6 +639,19 @@ function Topups() {
               )
             })}
           </div>
+          {stats.promo && (
+            <div style={{
+              background: 'var(--bg2)', border: '1px solid rgba(255,184,48,.25)',
+              borderRadius: 12, padding: '10px 12px', marginBottom: 8,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>🎟 Промокоди</div>
+                <div style={{ fontWeight: 800, fontSize: 16, color: '#FFB830' }}>⭐{stats.promo.stars.toLocaleString()}</div>
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', textAlign: 'right' }}>{stats.promo.count} активацій</div>
+            </div>
+          )}
           <div style={{
             background: 'rgba(255,184,48,.06)', border: '1px solid rgba(255,184,48,.2)',
             borderRadius: 12, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
