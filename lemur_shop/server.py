@@ -813,9 +813,7 @@ class PromoCreateRequest(BaseModel):
     max_activations: int = 1
 
 @app.post("/api/admin/promo/create")
-async def api_admin_promo_create(body: PromoCreateRequest, user: User = Depends(get_current_user)):
-    if not user.is_admin:
-        raise HTTPException(403, "forbidden")
+async def api_admin_promo_create(body: PromoCreateRequest, admin: User = Depends(require_admin)):
     code_str = body.code.strip()
     async with AsyncSessionLocal() as s:
         async with s.begin():
@@ -828,15 +826,13 @@ async def api_admin_promo_create(body: PromoCreateRequest, user: User = Depends(
                 code=code_str,
                 reward_stars=body.reward_stars,
                 max_activations=body.max_activations,
-                created_by=user.id,
+                created_by=admin.id,
             )
             s.add(promo)
     return {"ok": True}
 
 @app.get("/api/admin/promo/list")
-async def api_admin_promo_list(user: User = Depends(get_current_user)):
-    if not user.is_admin:
-        raise HTTPException(403, "forbidden")
+async def api_admin_promo_list(admin: User = Depends(require_admin)):
     async with AsyncSessionLocal() as s:
         rows = await s.execute(select(PromoCode).order_by(PromoCode.created_at.desc()).limit(50))
         promos = rows.scalars().all()
@@ -850,9 +846,7 @@ async def api_admin_promo_list(user: User = Depends(get_current_user)):
     ]
 
 @app.post("/api/admin/promo/{promo_id}/toggle")
-async def api_admin_promo_toggle(promo_id: int, user: User = Depends(get_current_user)):
-    if not user.is_admin:
-        raise HTTPException(403, "forbidden")
+async def api_admin_promo_toggle(promo_id: int, admin: User = Depends(require_admin)):
     async with AsyncSessionLocal() as s:
         async with s.begin():
             promo = await s.get(PromoCode, promo_id)
