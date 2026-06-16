@@ -1462,18 +1462,28 @@ async def api_admin_topups(page: int = 1, limit: int = 30, admin: User = Depends
             .offset((page - 1) * limit).limit(limit)
         )).scalars().all()
 
-        # stats by method
-        method_rows = (await s.execute(
-            select(
-                func.coalesce(TopUp.method, 'admin').label('method'),
-                func.count(TopUp.id).label('cnt'),
-                func.coalesce(func.sum(TopUp.amount_stars), 0).label('stars'),
-                func.coalesce(func.sum(TopUp.amount_usd), 0).label('usd'),
-            ).group_by(func.coalesce(TopUp.method, 'admin'))
-        )).all()
-        method_stats = {r.method: {"count": r.cnt, "stars": int(r.stars), "usd": float(r.usd)} for r in method_rows}
-        total_stars = sum(v["stars"] for v in method_stats.values())
-        total_usd   = sum(v["usd"]   for v in method_stats.values())
+        # stats by method — розбивка по способу поповнення
+        try:
+            method_rows = (await s.execute(
+                select(
+                    func.coalesce(TopUp.method, 'admin').label('method'),
+                    func.count(TopUp.id).label('cnt'),
+                    func.coalesce(func.sum(TopUp.amount_stars), 0).label('stars'),
+                    func.coalesce(func.sum(TopUp.amount_usd), 0).label('usd'),
+                ).group_by(func.coalesce(TopUp.method, 'admin'))
+            )).all()
+            method_stats: dict = {}
+            for r in method_rows:
+                method_stats[r.method] = {
+                    "count": int(r.cnt),
+                    "stars": int(r.stars or 0),
+                    "usd":   float(r.usd or 0),
+                }
+            total_stars = sum(v["stars"] for v in method_stats.values())
+            total_usd   = sum(v["usd"]   for v in method_stats.values())
+        except Exception as e:
+            log.warning("topup stats query failed: %s", e)
+            method_stats, total_stars, total_usd = {}, 0, 0.0
 
         result = []
         for t in topups:
@@ -1495,9 +1505,9 @@ async def api_admin_topups(page: int = 1, limit: int = 30, admin: User = Depends
         "total": total, "page": page, "pages": ceil(total / limit) if total else 1,
         "topups": result,
         "stats": {
-            "by_method": method_stats,
+            "by_method":   method_stats,
             "total_stars": total_stars,
-            "total_usd": total_usd,
+            "total_usd":   round(total_usd, 2),
         },
     }
 
