@@ -1455,48 +1455,14 @@ async def api_admin_orders(page: int = 1, limit: int = 30, admin: User = Depends
 @app.get("/api/admin/topups")
 async def api_admin_topups(page: int = 1, limit: int = 30, admin: User = Depends(require_admin)):
     from math import ceil
+
+    # ── основний список ──────────────────────────────────────────────────────
     async with AsyncSessionLocal() as s:
         total  = await s.scalar(select(func.count(TopUp.id))) or 0
         topups = (await s.execute(
             select(TopUp).order_by(TopUp.created_at.desc())
             .offset((page - 1) * limit).limit(limit)
         )).scalars().all()
-
-        # stats by method — розбивка по способу поповнення
-        try:
-            method_rows = (await s.execute(
-                select(
-                    func.coalesce(TopUp.method, 'admin').label('method'),
-                    func.count(TopUp.id).label('cnt'),
-                    func.coalesce(func.sum(TopUp.amount_stars), 0).label('stars'),
-                    func.coalesce(func.sum(TopUp.amount_usd), 0).label('usd'),
-                ).group_by(func.coalesce(TopUp.method, 'admin'))
-            )).all()
-            method_stats: dict = {}
-            for r in method_rows:
-                method_stats[r.method] = {
-                    "count": int(r.cnt),
-                    "stars": int(r.stars or 0),
-                    "usd":   float(r.usd or 0),
-                }
-            total_stars = sum(v["stars"] for v in method_stats.values())
-            total_usd   = sum(v["usd"]   for v in method_stats.values())
-
-            # promo codes stats
-            promo_row = (await s.execute(
-                select(
-                    func.count(PromoActivation.id).label('cnt'),
-                    func.coalesce(func.sum(PromoCode.reward_stars), 0).label('stars'),
-                ).join(PromoCode, PromoCode.id == PromoActivation.code_id)
-            )).one()
-            promo_stats = {
-                "count": int(promo_row.cnt or 0),
-                "stars": int(promo_row.stars or 0),
-            }
-        except Exception as e:
-            log.warning("topup stats query failed: %s", e)
-            method_stats, total_stars, total_usd = {}, 0, 0.0
-            promo_stats = {"count": 0, "stars": 0}
 
         result = []
         for t in topups:
@@ -1513,6 +1479,43 @@ async def api_admin_topups(page: int = 1, limit: int = 30, admin: User = Depends
                 "admin_id":     t.admin_id,
                 "created_at":   t.created_at.isoformat(),
             })
+
+    # ── статистика (окрема сесія, щоб помилка не ламала список) ─────────────
+    method_stats: dict = {}
+    total_stars = 0
+    total_usd   = 0.0
+    promo_stats: dict = {"count": 0, "stars": 0}
+    try:
+        async with AsyncSessionLocal() as s:
+            method_rows = (await s.execute(
+                select(
+                    func.coalesce(TopUp.method, 'admin').label('method'),
+                    func.count(TopUp.id).label('cnt'),
+                    func.coalesce(func.sum(TopUp.amount_stars), 0).label('stars'),
+                    func.coalesce(func.sum(TopUp.amount_usd), 0).label('usd'),
+                ).group_by(func.coalesce(TopUp.method, 'admin'))
+            )).all()
+            for r in method_rows:
+                method_stats[r.method] = {
+                    "count": int(r.cnt),
+                    "stars": int(r.stars or 0),
+                    "usd":   float(r.usd or 0),
+                }
+            total_stars = sum(v["stars"] for v in method_stats.values())
+            total_usd   = sum(v["usd"]   for v in method_stats.values())
+
+            promo_row = (await s.execute(
+                select(
+                    func.count(PromoActivation.id).label('cnt'),
+                    func.coalesce(func.sum(PromoCode.reward_stars), 0).label('stars'),
+                ).join(PromoCode, PromoCode.id == PromoActivation.code_id)
+            )).one()
+            promo_stats = {
+                "count": int(promo_row.cnt or 0),
+                "stars": int(promo_row.stars or 0),
+            }
+    except Exception as e:
+        log.warning("topup stats query failed: %s", e)
 
     return {
         "total": total, "page": page, "pages": ceil(total / limit) if total else 1,
