@@ -700,9 +700,9 @@ async def api_orders(user: User = Depends(get_current_user)):
 
 
 @app.get("/api/leaderboard")
-async def api_leaderboard(user: User = Depends(get_current_user)):
+async def api_leaderboard(user: User = Depends(get_current_user), period: str = "all"):
     async with AsyncSessionLocal() as s:
-        rows = await s.execute(
+        q = (
             select(
                 User.id,
                 User.full_name,
@@ -712,7 +712,11 @@ async def api_leaderboard(user: User = Depends(get_current_user)):
             )
             .join(Order, Order.user_id == User.id)
             .where(Order.status == "delivered")
-            .group_by(User.id, User.full_name, User.username)
+        )
+        if period == "today":
+            q = q.where(Order.created_at >= datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0))
+        rows = await s.execute(
+            q.group_by(User.id, User.full_name, User.username)
             .order_by(func.sum(Order.price_usd).desc())
             .limit(20)
         )
@@ -720,14 +724,13 @@ async def api_leaderboard(user: User = Depends(get_current_user)):
     result = []
     for i, row in enumerate(leaders):
         name = row.full_name or row.username or f"User {row.id}"
-        is_me = row.id == user.id
         result.append({
             "rank": i + 1,
             "name": name,
             "username": row.username,
             "orders_count": row.orders_count,
             "total_stars": round(float(row.total_usd or 0) / 0.013),
-            "is_me": is_me,
+            "is_me": row.id == user.id,
         })
     return result
 

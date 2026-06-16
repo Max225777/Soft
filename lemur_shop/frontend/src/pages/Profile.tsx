@@ -18,11 +18,12 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
   const T = getT(lang)
   const [leaders, setLeaders] = useState<LeaderRow[]>([])
   const [loadingLeaders, setLoadingLeaders] = useState(true)
-  const [lbTab, setLbTab] = useState<'stars' | 'orders'>('stars')
+  const [period, setPeriod] = useState<'all' | 'today'>('all')
 
   useEffect(() => {
-    api.leaderboard().then(r => { setLeaders(r); setLoadingLeaders(false) }).catch(() => setLoadingLeaders(false))
-  }, [])
+    setLoadingLeaders(true)
+    api.leaderboard(period).then(r => { setLeaders(r); setLoadingLeaders(false) }).catch(() => setLoadingLeaders(false))
+  }, [period])
 
   function changeLang(l: Lang) {
     localStorage.setItem(LANG_KEY, l)
@@ -34,15 +35,6 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
 
   const starsBalance = me.balance_stars
   const usdDisplay = (starsBalance * 0.013).toFixed(2)
-
-  const lbLabel = {
-    stars:  { ru: 'По тратам', ua: 'За витратами', en: 'By spending' },
-    orders: { ru: 'По покупкам', ua: 'За покупками', en: 'By purchases' },
-  }
-
-  const sorted = [...leaders].sort((a, b) =>
-    lbTab === 'stars' ? b.total_stars - a.total_stars : b.orders_count - a.orders_count
-  )
 
   return (
     <div className="page">
@@ -146,37 +138,40 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
 
       {/* ── Leaderboard ── */}
       <div style={{ fontWeight: 800, fontSize: 16, margin: '18px 0 10px' }}>
-        🏆 {lang === 'ru' ? 'Таблица лидеров' : lang === 'ua' ? 'Таблиця лідерів' : 'Leaderboard'}
+        🏆 {lang === 'ru' ? 'Таблица лидеров — по тратам' : lang === 'ua' ? 'Таблиця лідерів — за витратами' : 'Leaderboard — by spending'}
       </div>
 
-      {/* Sub-tabs */}
+      {/* Period switch */}
       <div style={{ display: 'flex', gap: 0, background: 'var(--bg2)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 10 }}>
-        {(['stars', 'orders'] as const).map(t => (
-          <button key={t} onClick={() => setLbTab(t)} style={{
-            flex: 1, padding: '9px 6px', fontSize: 12, fontWeight: lbTab === t ? 700 : 500,
-            background: lbTab === t ? 'rgba(255,107,43,.18)' : 'transparent',
-            color: lbTab === t ? 'var(--orange)' : 'var(--muted)',
-            border: 'none', cursor: 'pointer',
-            borderRight: t === 'stars' ? '1px solid var(--border)' : 'none',
-          }}>
-            {lbTab === t ? '▶ ' : ''}{lbLabel[t][lang]}
-          </button>
-        ))}
+        {(['all', 'today'] as const).map((p, i) => {
+          const label = p === 'all'
+            ? (lang === 'ru' ? 'За всё время' : lang === 'ua' ? 'За весь час' : 'All time')
+            : (lang === 'ru' ? 'За сегодня' : lang === 'ua' ? 'За сьогодні' : 'Today')
+          return (
+            <button key={p} onClick={() => setPeriod(p)} style={{
+              flex: 1, padding: '9px 6px', fontSize: 12, fontWeight: period === p ? 700 : 500,
+              background: period === p ? 'rgba(255,107,43,.18)' : 'transparent',
+              color: period === p ? 'var(--orange)' : 'var(--muted)',
+              border: 'none', cursor: 'pointer',
+              borderRight: i === 0 ? '1px solid var(--border)' : 'none',
+            }}>{label}</button>
+          )
+        })}
       </div>
 
       {loadingLeaders ? (
         <div className="card"><div className="skeleton" style={{ height: 200 }} /></div>
-      ) : sorted.length === 0 ? (
+      ) : leaders.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', color: 'var(--muted)', padding: '28px 16px' }}>
           {lang === 'ru' ? 'Нет данных' : lang === 'ua' ? 'Немає даних' : 'No data'}
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          {sorted.map((row, i) => (
+          {leaders.map((row, i) => (
             <div key={row.rank} style={{
               display: 'flex', alignItems: 'center', gap: 10,
               padding: '11px 14px',
-              borderBottom: i < sorted.length - 1 ? '1px solid var(--border)' : 'none',
+              borderBottom: i < leaders.length - 1 ? '1px solid var(--border)' : 'none',
               background: row.is_me ? 'rgba(255,107,43,.07)' : 'transparent',
             }}>
               <div style={{ width: 28, textAlign: 'center', fontSize: i < 3 ? 18 : 13, fontWeight: 700, color: i < 3 ? undefined : 'var(--muted)', flexShrink: 0 }}>
@@ -189,12 +184,8 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
                 {row.username && <div className="muted" style={{ fontSize: 11, marginTop: 1 }}>@{row.username}</div>}
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>
-                  {lbTab === 'stars' ? `⭐${row.total_stars.toLocaleString()}` : `${row.orders_count} ${lang === 'ru' ? 'шт.' : 'шт.'}`}
-                </div>
-                <div className="muted" style={{ fontSize: 10, marginTop: 1 }}>
-                  {lbTab === 'stars' ? `${row.orders_count} замовл.` : `⭐${row.total_stars.toLocaleString()}`}
-                </div>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>⭐{row.total_stars.toLocaleString()}</div>
+                <div className="muted" style={{ fontSize: 10, marginTop: 1 }}>{row.orders_count} замовл.</div>
               </div>
             </div>
           ))}

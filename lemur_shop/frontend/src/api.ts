@@ -43,7 +43,7 @@ export const api = {
   starsInvoice: (stars: number) => req<{ invoice_url: string; stars: number; amount_usd: number }>('/stars/invoice', { method: 'POST', body: JSON.stringify({ stars }) }),
   starsBuy:     (stars: number, amount_usd: number) => req<{ ok: boolean }>('/stars/buy', { method: 'POST', body: JSON.stringify({ stars, amount_usd }) }),
   referral:     () => req<Referral>('/referral'),
-  leaderboard:  () => req<LeaderRow[]>('/leaderboard'),
+  leaderboard:  (period: 'all' | 'today') => req<LeaderRow[]>(`/leaderboard?period=${period}`),
   promoRedeem:  (code: string) => req<{ ok: boolean; stars: number }>('/promo/redeem', { method: 'POST', body: JSON.stringify({ code }) }),
 }
 
