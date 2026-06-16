@@ -395,6 +395,12 @@ async def get_current_user(x_init_data: str = Header(...)) -> User:
     return user
 
 
+def require_admin(user: User = Depends(get_current_user)) -> User:
+    if user.id not in settings.ADMIN_IDS:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return user
+
+
 # ─── Webhook ──────────────────────────────────────────────────────────────────
 
 @app.post("/webhook")
@@ -1129,12 +1135,6 @@ async def api_stars_buy(body: StarsBuyRequest, user: User = Depends(get_current_
 
 
 # ─── Admin API ────────────────────────────────────────────────────────────────
-
-def require_admin(user: User = Depends(get_current_user)) -> User:
-    if user.id not in settings.ADMIN_IDS:
-        raise HTTPException(status_code=403, detail="Forbidden")
-    return user
-
 
 @app.get("/api/admin/check-bio")
 async def api_admin_check_bio(user_id: int, admin: User = Depends(require_admin)):
