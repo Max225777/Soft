@@ -1508,14 +1508,16 @@ async def api_admin_topups(page: int = 1, limit: int = 30, admin: User = Depends
                 select(
                     func.count(PromoActivation.id).label('cnt'),
                     func.coalesce(func.sum(PromoCode.reward_stars), 0).label('stars'),
-                ).join(PromoCode, PromoCode.id == PromoActivation.code_id)
+                ).select_from(PromoActivation)
+                .join(PromoCode, PromoCode.id == PromoActivation.code_id)
             )).one()
             promo_stats = {
                 "count": int(promo_row.cnt or 0),
                 "stars": int(promo_row.stars or 0),
             }
     except Exception as e:
-        log.warning("topup stats query failed: %s", e)
+        import traceback
+        log.warning("topup stats query failed: %s\n%s", e, traceback.format_exc())
 
     return {
         "total": total, "page": page, "pages": ceil(total / limit) if total else 1,
