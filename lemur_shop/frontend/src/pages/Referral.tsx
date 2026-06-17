@@ -23,8 +23,7 @@ export default function ReferralPage({ lang, botUsername }: Props) {
   }
 
   const condTitle = lang === 'ru' ? 'Условия программы' : lang === 'ua' ? 'Умови програми' : 'Program conditions'
-  const perBuyer  = lang === 'ru' ? 'за каждую первую покупку акаунта реферала' : lang === 'ua' ? 'за кожну першу покупку акаунту реферала' : 'for each referee\'s first account purchase'
-  const onlyAccs  = lang === 'ru' ? 'Работает только с TG-аккаунтами' : lang === 'ua' ? 'Працює тільки з TG-акаунтами' : 'Works with TG accounts only'
+  const perBuyer  = lang === 'ru' ? 'за каждого приглашённого, который купит TG-аккаунт' : lang === 'ua' ? 'за кожного запрошеного, який купить TG-акаунт' : 'for each invited person who buys a TG account'
 
   return (
     <div className="page" style={{ paddingTop: 12 }}>
@@ -49,9 +48,6 @@ export default function ReferralPage({ lang, botUsername }: Props) {
           <div>
             <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)', lineHeight: 1.4 }}>
               {perBuyer}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
-              {onlyAccs}
             </div>
           </div>
         </div>
