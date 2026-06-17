@@ -23,7 +23,7 @@ export default function ReferralPage({ lang, botUsername }: Props) {
   }
 
   const condTitle = lang === 'ru' ? 'Условия программы' : lang === 'ua' ? 'Умови програми' : 'Program conditions'
-  const perBuyer  = lang === 'ru' ? 'за каждого приглашённого, который купит TG-аккаунт' : lang === 'ua' ? 'за кожного запрошеного, який купить TG-акаунт' : 'for each invited person who buys a TG account'
+  const perBuyer  = lang === 'ru' ? 'за каждого приведённого друга, который купит TG-аккаунт' : lang === 'ua' ? 'за кожного приведеного друга, який купить TG-акаунт' : 'for every friend you bring who buys a TG account'
 
   return (
     <div className="page" style={{ paddingTop: 12 }}>
