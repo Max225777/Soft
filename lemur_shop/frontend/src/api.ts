@@ -121,6 +121,7 @@ export const adminApi = {
   promoCreate:     (code: string, reward_stars: number, max_activations: number) =>
                      req<{ ok: boolean }>('/admin/promo/create', { method: 'POST', body: JSON.stringify({ code, reward_stars, max_activations }) }),
   promoToggle:     (id: number) => req<{ ok: boolean; is_active: boolean }>(`/admin/promo/${id}/toggle`, { method: 'POST' }),
+  promoActivations:(id: number) => req<AdminPromoActivation[]>(`/admin/promo/${id}/activations`),
 }
 
 export interface Me {
@@ -219,11 +220,15 @@ export interface AdminReferrerRow {
 export interface AdminReferralStats {
   invited_today: number; invited_total: number
   referrers: AdminReferrerRow[]
+  payouts: { total_count: number; total_stars: number; today_count: number; today_stars: number }
 }
 export interface AdminPromoCode {
   id: number; code: string; reward_stars: number
   max_activations: number; activations: number
   is_active: boolean; created_at: string
+}
+export interface AdminPromoActivation {
+  user_id: number; name: string; username: string | null; activated_at: string
 }
 
 declare global {

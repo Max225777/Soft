@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminPromoCode } from '../api'
+import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminPromoCode, type AdminPromoActivation } from '../api'
 
 type DateMode = 'today' | 'all' | 'custom'
 
@@ -855,6 +855,22 @@ function ReferralsTab() {
         </div>
       </div>
 
+      {/* Статистика виплат */}
+      <div style={{
+        background: 'rgba(255,184,48,.06)', border: '1px solid rgba(255,184,48,.2)',
+        borderRadius: 14, padding: '12px 14px',
+      }}>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>🤝 Виплати реферальних нагород</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>Сьогодні</span>
+          <span style={{ fontWeight: 700, fontSize: 13, color: '#FFD700' }}>⭐{data.payouts.today_stars} ({data.payouts.today_count})</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>Всього</span>
+          <span style={{ fontWeight: 800, fontSize: 15, color: '#FFD700' }}>⭐{data.payouts.total_stars} ({data.payouts.total_count})</span>
+        </div>
+      </div>
+
       {/* Таблиця реферерів */}
       {data.referrers.length === 0 ? (
         <p className="muted" style={{ fontSize: 13 }}>Рефералів ще немає</p>
@@ -899,6 +915,35 @@ function ReferralsTab() {
 }
 
 // ── Promo Codes Tab ───────────────────────────────────────────────────────────
+function PromoActivationsList({ promoId }: { promoId: number }) {
+  const [items, setItems] = useState<AdminPromoActivation[] | null>(null)
+
+  useEffect(() => {
+    adminApi.promoActivations(promoId).then(setItems).catch(() => setItems([]))
+  }, [promoId])
+
+  if (items === null) return <div className="muted" style={{ fontSize: 12, padding: '8px 0' }}>Завантаження...</div>
+  if (items.length === 0) return <div className="muted" style={{ fontSize: 12, padding: '8px 0' }}>Ще ніхто не активував</div>
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 8 }}>
+      {items.map((a, i) => (
+        <div key={i} style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,.03)',
+        }}>
+          <div>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>{a.name}</span>
+            {a.username && <span className="muted" style={{ fontSize: 11, marginLeft: 6 }}>@{a.username}</span>}
+            <span className="muted" style={{ fontSize: 11, marginLeft: 6 }}>#{a.user_id}</span>
+          </div>
+          <span className="muted" style={{ fontSize: 11 }}>{fmt(a.activated_at)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function PromoCodesTab() {
   const [codes, setCodes] = useState<AdminPromoCode[]>([])
   const [loading, setLoading] = useState(true)
@@ -908,6 +953,7 @@ function PromoCodesTab() {
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [createOk, setCreateOk] = useState(false)
+  const [expandedId, setExpandedId] = useState<number | null>(null)
 
   function load() {
     setLoading(true)
@@ -974,11 +1020,15 @@ function PromoCodesTab() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {codes.map(c => (
             <div key={c.id} className="card" style={{ padding: '12px 14px', opacity: c.is_active ? 1 : 0.5 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: c.activations > 0 ? 'pointer' : 'default' }}
+                onClick={() => c.activations > 0 && setExpandedId(expandedId === c.id ? null : c.id)}
+              >
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 800, fontSize: 15, letterSpacing: 1 }}>{c.code}</div>
                   <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>
                     ⭐{c.reward_stars} · {c.activations}/{c.max_activations} активацій · {fmt(c.created_at)}
+                    {c.activations > 0 && <span style={{ marginLeft: 4 }}>{expandedId === c.id ? '▲' : '▼'}</span>}
                   </div>
                 </div>
                 <div style={{
@@ -991,11 +1041,16 @@ function PromoCodesTab() {
                 <button
                   className="btn btn-secondary"
                   style={{ width: 'auto', padding: '6px 12px', fontSize: 12 }}
-                  onClick={() => toggle(c.id)}
+                  onClick={e => { e.stopPropagation(); toggle(c.id) }}
                 >
                   {c.is_active ? 'Вимкнути' : 'Увімкнути'}
                 </button>
               </div>
+              {expandedId === c.id && (
+                <div style={{ borderTop: '1px solid var(--border)', marginTop: 10 }}>
+                  <PromoActivationsList promoId={c.id} />
+                </div>
+              )}
             </div>
           ))}
         </div>

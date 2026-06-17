@@ -43,7 +43,7 @@ export default function ReferralPage({ lang, botUsername }: Props) {
             background: 'rgba(255,184,48,.15)', border: '1px solid rgba(255,184,48,.3)',
             borderRadius: 14, padding: '10px 16px', textAlign: 'center', flexShrink: 0,
           }}>
-            <div style={{ fontWeight: 900, fontSize: 28, color: '#FFD700', lineHeight: 1 }}>+10</div>
+            <div style={{ fontWeight: 900, fontSize: 28, color: '#FFD700', lineHeight: 1 }}>+25</div>
             <div style={{ fontWeight: 700, fontSize: 18, color: '#FFD700' }}>⭐</div>
           </div>
           <div>
@@ -117,7 +117,7 @@ function RefRow({ r }: { r: ReferralUser }) {
         )}
       </div>
       {r.is_buyer && (
-        <span style={{ fontSize: 12, color: '#FFD700', fontWeight: 700 }}>⭐+10</span>
+        <span style={{ fontSize: 12, color: '#FFD700', fontWeight: 700 }}>⭐+25</span>
       )}
     </div>
   )

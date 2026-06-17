@@ -618,6 +618,22 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
                                     )
                                 except Exception:
                                     pass
+
+                                if settings.ADMIN_IDS:
+                                    ref_uname  = f"@{referrer.username}" if referrer.username else f"ID:{referrer.id}"
+                                    inv_uname  = f"@{user.username}" if user.username else f"ID:{user.id}"
+                                    admin_txt = (
+                                        f"🤝 <b>Реферальна виплата!</b>\n\n"
+                                        f"👤 Реферер: {ref_uname} (<code>{referrer.id}</code>)\n"
+                                        f"🆕 Запрошений: {inv_uname} (<code>{user.id}</code>)\n"
+                                        f"⭐ Нараховано: <b>+{bonus_stars}</b>\n"
+                                        f"📦 За покупку: {body.category}"
+                                    )
+                                    for admin_id in settings.ADMIN_IDS:
+                                        try:
+                                            await _bot.send_message(admin_id, admin_txt, parse_mode="HTML")
+                                        except Exception:
+                                            pass
         except IntegrityError:
             pass  # race: два ордери одночасно — другий програє
         except Exception as e:
@@ -851,6 +867,26 @@ async def api_admin_promo_list(admin: User = Depends(require_admin)):
         for p in promos
     ]
 
+@app.get("/api/admin/promo/{promo_id}/activations")
+async def api_admin_promo_activations(promo_id: int, admin: User = Depends(require_admin)):
+    async with AsyncSessionLocal() as s:
+        rows = (await s.execute(
+            select(PromoActivation, User.full_name, User.username)
+            .join(User, User.id == PromoActivation.user_id)
+            .where(PromoActivation.code_id == promo_id)
+            .order_by(PromoActivation.activated_at.desc())
+        )).all()
+    return [
+        {
+            "user_id":      act.user_id,
+            "name":         full_name or str(act.user_id),
+            "username":     username,
+            "activated_at": act.activated_at.isoformat(),
+        }
+        for act, full_name, username in rows
+    ]
+
+
 @app.post("/api/admin/promo/{promo_id}/toggle")
 async def api_admin_promo_toggle(promo_id: int, admin: User = Depends(require_admin)):
     async with AsyncSessionLocal() as s:
@@ -862,7 +898,7 @@ async def api_admin_promo_toggle(promo_id: int, admin: User = Depends(require_ad
     return {"ok": True, "is_active": promo.is_active}
 
 
-REFERRAL_BONUS_STARS = 10  # зірок за кожну покупку рефералу
+REFERRAL_BONUS_STARS = 25  # зірок за кожну покупку рефералу
 
 
 @app.get("/api/referral")
@@ -1599,6 +1635,19 @@ async def api_admin_referrals(admin: User = Depends(require_admin)):
             select(func.count()).where(User.referred_by_id.isnot(None))
         ) or 0
 
+        # Статистика виплат реферальних нагород
+        payouts_total_count = await s.scalar(select(func.count(ReferralPayout.id))) or 0
+        payouts_total_stars = await s.scalar(
+            select(func.coalesce(func.sum(ReferralPayout.amount_stars), 0))
+        ) or 0
+        payouts_today_count = await s.scalar(
+            select(func.count(ReferralPayout.id)).where(ReferralPayout.created_at >= today_start)
+        ) or 0
+        payouts_today_stars = await s.scalar(
+            select(func.coalesce(func.sum(ReferralPayout.amount_stars), 0))
+            .where(ReferralPayout.created_at >= today_start)
+        ) or 0
+
         # Топ реферерів: хто скільки запросив + скільки з них купили
         rows = await s.execute(
             select(
@@ -1613,7 +1662,13 @@ async def api_admin_referrals(admin: User = Depends(require_admin)):
         referrer_rows = rows.all()
 
         if not referrer_rows:
-            return {"invited_today": invited_today, "invited_total": invited_total, "referrers": []}
+            return {
+                "invited_today": invited_today, "invited_total": invited_total, "referrers": [],
+                "payouts": {
+                    "total_count": payouts_total_count, "total_stars": int(payouts_total_stars),
+                    "today_count": payouts_today_count, "today_stars": int(payouts_today_stars),
+                },
+            }
 
         referrer_ids = [r.referred_by_id for r in referrer_rows]
 
@@ -1653,7 +1708,13 @@ async def api_admin_referrals(admin: User = Depends(require_admin)):
                 "earned_stars": earned_map.get(rid, 0),
             })
 
-    return {"invited_today": invited_today, "invited_total": invited_total, "referrers": result}
+    return {
+        "invited_today": invited_today, "invited_total": invited_total, "referrers": result,
+        "payouts": {
+            "total_count": payouts_total_count, "total_stars": int(payouts_total_stars),
+            "today_count": payouts_today_count, "today_stars": int(payouts_today_stars),
+        },
+    }
 
 
 @app.get("/api/admin/bio-promo")
