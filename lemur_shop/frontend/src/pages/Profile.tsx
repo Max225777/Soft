@@ -28,8 +28,8 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
   }, [period])
 
   useEffect(() => {
-    api.leaderboardRefs().then(r => setRefLeaders(r)).catch(() => {})
-  }, [])
+    api.leaderboardRefs(period).then(r => setRefLeaders(r)).catch(() => {})
+  }, [period])
 
   function changeLang(l: Lang) {
     localStorage.setItem(LANG_KEY, l)
@@ -163,25 +163,23 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
         })}
       </div>
 
-      {/* Period switch — only for spending */}
-      {lbType === 'spending' && (
-        <div style={{ display: 'flex', gap: 0, background: 'var(--bg2)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 10 }}>
-          {(['all', 'today'] as const).map((p, i) => {
-            const label = p === 'all'
-              ? (lang === 'ru' ? 'За всё время' : lang === 'ua' ? 'За весь час' : 'All time')
-              : (lang === 'ru' ? 'За сегодня' : lang === 'ua' ? 'За сьогодні' : 'Today')
-            return (
-              <button key={p} onClick={() => setPeriod(p)} style={{
-                flex: 1, padding: '8px 6px', fontSize: 11, fontWeight: period === p ? 700 : 500,
-                background: period === p ? 'rgba(42,171,238,.15)' : 'transparent',
-                color: period === p ? '#2AABEE' : 'var(--muted)',
-                border: 'none', cursor: 'pointer',
-                borderRight: i === 0 ? '1px solid var(--border)' : 'none',
-              }}>{label}</button>
-            )
-          })}
-        </div>
-      )}
+      {/* Period switch */}
+      <div style={{ display: 'flex', gap: 0, background: 'var(--bg2)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 10 }}>
+        {(['all', 'today'] as const).map((p, i) => {
+          const label = p === 'all'
+            ? (lang === 'ru' ? 'За всё время' : lang === 'ua' ? 'За весь час' : 'All time')
+            : (lang === 'ru' ? 'За сегодня' : lang === 'ua' ? 'За сьогодні' : 'Today')
+          return (
+            <button key={p} onClick={() => setPeriod(p)} style={{
+              flex: 1, padding: '8px 6px', fontSize: 11, fontWeight: period === p ? 700 : 500,
+              background: period === p ? 'rgba(42,171,238,.15)' : 'transparent',
+              color: period === p ? '#2AABEE' : 'var(--muted)',
+              border: 'none', cursor: 'pointer',
+              borderRight: i === 0 ? '1px solid var(--border)' : 'none',
+            }}>{label}</button>
+          )
+        })}
+      </div>
 
       {/* Spending table */}
       {lbType === 'spending' && (

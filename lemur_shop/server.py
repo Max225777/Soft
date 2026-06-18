@@ -760,20 +760,17 @@ async def api_leaderboard(user: User = Depends(get_current_user), period: str = 
 
 
 @app.get("/api/leaderboard/referrals")
-async def api_leaderboard_referrals(user: User = Depends(get_current_user)):
+async def api_leaderboard_referrals(user: User = Depends(get_current_user), period: str = "all"):
     async with AsyncSessionLocal() as s:
         # кількість запрошених по referrer_id
-        invited_sub = (
-            select(User.referred_by_id, func.count(User.id).label("invited_count"))
-            .where(User.referred_by_id.isnot(None))
-            .group_by(User.referred_by_id)
-            .subquery()
-        )
-        earned_sub = (
-            select(ReferralPayout.referrer_id, func.sum(ReferralPayout.amount_stars).label("earned_stars"))
-            .group_by(ReferralPayout.referrer_id)
-            .subquery()
-        )
+        invited_q = select(User.referred_by_id, func.count(User.id).label("invited_count")).where(User.referred_by_id.isnot(None))
+        earned_q = select(ReferralPayout.referrer_id, func.sum(ReferralPayout.amount_stars).label("earned_stars"))
+        if period == "today":
+            today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            invited_q = invited_q.where(User.created_at >= today_start)
+            earned_q = earned_q.where(ReferralPayout.created_at >= today_start)
+        invited_sub = invited_q.group_by(User.referred_by_id).subquery()
+        earned_sub = earned_q.group_by(ReferralPayout.referrer_id).subquery()
         rows = await s.execute(
             select(
                 User.id, User.full_name, User.username,
