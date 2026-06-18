@@ -117,6 +117,7 @@ export const adminApi = {
   resetStats:      () => req<{ ok: boolean }>('/admin/reset-stats', { method: 'POST' }),
   bioPromoList:    (page: number, limit = 30) => req<BioPromoParticipantsPage>(`/admin/bio-promo?page=${page}&limit=${limit}`),
   referralStats:   () => req<AdminReferralStats>('/admin/referrals'),
+  referralInvited: (referrerId: number) => req<AdminReferralInvitedUser[]>(`/admin/referrals/${referrerId}/invited`),
   promoList:       () => req<AdminPromoCode[]>('/admin/promo/list'),
   promoCreate:     (code: string, reward_stars: number, max_activations: number) =>
                      req<{ ok: boolean }>('/admin/promo/create', { method: 'POST', body: JSON.stringify({ code, reward_stars, max_activations }) }),
@@ -221,6 +222,10 @@ export interface AdminReferralStats {
   invited_today: number; invited_total: number
   referrers: AdminReferrerRow[]
   payouts: { total_count: number; total_stars: number; today_count: number; today_stars: number }
+}
+export interface AdminReferralInvitedUser {
+  id: number; name: string; username: string | null
+  joined_at: string; is_buyer: boolean
 }
 export interface AdminPromoCode {
   id: number; code: string; reward_stars: number

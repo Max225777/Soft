@@ -1714,6 +1714,36 @@ async def api_admin_referrals(admin: User = Depends(require_admin)):
     }
 
 
+@app.get("/api/admin/referrals/{referrer_id}/invited")
+async def api_admin_referral_invited(referrer_id: int, admin: User = Depends(require_admin)):
+    async with AsyncSessionLocal() as s:
+        rows = (await s.execute(
+            select(User.id, User.full_name, User.username, User.created_at)
+            .where(User.referred_by_id == referrer_id)
+            .order_by(User.created_at.desc())
+        )).all()
+        if not rows:
+            return []
+
+        invited_ids = [r.id for r in rows]
+        buyer_rows = (await s.execute(
+            select(Order.user_id).distinct()
+            .where(Order.user_id.in_(invited_ids), Order.status == "delivered")
+        )).all()
+        buyer_ids = {r.user_id for r in buyer_rows}
+
+    return [
+        {
+            "id": r.id,
+            "name": r.full_name or r.username or str(r.id),
+            "username": r.username,
+            "joined_at": r.created_at.isoformat(),
+            "is_buyer": r.id in buyer_ids,
+        }
+        for r in rows
+    ]
+
+
 @app.get("/api/admin/bio-promo")
 async def api_admin_bio_promo_list(
     page: int = 1, limit: int = 30,

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminPromoCode, type AdminPromoActivation } from '../api'
+import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminReferralInvitedUser, type AdminPromoCode, type AdminPromoActivation } from '../api'
 
 type DateMode = 'today' | 'all' | 'custom'
 
@@ -830,9 +830,43 @@ function Broadcast() {
 }
 
 // ── Referrals tab ─────────────────────────────────────────────────────────────
+function ReferralInvitedList({ referrerId }: { referrerId: number }) {
+  const [items, setItems] = useState<AdminReferralInvitedUser[] | null>(null)
+
+  useEffect(() => {
+    adminApi.referralInvited(referrerId).then(setItems).catch(() => setItems([]))
+  }, [referrerId])
+
+  if (items === null) return <div className="muted" style={{ fontSize: 12, padding: '8px 0' }}>Завантаження...</div>
+  if (items.length === 0) return <div className="muted" style={{ fontSize: 12, padding: '8px 0' }}>Ще нікого не запросив</div>
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 8 }}>
+      {items.map(u => (
+        <div key={u.id} style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '6px 10px', borderRadius: 8,
+          background: u.is_buyer ? 'rgba(255,107,43,.1)' : 'rgba(255,255,255,.03)',
+          border: `1px solid ${u.is_buyer ? 'rgba(255,107,43,.3)' : 'var(--border)'}`,
+        }}>
+          <div>
+            <span style={{ fontWeight: 600, fontSize: 12 }}>{u.name}</span>
+            {u.username && <span className="muted" style={{ fontSize: 11, marginLeft: 6 }}>@{u.username}</span>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {u.is_buyer && <span style={{ fontSize: 11, color: 'var(--orange)', fontWeight: 700 }}>купив</span>}
+            <span className="muted" style={{ fontSize: 10 }}>{new Date(u.joined_at).toLocaleDateString()}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function ReferralsTab() {
   const [data, setData] = useState<AdminReferralStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [expandedId, setExpandedId] = useState<number | null>(null)
 
   useEffect(() => {
     adminApi.referralStats().then(setData).finally(() => setLoading(false))
@@ -890,22 +924,33 @@ function ReferralsTab() {
           </div>
           {data.referrers.map((r, i) => (
             <div key={r.id} style={{
-              display: 'grid', gridTemplateColumns: '1fr 40px 40px 56px',
-              gap: 4, padding: '9px 12px', alignItems: 'center',
               borderBottom: i < data.referrers.length - 1 ? '1px solid var(--border)' : 'none',
               background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.02)',
             }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>{r.name}</div>
-                {r.username && <div className="muted" style={{ fontSize: 11 }}>@{r.username}</div>}
+              <div
+                onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
+                style={{
+                  display: 'grid', gridTemplateColumns: '1fr 40px 40px 56px',
+                  gap: 4, padding: '9px 12px', alignItems: 'center', cursor: 'pointer',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{r.name}</div>
+                  {r.username && <div className="muted" style={{ fontSize: 11 }}>@{r.username}</div>}
+                </div>
+                <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 14 }}>{r.invited}</div>
+                <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 14, color: r.buyers > 0 ? 'var(--orange)' : 'var(--muted)' }}>
+                  {r.buyers}
+                </div>
+                <div style={{ textAlign: 'right', fontWeight: 700, fontSize: 13, color: '#FFD700' }}>
+                  {r.earned_stars > 0 ? `⭐${r.earned_stars}` : '—'}
+                </div>
               </div>
-              <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 14 }}>{r.invited}</div>
-              <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 14, color: r.buyers > 0 ? 'var(--orange)' : 'var(--muted)' }}>
-                {r.buyers}
-              </div>
-              <div style={{ textAlign: 'right', fontWeight: 700, fontSize: 13, color: '#FFD700' }}>
-                {r.earned_stars > 0 ? `⭐${r.earned_stars}` : '—'}
-              </div>
+              {expandedId === r.id && (
+                <div style={{ padding: '0 12px 10px' }}>
+                  <ReferralInvitedList referrerId={r.id} />
+                </div>
+              )}
             </div>
           ))}
         </div>
