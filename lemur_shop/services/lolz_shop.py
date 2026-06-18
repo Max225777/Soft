@@ -34,7 +34,7 @@ CATEGORIES: dict[str, dict] = {
         "country": "CO", "title": "Colombia", "title_ru": "Колумбия", "title_ua": "Колумбія",
         "flag": "🇨🇴", "phone_prefix": "+57",
         "price_usd": 0.78,
-        "pmax_tiers": [0.50],
+        "pmax_tiers": [0.60], "pmin": 0.30,
     },
     "de": {
         "country": "DE", "title": "Germany", "title_ru": "Германия", "title_ua": "Німеччина",
@@ -208,10 +208,11 @@ async def auto_buy_category(category: str) -> tuple[str, int, float]:
     country    = cat["country"]
     shop_price = cat.get("price_usd", 9999)
     tiers: list[float] = cat.get("pmax_tiers", [2.50])
+    pmin = cat.get("pmin")
     items: list[dict] = []
     for pmax in tiers:
         try:
-            items = await lolz.search_telegram(country=country, pmax=pmax, count=50)
+            items = await lolz.search_telegram(country=country, pmax=pmax, pmin=pmin, count=50, spam="no")
         except (LolzApiError, httpx.TimeoutException):
             items = []
         if items:
