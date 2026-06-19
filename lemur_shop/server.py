@@ -47,6 +47,16 @@ def today_start_utc() -> datetime:
     return start_kyiv.astimezone(timezone.utc).replace(tzinfo=None)
 
 
+def kyiv_date_bounds_utc(d) -> tuple[datetime, datetime]:
+    """[start, end) для календарної дати d за київським часом, як naive UTC datetime."""
+    from datetime import datetime as _dt, timedelta as _td
+    start_kyiv = _dt(d.year, d.month, d.day, tzinfo=KYIV_TZ)
+    start_utc = start_kyiv.astimezone(timezone.utc).replace(tzinfo=None)
+    end_utc = (start_kyiv + _td(days=1)).astimezone(timezone.utc).replace(tzinfo=None)
+    return start_utc, end_utc
+
+
+
 _bot: Bot | None = None
 _dp: Dispatcher | None = None
 _polling_task: asyncio.Task | None = None
@@ -1248,19 +1258,22 @@ async def api_admin_stats(
     from sqlalchemy import distinct
 
     # Parse date range
-    today = date.today()
     try:
         df = dt.strptime(date_from, "%Y-%m-%d").date() if date_from else None
         dt2 = dt.strptime(date_to, "%Y-%m-%d").date() if date_to else None
     except ValueError:
         df = dt2 = None
 
+    # Межі діапазону за київською добою (а не UTC)
+    range_start = kyiv_date_bounds_utc(df)[0] if df else None
+    range_end   = kyiv_date_bounds_utc(dt2)[1] if dt2 else None
+
     def order_date_filter(col):
         filters = [Order.status == "delivered"]
-        if df:
-            filters.append(func.date(col) >= df)
-        if dt2:
-            filters.append(func.date(col) <= dt2)
+        if range_start:
+            filters.append(col >= range_start)
+        if range_end:
+            filters.append(col < range_end)
         return filters
 
     async with AsyncSessionLocal() as s:
@@ -1277,10 +1290,10 @@ async def api_admin_stats(
 
         # Topups in selected range
         top_filters = []
-        if df:
-            top_filters.append(func.date(TopUp.created_at) >= df)
-        if dt2:
-            top_filters.append(func.date(TopUp.created_at) <= dt2)
+        if range_start:
+            top_filters.append(TopUp.created_at >= range_start)
+        if range_end:
+            top_filters.append(TopUp.created_at < range_end)
         total_topups = await s.scalar(select(func.sum(TopUp.amount_usd)).where(*top_filters)) or 0
 
         # Bio promo stats

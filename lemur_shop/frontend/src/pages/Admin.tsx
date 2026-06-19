@@ -166,7 +166,8 @@ function GroupStats({
 
 // ── Overview ──────────────────────────────────────────────────────────────────
 function Overview() {
-  const todayStr = new Date().toISOString().slice(0, 10)
+  // Дата за київським часом (UA/RU), а не UTC — щоб збігалось з бекендом
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' })
   const [mode, setMode] = useState<DateMode>('today')
   const [customFrom, setCustomFrom] = useState(todayStr)
   const [customTo, setCustomTo]     = useState(todayStr)
