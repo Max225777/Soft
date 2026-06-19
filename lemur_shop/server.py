@@ -37,6 +37,16 @@ from lemur_shop.utils.currency import get_rate
 log = logging.getLogger(__name__)
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
+from zoneinfo import ZoneInfo
+KYIV_TZ = ZoneInfo("Europe/Kyiv")
+
+
+def today_start_utc() -> datetime:
+    """Початок поточної доби за київським часом (UA/RU), як naive UTC datetime — для порівняння з created_at у БД."""
+    start_kyiv = datetime.now(KYIV_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
+    return start_kyiv.astimezone(timezone.utc).replace(tzinfo=None)
+
+
 _bot: Bot | None = None
 _dp: Dispatcher | None = None
 _polling_task: asyncio.Task | None = None
@@ -738,7 +748,7 @@ async def api_leaderboard(user: User = Depends(get_current_user), period: str = 
             .where(Order.status == "delivered")
         )
         if period == "today":
-            q = q.where(Order.created_at >= datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0))
+            q = q.where(Order.created_at >= today_start_utc())
         rows = await s.execute(
             q.group_by(User.id, User.full_name, User.username)
             .order_by(func.sum(Order.price_usd).desc())
@@ -766,7 +776,7 @@ async def api_leaderboard_referrals(user: User = Depends(get_current_user), peri
         invited_q = select(User.referred_by_id, func.count(User.id).label("invited_count")).where(User.referred_by_id.isnot(None))
         earned_q = select(ReferralPayout.referrer_id, func.sum(ReferralPayout.amount_stars).label("earned_stars"))
         if period == "today":
-            today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_start = today_start_utc()
             invited_q = invited_q.where(User.created_at >= today_start)
             earned_q = earned_q.where(ReferralPayout.created_at >= today_start)
         invited_sub = invited_q.group_by(User.referred_by_id).subquery()
@@ -1279,12 +1289,13 @@ async def api_admin_stats(
         bio_promo_stars  = await s.scalar(select(func.sum(BioPromo.total_rewarded))) or 0
         bio_promo_tier2  = await s.scalar(select(func.count(BioPromo.user_id)).where(BioPromo.is_active == True, BioPromo.reward_tier == 2)) or 0
 
-        # Today stats (always)
-        new_users_today = await s.scalar(select(func.count(User.id)).where(func.date(User.created_at) == today)) or 0
-        orders_today    = await s.scalar(select(func.count(Order.id)).where(Order.status == "delivered", func.date(Order.created_at) == today)) or 0
-        revenue_today   = await s.scalar(select(func.sum(Order.price_usd)).where(Order.status == "delivered", func.date(Order.created_at) == today)) or 0
-        cost_today      = await s.scalar(select(func.sum(Order.cost_usd)).where(Order.status == "delivered", func.date(Order.created_at) == today)) or 0
-        topups_today    = await s.scalar(select(func.sum(TopUp.amount_usd)).where(func.date(TopUp.created_at) == today)) or 0
+        # Today stats (always) — доба за київським часом
+        today_start = today_start_utc()
+        new_users_today = await s.scalar(select(func.count(User.id)).where(User.created_at >= today_start)) or 0
+        orders_today    = await s.scalar(select(func.count(Order.id)).where(Order.status == "delivered", Order.created_at >= today_start)) or 0
+        revenue_today   = await s.scalar(select(func.sum(Order.price_usd)).where(Order.status == "delivered", Order.created_at >= today_start)) or 0
+        cost_today      = await s.scalar(select(func.sum(Order.cost_usd)).where(Order.status == "delivered", Order.created_at >= today_start)) or 0
+        topups_today    = await s.scalar(select(func.sum(TopUp.amount_usd)).where(TopUp.created_at >= today_start)) or 0
 
         cat_rows = (await s.execute(
             select(
@@ -1615,9 +1626,8 @@ async def api_admin_broadcast_status(admin: User = Depends(require_admin)):
 
 @app.get("/api/admin/referrals")
 async def api_admin_referrals(admin: User = Depends(require_admin)):
-    from datetime import date, timezone
     async with AsyncSessionLocal() as s:
-        today_start = datetime.combine(date.today(), datetime.min.time())
+        today_start = today_start_utc()
 
         # Запрошені сьогодні (referred_by_id IS NOT NULL і created_at >= сьогодні)
         invited_today = await s.scalar(
