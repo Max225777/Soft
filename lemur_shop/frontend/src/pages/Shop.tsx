@@ -423,7 +423,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
         const isViews = svc.key === 'tg_views'
         const isReactCard = svc.key === 'tg_reactions'
         const badgeQty = isViews ? 1000 : isReactCard ? 300 : 100
-        const badgeStars = 10
+        const badgeStars = Math.round(badgeQty / 100 * svc.price_per_100_stars)
         const badgeWord = isViews ? T.smm_views_word : isReactCard ? T.smm_reactions_word : T.smm_subs_word
         const cardTitle = isViews ? T.smm_views_title : isReactCard ? T.smm_reactions_title : T.smm_subs_title
         const cardSub = isViews
@@ -967,7 +967,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 3 }}>{T.smm_total_label}</div>
               <div style={{ fontSize: 12, color: 'var(--text2)' }}>
                 {effectiveQty} {isViews ? T.smm_views_word : isReactions ? T.smm_reactions_word : T.smm_subs_word}
-                <span style={{ color: 'var(--muted)' }}> × ⭐{isViews ? 10 : svc?.price_per_100_stars}/{isViews ? 1000 : 100}</span>
+                <span style={{ color: 'var(--muted)' }}> × ⭐{isViews ? Math.round((svc?.price_per_100_stars ?? 0) * 10) : svc?.price_per_100_stars}/{isViews ? 1000 : 100}</span>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
