@@ -339,6 +339,10 @@ async def lifespan(app: FastAPI):
         _keepalive_task = asyncio.create_task(_keepalive(webapp_url + "/health"))
 
     await _run_bio_promo_migration()
+    try:
+        await _backfill_referral_payouts()
+    except Exception as e:
+        log.warning("referral backfill failed: %s", e)
     _bio_promo_task = asyncio.create_task(_bio_promo_hourly_checker())
     _bio_promo_midnight_task = asyncio.create_task(_bio_promo_midnight_rewarder())
 
@@ -926,6 +930,48 @@ async def credit_referral_bonus(user: User, order_id: int, category_label: str) 
         pass  # race: два ордери одночасно — другий програє
     except Exception as e:
         log.warning("REF PAYOUT error order=%s: %s", order_id, e)
+        if _bot and settings.ADMIN_IDS:
+            for admin_id in settings.ADMIN_IDS:
+                try:
+                    await _bot.send_message(
+                        admin_id,
+                        f"⚠️ <b>Реферальна виплата НЕ пройшла!</b>\n\n"
+                        f"👤 Реферал: <code>{user.id}</code>\n"
+                        f"📦 Замовлення: <code>{order_id}</code>\n"
+                        f"❌ Помилка: <code>{str(e)[:300]}</code>",
+                        parse_mode="HTML",
+                    )
+                except Exception:
+                    pass
+
+
+async def _backfill_referral_payouts() -> None:
+    """Ідемпотентний добір: рахує бонус рефереру за вже доставлені покупки
+    TG-акаунтів, якщо з якоїсь причини (збій під час самої покупки) виплата
+    тоді не пройшла. Запускається при кожному старті сервера, нічого не
+    зробить для тих, хто вже отримав бонус (перевірка всередині credit_referral_bonus)."""
+    async with AsyncSessionLocal() as s:
+        rows = (await s.execute(
+            select(Order.id, Order.category, Order.created_at, User)
+            .join(User, User.id == Order.user_id)
+            .where(
+                Order.status == "delivered",
+                Order.category.in_(list(CATEGORIES.keys())),
+                User.referred_by_id.isnot(None),
+            )
+            .order_by(Order.created_at.asc())
+        )).all()
+        s.expunge_all()
+
+    first_order: dict[int, tuple[int, str]] = {}
+    buyer_objs: dict[int, User] = {}
+    for order_id, category, _created_at, buyer in rows:
+        if buyer.id not in first_order:
+            first_order[buyer.id] = (order_id, category)
+            buyer_objs[buyer.id] = buyer
+
+    for buyer_id, (order_id, category) in first_order.items():
+        await credit_referral_bonus(buyer_objs[buyer_id], order_id, category)
 
 
 @app.get("/api/referral")
@@ -2321,9 +2367,6 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
 
     log.info("SMM order #%s: user=%s service=%s qty=%d stars=-%d balance %s→%s",
              order_id, user.id, body.service_key, body.quantity, price_stars, bal_before, u.balance_stars)
-
-    # Реферальна виплата — 25⭐ рефереру за ПЕРШУ покупку рефералу (одноразово)
-    await credit_referral_bonus(user, smm_order_rec.id, body.service_key)
 
     # ── Admin notification ──────────────────────────────────────────────────
     if _bot and settings.ADMIN_IDS:
