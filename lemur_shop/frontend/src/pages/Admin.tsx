@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminReferralInvitedUser, type AdminPromoCode, type AdminPromoActivation } from '../api'
+import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminReferralInvitedUser, type AdminPromoCode, type AdminPromoActivation, type EarningsChart, type EarningsDay } from '../api'
 
 type DateMode = 'today' | 'all' | 'custom'
 
@@ -14,7 +14,7 @@ function useOverviewStats(dateFrom: string, dateTo: string) {
   return { stats, loading, reload }
 }
 
-type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'broadcast' | 'promo' | 'referrals' | 'codes'
+type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'earnings' | 'broadcast' | 'promo' | 'referrals' | 'codes'
 
 const CATEGORY_FLAGS: Record<string, string> = { us: '🇺🇸', ua: '🇺🇦', kz: '🇰🇿' }
 
@@ -1105,12 +1105,169 @@ function PromoCodesTab() {
   )
 }
 
+// ── Earnings chart tab ──────────────────────────────────────────────────────
+const METHOD_META = {
+  stars:  { label: '⭐ Зірки',          color: '#ff6b2b' },
+  crypto: { label: '💎 Крипта',         color: '#3ba3ff' },
+  admin:  { label: '👤 Адмін (розіграші/реклама)', color: '#9a9a9a' },
+} as const
+type MethodKey = keyof typeof METHOD_META
+
+function kyivToday(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' })
+}
+function kyivDaysAgo(n: number): string {
+  const d = new Date(Date.now() - n * 86400000)
+  return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' })
+}
+
+function EarningsTab() {
+  const [dateFrom, setDateFrom] = useState(kyivDaysAgo(13))
+  const [dateTo, setDateTo]     = useState(kyivToday())
+  const [data, setData]         = useState<EarningsChart | null>(null)
+  const [loading, setLoading]   = useState(true)
+  const [methods, setMethods]   = useState<Record<MethodKey, boolean>>({ stars: true, crypto: true, admin: false })
+  const [showProfit, setShowProfit] = useState(false)
+
+  useEffect(() => {
+    setLoading(true)
+    adminApi.earningsChart(dateFrom, dateTo).then(setData).finally(() => setLoading(false))
+  }, [dateFrom, dateTo])
+
+  const toggleMethod = (k: MethodKey) => setMethods(m => ({ ...m, [k]: !m[k] }))
+
+  const preset = (days: number) => { setDateFrom(kyivDaysAgo(days - 1)); setDateTo(kyivToday()) }
+
+  const days: EarningsDay[] = data?.days ?? []
+  const dayTotal = (d: EarningsDay) =>
+    (methods.stars ? d.stars_usd : 0) + (methods.crypto ? d.crypto_usd : 0) + (methods.admin ? d.admin_usd : 0)
+
+  const sumStars  = days.reduce((a, d) => a + d.stars_usd, 0)
+  const sumCrypto = days.reduce((a, d) => a + d.crypto_usd, 0)
+  const sumAdmin  = days.reduce((a, d) => a + d.admin_usd, 0)
+  const sumProfit = days.reduce((a, d) => a + d.profit_usd, 0)
+  const sumTotal  = days.reduce((a, d) => a + dayTotal(d), 0)
+
+  const maxVal = Math.max(1, ...days.map(d => Math.max(dayTotal(d), showProfit ? d.profit_usd : 0)))
+  const barW = 22, gap = 8, chartH = 160
+
+  return (
+    <div>
+      {/* Період */}
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+          {[7, 14, 30, 90].map(n => (
+            <button key={n} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }}
+              onClick={() => preset(n)}>{n}д</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input type="date" value={dateFrom} max={dateTo} onChange={e => setDateFrom(e.target.value)}
+            style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 8px', color: 'var(--text)', fontSize: 12 }} />
+          <span className="muted" style={{ fontSize: 12 }}>—</span>
+          <input type="date" value={dateTo} min={dateFrom} max={kyivToday()} onChange={e => setDateTo(e.target.value)}
+            style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 8px', color: 'var(--text)', fontSize: 12 }} />
+        </div>
+      </div>
+
+      {/* Перемикачі способів поповнення */}
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Що враховувати в суму та графік:</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {(Object.keys(METHOD_META) as MethodKey[]).map(k => (
+            <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+              <input type="checkbox" checked={methods[k]} onChange={() => toggleMethod(k)} />
+              <span style={{ width: 10, height: 10, borderRadius: 3, background: METHOD_META[k].color, display: 'inline-block' }} />
+              {METHOD_META[k].label}
+            </label>
+          ))}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+            <input type="checkbox" checked={showProfit} onChange={() => setShowProfit(s => !s)} />
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: '#4cff8f', display: 'inline-block' }} />
+            📦 Прибуток з продажів (лінія, для порівняння)
+          </label>
+        </div>
+        {methods.admin && (
+          <div style={{ fontSize: 11, color: '#ffb347', marginTop: 8 }}>
+            ⚠️ Поповнення методом "Адмін" часто це розіграші чи виплати за рекламу, а не реальний дохід.
+          </div>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="card"><div className="skeleton" style={{ height: 200 }} /></div>
+      ) : (
+        <>
+          {/* Підсумок */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <StatCard label="Сума за період" value={`$${fmtUsd(sumTotal)}`} />
+            <StatCard label="⭐ Зірки" value={`$${fmtUsd(sumStars)}`} color="#ff6b2b" />
+            <StatCard label="💎 Крипта" value={`$${fmtUsd(sumCrypto)}`} color="#3ba3ff" />
+            <StatCard label="👤 Адмін" value={`$${fmtUsd(sumAdmin)}`} color="#9a9a9a" />
+          </div>
+          {showProfit && (
+            <div style={{ marginBottom: 12 }}>
+              <StatCard label="📦 Прибуток з продажів за період" value={`$${fmtUsd(sumProfit)}`} color="#4cff8f" />
+            </div>
+          )}
+
+          {/* Графік */}
+          <div className="card" style={{ overflowX: 'auto' }}>
+            {days.length === 0 ? (
+              <div className="muted" style={{ fontSize: 13, textAlign: 'center', padding: 20 }}>Немає даних за період</div>
+            ) : (
+              <svg width={days.length * (barW + gap) + gap} height={chartH + 36} style={{ display: 'block' }}>
+                {days.map((d, i) => {
+                  const x = gap + i * (barW + gap)
+                  let yOff = chartH
+                  const segs: { h: number; color: string }[] = []
+                  if (methods.stars && d.stars_usd > 0)  segs.push({ h: (d.stars_usd  / maxVal) * chartH, color: METHOD_META.stars.color })
+                  if (methods.crypto && d.crypto_usd > 0) segs.push({ h: (d.crypto_usd / maxVal) * chartH, color: METHOD_META.crypto.color })
+                  if (methods.admin && d.admin_usd > 0)   segs.push({ h: (d.admin_usd  / maxVal) * chartH, color: METHOD_META.admin.color })
+                  const total = dayTotal(d)
+                  const dayNum = d.date.slice(8, 10)
+                  return (
+                    <g key={d.date}>
+                      {segs.map((seg, si) => {
+                        yOff -= seg.h
+                        return <rect key={si} x={x} y={yOff} width={barW} height={Math.max(seg.h, 0.5)} fill={seg.color} rx={2} />
+                      })}
+                      {total === 0 && <rect x={x} y={chartH - 1} width={barW} height={1} fill="var(--border)" />}
+                      <text x={x + barW / 2} y={chartH + 14} textAnchor="middle" fontSize={9} fill="var(--muted)">{dayNum}</text>
+                      {total > 0 && (
+                        <text x={x + barW / 2} y={Math.max(chartH - total / maxVal * chartH - 4, 10)} textAnchor="middle" fontSize={8} fill="var(--text)">
+                          {total >= 1 ? Math.round(total) : ''}
+                        </text>
+                      )}
+                    </g>
+                  )
+                })}
+                {showProfit && (
+                  <polyline
+                    fill="none" stroke="#4cff8f" strokeWidth={2}
+                    points={days.map((d, i) => {
+                      const x = gap + i * (barW + gap) + barW / 2
+                      const y = chartH - (d.profit_usd / maxVal) * chartH
+                      return `${x},${y}`
+                    }).join(' ')}
+                  />
+                )}
+              </svg>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── Main Admin page ───────────────────────────────────────────────────────────
 const TABS: { id: AdminTab; label: string }[] = [
   { id: 'overview',  label: '📊 Огляд' },
   { id: 'users',     label: '👥 Юзери' },
   { id: 'orders',    label: '📦 Замовл.' },
   { id: 'topups',    label: '💰 Поповн.' },
+  { id: 'earnings',  label: '📈 Графік' },
   { id: 'broadcast', label: '📢 Розсилка' },
   { id: 'promo',     label: '⭐ Промо' },
   { id: 'referrals', label: '👥 Рефи' },
@@ -1124,44 +1281,32 @@ export default function Admin() {
     <div className="page">
       <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 12 }}>⚙️ Адмін-панель</div>
 
-      {/* Tab bar — two rows */}
+      {/* Tab bar — chunked into rows of 3 */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 14 }}>
-        <div style={{
-          display: 'flex', gap: 4,
-          background: 'var(--bg2)', borderRadius: 12, padding: 4,
-          border: '1px solid var(--border)',
-        }}>
-          {TABS.slice(0, 3).map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{
-              flex: 1, padding: '8px 4px', fontSize: 11, fontWeight: tab === t.id ? 700 : 500,
-              background: tab === t.id ? 'rgba(255,107,43,.2)' : 'transparent',
-              color: tab === t.id ? 'var(--orange)' : 'var(--muted)',
-              border: tab === t.id ? '1px solid rgba(255,107,43,.35)' : '1px solid transparent',
-              borderRadius: 8, cursor: 'pointer', transition: 'all .15s',
-            }}>{t.label}</button>
-          ))}
-        </div>
-        <div style={{
-          display: 'flex', gap: 4,
-          background: 'var(--bg2)', borderRadius: 12, padding: 4,
-          border: '1px solid var(--border)',
-        }}>
-          {TABS.slice(3).map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{
-              flex: 1, padding: '8px 4px', fontSize: 11, fontWeight: tab === t.id ? 700 : 500,
-              background: tab === t.id ? 'rgba(255,107,43,.2)' : 'transparent',
-              color: tab === t.id ? 'var(--orange)' : 'var(--muted)',
-              border: tab === t.id ? '1px solid rgba(255,107,43,.35)' : '1px solid transparent',
-              borderRadius: 8, cursor: 'pointer', transition: 'all .15s',
-            }}>{t.label}</button>
-          ))}
-        </div>
+        {Array.from({ length: Math.ceil(TABS.length / 3) }, (_, row) => TABS.slice(row * 3, row * 3 + 3)).map((rowTabs, row) => (
+          <div key={row} style={{
+            display: 'flex', gap: 4,
+            background: 'var(--bg2)', borderRadius: 12, padding: 4,
+            border: '1px solid var(--border)',
+          }}>
+            {rowTabs.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{
+                flex: 1, padding: '8px 4px', fontSize: 11, fontWeight: tab === t.id ? 700 : 500,
+                background: tab === t.id ? 'rgba(255,107,43,.2)' : 'transparent',
+                color: tab === t.id ? 'var(--orange)' : 'var(--muted)',
+                border: tab === t.id ? '1px solid rgba(255,107,43,.35)' : '1px solid transparent',
+                borderRadius: 8, cursor: 'pointer', transition: 'all .15s',
+              }}>{t.label}</button>
+            ))}
+          </div>
+        ))}
       </div>
 
       {tab === 'overview'  && <Overview />}
       {tab === 'users'     && <Users />}
       {tab === 'orders'    && <Orders />}
       {tab === 'topups'    && <Topups />}
+      {tab === 'earnings'  && <EarningsTab />}
       {tab === 'broadcast' && <Broadcast />}
       {tab === 'promo'     && <BioPromoTab />}
       {tab === 'referrals' && <ReferralsTab />}

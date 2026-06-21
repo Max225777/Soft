@@ -1449,6 +1449,104 @@ async def api_admin_stats(
     }
 
 
+@app.get("/api/admin/earnings-chart")
+async def api_admin_earnings_chart(
+    admin: User = Depends(require_admin),
+    date_from: str | None = None,
+    date_to: str | None = None,
+):
+    """Графік заробітку по днях (за київською добою): поповнення по методах
+    (зірки/крипта/вручну адміном) + прибуток з продажів за той самий день.
+    Метод 'admin' часто означає роздачі/оплату за рекламу, а не реальний
+    дохід — фронтенд дозволяє вимикати його з підсумкової суми."""
+    from datetime import date as _date, datetime as dt, timedelta as _td
+
+    try:
+        df = dt.strptime(date_from, "%Y-%m-%d").date() if date_from else None
+        dt2 = dt.strptime(date_to, "%Y-%m-%d").date() if date_to else None
+    except ValueError:
+        df = dt2 = None
+
+    if not df and not dt2:
+        dt2 = datetime.now(KYIV_TZ).date()
+        df = dt2 - _td(days=29)
+    elif df and not dt2:
+        dt2 = df
+    elif dt2 and not df:
+        df = dt2
+
+    if df > dt2:
+        df, dt2 = dt2, df
+    # Захист від занадто широкого діапазону
+    if (dt2 - df).days > 365:
+        df = dt2 - _td(days=365)
+
+    range_start = kyiv_date_bounds_utc(df)[0]
+    range_end   = kyiv_date_bounds_utc(dt2)[1]
+
+    days: list[_date] = []
+    d = df
+    while d <= dt2:
+        days.append(d)
+        d += _td(days=1)
+
+    def _day_of(ts: datetime) -> _date:
+        return ts.replace(tzinfo=timezone.utc).astimezone(KYIV_TZ).date()
+
+    async with AsyncSessionLocal() as s:
+        topup_rows = (await s.execute(
+            select(TopUp.created_at, TopUp.method, TopUp.amount_usd, TopUp.amount_stars)
+            .where(TopUp.created_at >= range_start, TopUp.created_at < range_end)
+        )).all()
+        order_rows = (await s.execute(
+            select(Order.created_at, Order.price_usd, Order.cost_usd)
+            .where(Order.status == "delivered", Order.created_at >= range_start, Order.created_at < range_end)
+        )).all()
+
+    buckets: dict[_date, dict] = {
+        d: {"stars_usd": 0.0, "stars_count": 0, "crypto_usd": 0.0, "crypto_count": 0,
+            "admin_usd": 0.0, "admin_count": 0, "revenue_usd": 0.0, "cost_usd": 0.0}
+        for d in days
+    }
+    for created_at, method, amount_usd, _amount_stars in topup_rows:
+        b = buckets.get(_day_of(created_at))
+        if b is None:
+            continue
+        key = method if method in ("stars", "crypto", "admin") else "admin"
+        b[f"{key}_usd"] += float(amount_usd or 0)
+        b[f"{key}_count"] += 1
+    for created_at, price_usd, cost_usd in order_rows:
+        b = buckets.get(_day_of(created_at))
+        if b is None:
+            continue
+        b["revenue_usd"] += float(price_usd or 0)
+        b["cost_usd"] += float(cost_usd or 0)
+
+    rows = []
+    for d in days:
+        b = buckets[d]
+        total_usd = b["stars_usd"] + b["crypto_usd"] + b["admin_usd"]
+        rows.append({
+            "date":          d.isoformat(),
+            "stars_usd":     round(b["stars_usd"], 2),
+            "stars_count":   b["stars_count"],
+            "crypto_usd":    round(b["crypto_usd"], 2),
+            "crypto_count":  b["crypto_count"],
+            "admin_usd":     round(b["admin_usd"], 2),
+            "admin_count":   b["admin_count"],
+            "total_usd":     round(total_usd, 2),
+            "revenue_usd":   round(b["revenue_usd"], 2),
+            "cost_usd":      round(b["cost_usd"], 2),
+            "profit_usd":    round(b["revenue_usd"] - b["cost_usd"], 2),
+        })
+
+    return {
+        "date_from": df.isoformat(),
+        "date_to":   dt2.isoformat(),
+        "days":      rows,
+    }
+
+
 @app.get("/api/admin/users")
 async def api_admin_users(
     page: int = 1, limit: int = 20, search: str = "",

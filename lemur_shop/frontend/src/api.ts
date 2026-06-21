@@ -108,6 +108,13 @@ export const adminApi = {
     const qs = p.toString()
     return req<AdminStats>(`/admin/stats${qs ? '?' + qs : ''}`)
   },
+  earningsChart:   (dateFrom?: string, dateTo?: string) => {
+    const p = new URLSearchParams()
+    if (dateFrom) p.set('date_from', dateFrom)
+    if (dateTo)   p.set('date_to', dateTo)
+    const qs = p.toString()
+    return req<EarningsChart>(`/admin/earnings-chart${qs ? '?' + qs : ''}`)
+  },
   users:           (page: number, limit = 20, search = '') => req<AdminUsersPage>(`/admin/users?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`),
   userDetail:      (id: number) => req<AdminUserDetail>(`/admin/user/${id}`),
   orders:          (page: number, limit = 30) => req<AdminOrdersPage>(`/admin/orders?page=${page}&limit=${limit}`),
@@ -173,6 +180,18 @@ export interface AdminStats {
   categories: StatsCatRow[]
   accounts: StatsGroup
   smm: StatsGroup
+}
+export interface EarningsDay {
+  date: string
+  stars_usd: number; stars_count: number
+  crypto_usd: number; crypto_count: number
+  admin_usd: number; admin_count: number
+  total_usd: number
+  revenue_usd: number; cost_usd: number; profit_usd: number
+}
+export interface EarningsChart {
+  date_from: string; date_to: string
+  days: EarningsDay[]
 }
 export interface BroadcastStatus {
   running: boolean; sent: number; failed: number; total: number; text: string
