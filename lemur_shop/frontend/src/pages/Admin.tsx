@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminReferralInvitedUser, type AdminPromoCode, type AdminPromoActivation, type EarningsChart, type EarningsDay } from '../api'
+import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminReferralInvitedUser, type AdminPromoCode, type AdminPromoActivation, type EarningsChart, type EarningsDay, type AdminNftItem, type AdminNftRental } from '../api'
 
 type DateMode = 'today' | 'all' | 'custom'
 
@@ -14,7 +14,7 @@ function useOverviewStats(dateFrom: string, dateTo: string) {
   return { stats, loading, reload }
 }
 
-type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'earnings' | 'broadcast' | 'promo' | 'referrals' | 'codes'
+type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'earnings' | 'broadcast' | 'promo' | 'referrals' | 'codes' | 'nft'
 
 const CATEGORY_FLAGS: Record<string, string> = { us: '🇺🇸', ua: '🇺🇦', kz: '🇰🇿' }
 
@@ -1261,6 +1261,237 @@ function EarningsTab() {
   )
 }
 
+// ── NFT Admin Tab ─────────────────────────────────────────────────────────────
+function NftAdminTab() {
+  const [subTab, setSubTab] = useState<'catalog' | 'rentals'>('catalog')
+  const [items, setItems] = useState<AdminNftItem[]>([])
+  const [rentals, setRentals] = useState<AdminNftRental[]>([])
+  const [loading, setLoading] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editForm, setEditForm] = useState<Partial<{ username: string; description: string; price_stars: number; duration_days: number; is_available: boolean }>>({})
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
+
+  // Add form
+  const [addUsername, setAddUsername] = useState('')
+  const [addDesc, setAddDesc] = useState('')
+  const [addPrice, setAddPrice] = useState(500)
+  const [addDuration, setAddDuration] = useState(30)
+  const [adding, setAdding] = useState(false)
+
+  const DURATION_OPTIONS = [7, 14, 30, 60, 90]
+
+  function loadItems() {
+    setLoading(true)
+    adminApi.nftList().then(setItems).catch(() => {}).finally(() => setLoading(false))
+  }
+  function loadRentals() {
+    setLoading(true)
+    adminApi.nftRentals().then(setRentals).catch(() => {}).finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    if (subTab === 'catalog') loadItems()
+    else loadRentals()
+  }, [subTab])
+
+  async function handleAdd() {
+    if (!addUsername.trim() || addPrice <= 0) return
+    setAdding(true)
+    try {
+      await adminApi.nftAdd(addUsername.trim(), addDesc.trim(), addPrice, addDuration)
+      setAddUsername(''); setAddDesc(''); setAddPrice(500); setAddDuration(30)
+      loadItems()
+    } catch (e: any) { alert(e.message) }
+    finally { setAdding(false) }
+  }
+
+  async function handleEdit(id: number) {
+    try {
+      await adminApi.nftEdit(id, editForm)
+      setEditingId(null); setEditForm({})
+      loadItems()
+    } catch (e: any) { alert(e.message) }
+  }
+
+  async function handleDelete(id: number) {
+    try {
+      await adminApi.nftDelete(id)
+      setDeleteConfirm(null)
+      loadItems()
+    } catch (e: any) { alert(e.message) }
+  }
+
+  async function handleToggle(nft: AdminNftItem) {
+    try {
+      await adminApi.nftEdit(nft.id, { is_available: !nft.is_available })
+      loadItems()
+    } catch (e: any) { alert(e.message) }
+  }
+
+  return (
+    <div>
+      {/* Sub-tab switcher */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 14, background: 'var(--bg2)', borderRadius: 12, padding: 4, border: '1px solid var(--border)' }}>
+        {(['catalog', 'rentals'] as const).map(t => (
+          <button key={t} onClick={() => setSubTab(t)} style={{
+            flex: 1, padding: '8px', fontSize: 13, fontWeight: subTab === t ? 700 : 500,
+            background: subTab === t ? 'rgba(155,89,245,.2)' : 'transparent',
+            color: subTab === t ? '#c084fc' : 'var(--muted)',
+            border: subTab === t ? '1px solid rgba(155,89,245,.4)' : '1px solid transparent',
+            borderRadius: 8, cursor: 'pointer',
+          }}>
+            {t === 'catalog' ? '📋 Каталог' : '📅 Оренди'}
+          </button>
+        ))}
+      </div>
+
+      {subTab === 'catalog' && (
+        <>
+          {/* Add form */}
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>➕ Додати юзернейм</div>
+            <input
+              placeholder="username (без @)"
+              value={addUsername}
+              onChange={e => setAddUsername(e.target.value)}
+              style={{ width: '100%', marginBottom: 8, padding: '9px 12px', borderRadius: 10, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }}
+            />
+            <textarea
+              placeholder="Опис (необов'язково)"
+              value={addDesc}
+              onChange={e => setAddDesc(e.target.value)}
+              rows={2}
+              style={{ width: '100%', marginBottom: 8, padding: '9px 12px', borderRadius: 10, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13, resize: 'none', boxSizing: 'border-box' }}
+            />
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Ціна ⭐</div>
+                <input type="number" min={1} value={addPrice} onChange={e => setAddPrice(+e.target.value)}
+                  style={{ width: '100%', padding: '9px 10px', borderRadius: 10, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Тривалість</div>
+                <select value={addDuration} onChange={e => setAddDuration(+e.target.value)}
+                  style={{ width: '100%', padding: '9px 10px', borderRadius: 10, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }}>
+                  {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d} днів</option>)}
+                </select>
+              </div>
+            </div>
+            <button className="btn btn-primary" style={{ width: '100%' }} disabled={adding || !addUsername.trim()} onClick={handleAdd}>
+              {adding ? '⏳...' : 'Додати'}
+            </button>
+          </div>
+
+          {loading && <div className="muted" style={{ textAlign: 'center', padding: 20 }}>Завантаження...</div>}
+
+          {items.map(nft => (
+            <div key={nft.id} className="card" style={{ marginBottom: 10 }}>
+              {editingId === nft.id ? (
+                <div>
+                  <input value={editForm.username ?? nft.username} onChange={e => setEditForm(f => ({ ...f, username: e.target.value }))}
+                    placeholder="username"
+                    style={{ width: '100%', marginBottom: 7, padding: '8px 11px', borderRadius: 9, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }} />
+                  <textarea value={editForm.description ?? (nft.description || '')} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                    rows={2} placeholder="Опис"
+                    style={{ width: '100%', marginBottom: 7, padding: '8px 11px', borderRadius: 9, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13, resize: 'none', boxSizing: 'border-box' }} />
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                    <input type="number" value={editForm.price_stars ?? nft.price_stars} onChange={e => setEditForm(f => ({ ...f, price_stars: +e.target.value }))}
+                      style={{ flex: 1, padding: '8px 10px', borderRadius: 9, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13 }} />
+                    <select value={editForm.duration_days ?? nft.duration_days} onChange={e => setEditForm(f => ({ ...f, duration_days: +e.target.value }))}
+                      style={{ flex: 1, padding: '8px 10px', borderRadius: 9, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13 }}>
+                      {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d} днів</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setEditingId(null); setEditForm({}) }}>Скасувати</button>
+                    <button className="btn btn-primary" style={{ flex: 2 }} onClick={() => handleEdit(nft.id)}>Зберегти</button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <div>
+                      <span style={{ fontWeight: 800, fontSize: 17, fontFamily: 'monospace', color: nft.is_available ? '#c084fc' : 'var(--muted)' }}>@{nft.username}</span>
+                      {!nft.is_available && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--muted)' }}>[прихований]</span>}
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--orange)' }}>⭐{nft.price_stars}</span>
+                  </div>
+                  {nft.description && <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 6 }}>{nft.description}</div>}
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: nft.currently_rented ? 6 : 10 }}>⏳ {nft.duration_days} днів</div>
+                  {nft.currently_rented && nft.expires_at && (
+                    <div style={{ fontSize: 12, color: '#ff9090', marginBottom: 10, padding: '6px 10px', background: 'rgba(255,80,80,.08)', borderRadius: 8 }}>
+                      🔒 Орендовано до {new Date(nft.expires_at).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button className="btn btn-secondary" style={{ flex: 1, fontSize: 12, padding: '7px 6px' }}
+                      onClick={() => handleToggle(nft)}>
+                      {nft.is_available ? '🙈 Приховати' : '👁 Показати'}
+                    </button>
+                    <button className="btn btn-secondary" style={{ flex: 1, fontSize: 12, padding: '7px 6px' }}
+                      onClick={() => { setEditingId(nft.id); setEditForm({ username: nft.username, description: nft.description || '', price_stars: nft.price_stars, duration_days: nft.duration_days }) }}>
+                      ✏️ Редагувати
+                    </button>
+                    {deleteConfirm === nft.id ? (
+                      <div style={{ display: 'flex', gap: 4, flex: 1 }}>
+                        <button className="btn btn-secondary" style={{ flex: 1, fontSize: 11, padding: '7px 4px' }} onClick={() => setDeleteConfirm(null)}>Ні</button>
+                        <button className="btn" style={{ flex: 1, fontSize: 11, padding: '7px 4px', background: '#c0392b', color: '#fff' }} onClick={() => handleDelete(nft.id)}>Так</button>
+                      </div>
+                    ) : (
+                      <button
+                        className="btn btn-secondary" style={{ flex: 1, fontSize: 12, padding: '7px 6px', opacity: nft.currently_rented ? 0.4 : 1 }}
+                        disabled={nft.currently_rented}
+                        onClick={() => setDeleteConfirm(nft.id)}>
+                        🗑 Видалити
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {!loading && items.length === 0 && (
+            <div className="muted" style={{ textAlign: 'center', padding: 30 }}>Немає юзернеймів</div>
+          )}
+        </>
+      )}
+
+      {subTab === 'rentals' && (
+        <>
+          {loading && <div className="muted" style={{ textAlign: 'center', padding: 20 }}>Завантаження...</div>}
+          {!loading && rentals.length === 0 && (
+            <div className="muted" style={{ textAlign: 'center', padding: 30 }}>Оренд немає</div>
+          )}
+          {rentals.map(r => {
+            const daysLeft = r.days_left
+            const isActive = r.status === 'active' && daysLeft >= 0
+            const isWarning = isActive && daysLeft < 7
+            const isExpired = !isActive || daysLeft < 0
+            const rowColor = isExpired ? '#ff7070' : isWarning ? '#ffd070' : '#4cff8f'
+            return (
+              <div key={r.id} className="card" style={{ marginBottom: 8, borderLeft: `3px solid ${rowColor}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                  <span style={{ fontWeight: 800, fontFamily: 'monospace', color: '#c084fc' }}>@{r.username}</span>
+                  <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: `${rowColor}22`, color: rowColor, border: `1px solid ${rowColor}44` }}>
+                    {isExpired ? 'Закінчився' : `${daysLeft} дн. залишилось`}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 2 }}>
+                  👤 {r.user_name}{r.user_username ? ` (@${r.user_username})` : ''} <span style={{ color: 'var(--muted)' }}>#{r.user_id}</span>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                  #{r.id} · {fmt(r.started_at)} → {fmt(r.expires_at)}
+                </div>
+              </div>
+            )
+          })}
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── Main Admin page ───────────────────────────────────────────────────────────
 const TABS: { id: AdminTab; label: string }[] = [
   { id: 'overview',  label: '📊 Огляд' },
@@ -1272,6 +1503,7 @@ const TABS: { id: AdminTab; label: string }[] = [
   { id: 'promo',     label: '⭐ Промо' },
   { id: 'referrals', label: '👥 Рефи' },
   { id: 'codes',     label: '🎟 Промокоди' },
+  { id: 'nft',       label: '🔤 NFT Юзи' },
 ]
 
 export default function Admin() {
@@ -1311,6 +1543,7 @@ export default function Admin() {
       {tab === 'promo'     && <BioPromoTab />}
       {tab === 'referrals' && <ReferralsTab />}
       {tab === 'codes'     && <PromoCodesTab />}
+      {tab === 'nft'       && <NftAdminTab />}
     </div>
   )
 }

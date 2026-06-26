@@ -1182,6 +1182,198 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
     </div>
   )
 
+  // ─── NFT Юзернейми ────────────────────────────────────────────────────────
+  if (view === 'nft') {
+    const balance = me?.balance_stars ?? 0
+
+    if (nftDone) {
+      const expiresDate = new Date(nftDone.expires_at)
+      const expiresStr = expiresDate.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      const botUsername = me?.bot_username ?? 'lemur_shop_bot'
+      return (
+        <div className="page">
+          <div style={{ textAlign: 'center', padding: '30px 0 20px' }}>
+            <div style={{ fontSize: 64, marginBottom: 12, filter: 'drop-shadow(0 0 20px rgba(155,89,245,.6))' }}>✅</div>
+            <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 6 }}>Заказ #{nftDone.order_id} принят!</div>
+            <div style={{ fontSize: 13, color: 'var(--muted)' }}>⭐{nftDone.stars_spent} списано с баланса</div>
+          </div>
+
+          <div style={{
+            background: 'linear-gradient(135deg, #1a0d2e 0%, #130924 100%)',
+            border: '1px solid rgba(160,80,255,.3)',
+            borderRadius: 16, padding: '16px 18px', marginBottom: 16,
+          }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#c084fc', marginBottom: 12 }}>📋 Как получить @{nftDone.username}:</div>
+            <ol style={{ paddingLeft: 18, margin: 0, lineHeight: 2.1, fontSize: 13, color: 'var(--text2)' }}>
+              <li>Напишите администратору: <b>@{botUsername}</b></li>
+              <li>Укажите номер заказа: <b>#{nftDone.order_id}</b></li>
+              <li>Администратор вручную передаст вам права на имя пользователя</li>
+              <li>Срок аренды: <b>{nftDone.duration_days} дней</b> (до <b>{expiresStr}</b>)</li>
+            </ol>
+            <div style={{
+              marginTop: 14, padding: '10px 14px', borderRadius: 10,
+              background: 'rgba(255,200,0,.07)', border: '1px solid rgba(255,200,0,.2)',
+              fontSize: 12, color: '#e0c060', lineHeight: 1.6,
+            }}>
+              ⚠️ Имя пользователя передаётся вручную в течение 24 часов после оплаты.
+            </div>
+          </div>
+
+          <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => {
+            setNftDone(null)
+            setView('menu')
+          }}>
+            Назад в магазин
+          </button>
+        </div>
+      )
+    }
+
+    return (
+      <div className="page">
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <button onClick={() => setView('menu')} style={{
+            width: 36, height: 36, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--card2)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: 20, color: 'var(--text2)', flexShrink: 0,
+          }}>‹</button>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 19 }}>@ NFT Юзернейми</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>Оренда Telegram-юзернеймів</div>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div style={{ position: 'relative', marginBottom: 14 }}>
+          <input
+            type="text"
+            placeholder="Пошук за юзернеймом..."
+            value={nftSearchInput}
+            onChange={e => handleNftSearchInput(e.target.value)}
+            style={{
+              width: '100%', padding: '11px 14px', borderRadius: 12,
+              background: 'var(--card)', border: '1px solid var(--border)',
+              color: 'var(--text)', fontSize: 14, boxSizing: 'border-box',
+            }}
+          />
+        </div>
+
+        {/* Loading skeleton */}
+        {nftLoading && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[1, 2, 3].map(i => (
+              <div key={i} style={{
+                background: 'var(--card)', border: '1px solid var(--border)',
+                borderRadius: 16, padding: '16px', height: 110,
+                animation: 'pulse 1.5s infinite',
+              }} />
+            ))}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!nftLoading && nftItems.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--muted)' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>Юзернеймів не знайдено</div>
+          </div>
+        )}
+
+        {/* NFT grid */}
+        {!nftLoading && nftItems.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {nftItems.map(nft => {
+              const rented = nft.currently_rented
+              const canBuy = !rented && balance >= nft.price_stars
+              const isConfirming = nftConfirm?.id === nft.id
+              const expiresDate = rented && nft.expires_at ? new Date(nft.expires_at).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' }) : null
+
+              return (
+                <div key={nft.id} style={{
+                  background: 'linear-gradient(135deg, #1a0d2e 0%, #130924 100%)',
+                  border: `1px solid ${rented ? 'rgba(255,80,80,.3)' : 'rgba(160,80,255,.25)'}`,
+                  borderRadius: 16, padding: '16px 18px',
+                  boxShadow: rented ? 'none' : '0 4px 18px rgba(140,60,255,.1)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontWeight: 900, fontSize: 20, fontFamily: 'monospace', color: rented ? 'var(--muted)' : '#c084fc' }}>
+                        @{nft.username}
+                      </div>
+                      {nft.description && (
+                        <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 3 }}>{nft.description}</div>
+                      )}
+                    </div>
+                    <div style={{
+                      padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                      background: rented ? 'rgba(255,80,80,.12)' : 'rgba(155,89,245,.15)',
+                      color: rented ? '#ff7070' : '#c084fc',
+                      border: `1px solid ${rented ? 'rgba(255,80,80,.3)' : 'rgba(155,89,245,.4)'}`,
+                      flexShrink: 0, marginLeft: 10,
+                    }}>
+                      {rented ? 'Зайнятий 🔒' : 'Доступний ✅'}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 16, marginBottom: 12, fontSize: 12, color: 'var(--muted)' }}>
+                    <span>⏳ на {nft.duration_days} днів</span>
+                    {rented && expiresDate && <span style={{ color: '#ff9090' }}>до {expiresDate}</span>}
+                  </div>
+
+                  {isConfirming ? (
+                    <div style={{
+                      background: 'rgba(155,89,245,.1)', border: '1px solid rgba(155,89,245,.3)',
+                      borderRadius: 12, padding: '12px 14px',
+                    }}>
+                      <div style={{ fontSize: 13, marginBottom: 10, color: 'var(--text2)' }}>
+                        Підтвердити оренду <b>@{nft.username}</b> за <b>⭐{nft.price_stars}</b>?
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn btn-secondary" style={{ flex: 1, padding: '9px' }}
+                          onClick={() => setNftConfirm(null)}>
+                          Скасувати
+                        </button>
+                        <button
+                          className="btn"
+                          style={{ flex: 2, padding: '9px', background: 'linear-gradient(135deg,#9B59F5,#6A0DAD)', color: '#fff', fontWeight: 700 }}
+                          disabled={nftBuying}
+                          onClick={() => buyNft(nft)}
+                        >
+                          {nftBuying ? '⏳...' : `✅ Орендувати ⭐${nft.price_stars}`}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      className="btn"
+                      style={{
+                        width: '100%', padding: '10px',
+                        background: rented || !canBuy
+                          ? 'rgba(255,255,255,.06)'
+                          : 'linear-gradient(135deg, #9B59F5, #6A0DAD)',
+                        color: rented || !canBuy ? 'var(--muted)' : '#fff',
+                        fontWeight: 700, cursor: rented || !canBuy ? 'not-allowed' : 'pointer',
+                        border: '1px solid transparent',
+                      }}
+                      disabled={rented || !canBuy}
+                      onClick={() => setNftConfirm(nft)}
+                    >
+                      {rented
+                        ? 'Зайнятий 🔒'
+                        : balance < nft.price_stars
+                          ? `Недостатньо зірок (⭐${nft.price_stars})`
+                          : `Орендувати ⭐${nft.price_stars}`}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   // ─── Зірки ────────────────────────────────────────────────────────────────
 
   return null
