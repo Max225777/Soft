@@ -176,3 +176,27 @@ class WheelParticipant(Base):
     name: Mapped[str] = mapped_column(String(64), nullable=False)
     is_bot: Mapped[bool] = mapped_column(Boolean, default=False)
     joined_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class NftUsername(Base):
+    __tablename__ = "nft_usernames"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(64), nullable=False)  # without @, e.g. "coolname"
+    description: Mapped[str | None] = mapped_column(String(255), nullable=True)  # short description
+    price_stars: Mapped[int] = mapped_column(Integer, nullable=False)
+    duration_days: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
+    is_available: Mapped[bool] = mapped_column(Boolean, default=True)  # can be bought right now
+    added_by: Mapped[int] = mapped_column(BigInteger, nullable=False)  # admin user_id
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class NftRental(Base):
+    __tablename__ = "nft_rentals"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    nft_id: Mapped[int] = mapped_column(Integer, ForeignKey("nft_usernames.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
+    order_id: Mapped[int] = mapped_column(Integer, ForeignKey("orders.id"), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="active")  # active / expired / cancelled
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

@@ -30,6 +30,21 @@ export interface Referral {
   referrals: ReferralUser[]
 }
 
+export interface NftItem {
+  id: number; username: string; description: string | null
+  price_stars: number; duration_days: number
+  is_available: boolean; currently_rented: boolean
+  expires_at: string | null
+}
+export interface AdminNftItem extends NftItem {
+  added_by: number; created_at: string
+}
+export interface AdminNftRental {
+  id: number; nft_id: number; username: string
+  user_id: number; user_name: string; user_username: string | null
+  started_at: string; expires_at: string; status: string; days_left: number
+}
+
 export const api = {
   me:           () => req<Me>('/me'),
   setLang:      (lang: string) => req<{ ok: boolean }>('/set-lang', { method: 'POST', body: JSON.stringify({ lang }) }),
@@ -46,6 +61,8 @@ export const api = {
   leaderboard:        (period: 'all' | 'today') => req<LeaderRow[]>(`/leaderboard?period=${period}`),
   leaderboardRefs:    (period: 'all' | 'today') => req<RefLeaderRow[]>(`/leaderboard/referrals?period=${period}`),
   promoRedeem:  (code: string) => req<{ ok: boolean; stars: number }>('/promo/redeem', { method: 'POST', body: JSON.stringify({ code }) }),
+  nftList:      (search?: string) => req<NftItem[]>(`/nft/list${search ? '?search=' + encodeURIComponent(search) : ''}`),
+  nftBuy:       (nft_id: number) => req<{ order_id: number; stars_spent: number; expires_at: string }>('/nft/buy', { method: 'POST', body: JSON.stringify({ nft_id }) }),
 }
 
 export const smmApi = {
@@ -130,6 +147,11 @@ export const adminApi = {
                      req<{ ok: boolean }>('/admin/promo/create', { method: 'POST', body: JSON.stringify({ code, reward_stars, max_activations }) }),
   promoToggle:     (id: number) => req<{ ok: boolean; is_active: boolean }>(`/admin/promo/${id}/toggle`, { method: 'POST' }),
   promoActivations:(id: number) => req<AdminPromoActivation[]>(`/admin/promo/${id}/activations`),
+  nftList:         () => req<AdminNftItem[]>('/admin/nft/list'),
+  nftAdd:          (username: string, description: string, price_stars: number, duration_days: number) => req<{ ok: boolean; id: number }>('/admin/nft/add', { method: 'POST', body: JSON.stringify({ username, description, price_stars, duration_days }) }),
+  nftEdit:         (id: number, data: Partial<{ username: string; description: string; price_stars: number; duration_days: number; is_available: boolean }>) => req<{ ok: boolean }>(`/admin/nft/${id}/edit`, { method: 'POST', body: JSON.stringify(data) }),
+  nftDelete:       (id: number) => req<{ ok: boolean }>(`/admin/nft/${id}`, { method: 'DELETE' }),
+  nftRentals:      () => req<AdminNftRental[]>('/admin/nft/rentals'),
 }
 
 export interface Me {

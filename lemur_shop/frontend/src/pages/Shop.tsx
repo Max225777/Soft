@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { api, smmApi, type Category, type BuyResult, type Me, type SmmService } from '../api'
+import { api, smmApi, type Category, type BuyResult, type Me, type SmmService, type NftItem } from '../api'
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
 import BioPromoButton from '../components/BioPromoButton'
 
 interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void; onGoToProfile?: () => void; onBuy?: () => void }
 
-type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars' | 'smm' | 'smm_list' | 'smm_reactions'
+type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars' | 'smm' | 'smm_list' | 'smm_reactions' | 'nft'
 
 function localPrice(stars: number, usd: number): JSX.Element {
   return (
@@ -130,10 +130,47 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
   const [smmError, setSmmError] = useState<string | null>(null)
   const [smmDone, setSmmDone] = useState<{ order_id: number; stars_spent: number } | null>(null)
 
+  // NFT state
+  const [nftItems, setNftItems] = useState<NftItem[]>([])
+  const [nftLoading, setNftLoading] = useState(false)
+  const [nftSearch, setNftSearch] = useState('')
+  const [nftSearchInput, setNftSearchInput] = useState('')
+  const [nftConfirm, setNftConfirm] = useState<NftItem | null>(null)
+  const [nftBuying, setNftBuying] = useState(false)
+  const [nftDone, setNftDone] = useState<{ order_id: number; stars_spent: number; expires_at: string; username: string; duration_days: number } | null>(null)
+  const nftSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   useEffect(() => {
     api.categories().catch(() => []).then(setCats)
     smmApi.services().then(setSmmServices).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (view !== 'nft') return
+    setNftLoading(true)
+    api.nftList(nftSearch || undefined).then(setNftItems).catch(() => setNftItems([])).finally(() => setNftLoading(false))
+  }, [view, nftSearch])
+
+  function handleNftSearchInput(val: string) {
+    setNftSearchInput(val)
+    if (nftSearchTimer.current) clearTimeout(nftSearchTimer.current)
+    nftSearchTimer.current = setTimeout(() => setNftSearch(val), 400)
+  }
+
+  async function buyNft(nft: NftItem) {
+    if (nftBuying) return
+    setNftBuying(true)
+    try {
+      const res = await api.nftBuy(nft.id)
+      setNftDone({ order_id: res.order_id, stars_spent: res.stars_spent, expires_at: res.expires_at, username: nft.username, duration_days: nft.duration_days })
+      setNftConfirm(null)
+      onBuy?.()
+    } catch (e: any) {
+      alert(e.message ?? 'Помилка')
+    } finally {
+      setNftBuying(false)
+    }
+  }
 
   async function buy(cat: Category) {
     if (buyingRef.current) return
@@ -278,6 +315,42 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
             width: '100%', padding: '11px', fontSize: 14, fontWeight: 700,
           }}>
             {T.boost_order_btn} →
+          </button>
+        </div>
+
+        {/* NFT Usernames card */}
+        <div style={{
+          background: 'linear-gradient(135deg, #1a0d2e 0%, #130924 100%)',
+          border: '1px solid rgba(160,80,255,.25)',
+          borderRadius: 20, padding: '18px 16px', marginTop: 10,
+          position: 'relative', overflow: 'hidden',
+          boxShadow: '0 6px 28px rgba(140,60,255,.1)',
+        }}>
+          <div style={{
+            position: 'absolute', top: -20, right: -20, width: 120, height: 120, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(160,80,255,.12) 0%, transparent 70%)',
+            pointerEvents: 'none',
+          }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+              background: 'linear-gradient(135deg, #9B59F5, #6A0DAD)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 14px rgba(155,89,245,.4)',
+              color: '#fff', fontWeight: 900, fontSize: 28,
+            }}>@</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: 17 }}>NFT Юзернейми</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>Оренда красивих @username в Telegram</div>
+            </div>
+          </div>
+          <button className="btn" onClick={() => setView('nft')} style={{
+            width: '100%', padding: '11px',
+            background: 'linear-gradient(135deg, #9B59F5, #6A0DAD)',
+            color: '#fff', fontSize: 14, fontWeight: 700,
+            boxShadow: '0 3px 14px rgba(155,89,245,.35)',
+          }}>
+            Орендувати →
           </button>
         </div>
 

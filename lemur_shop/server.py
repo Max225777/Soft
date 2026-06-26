@@ -27,7 +27,7 @@ from sqlalchemy.exc import IntegrityError
 from lemur_shop.api.lolz import LolzApiError
 from lemur_shop.config import settings
 from lemur_shop.db.init import create_tables
-from lemur_shop.db.models import BioPromo, Order, PromoCode, PromoActivation, ReferralPayout, TopUp, User
+from lemur_shop.db.models import BioPromo, NftRental, NftUsername, Order, PromoCode, PromoActivation, ReferralPayout, TopUp, User
 from lemur_shop.db.session import AsyncSessionLocal
 from decimal import Decimal
 
@@ -2530,6 +2530,248 @@ async def api_smm_status(order_id: int, user: User = Depends(get_current_user)):
         return await get_order_status(order_id)
     except SmmApiError as e:
         raise HTTPException(502, str(e))
+
+
+# ─── NFT Username Rentals ────────────────────────────────────────────────────
+
+@app.get("/api/nft/list")
+async def api_nft_list(search: str = "", user: User = Depends(get_current_user)):
+    now = datetime.utcnow()
+    async with AsyncSessionLocal() as s:
+        q = select(NftUsername).where(NftUsername.is_available == True)
+        if search.strip():
+            term = f"%{search.strip()}%"
+            from sqlalchemy import or_
+            q = q.where(or_(NftUsername.username.ilike(term), NftUsername.description.ilike(term)))
+        rows = (await s.execute(q.order_by(NftUsername.id.asc()))).scalars().all()
+
+        result = []
+        for nft in rows:
+            rental = (await s.execute(
+                select(NftRental)
+                .where(NftRental.nft_id == nft.id, NftRental.status == "active", NftRental.expires_at > now)
+                .limit(1)
+            )).scalar_one_or_none()
+            result.append({
+                "id": nft.id,
+                "username": nft.username,
+                "description": nft.description,
+                "price_stars": nft.price_stars,
+                "duration_days": nft.duration_days,
+                "is_available": nft.is_available,
+                "currently_rented": rental is not None,
+                "expires_at": rental.expires_at.isoformat() if rental else None,
+            })
+    return result
+
+
+class NftBuyRequest(BaseModel):
+    nft_id: int
+
+
+@app.post("/api/nft/buy")
+async def api_nft_buy(body: NftBuyRequest, user: User = Depends(get_current_user)):
+    now = datetime.utcnow()
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            nft = await s.get(NftUsername, body.nft_id, with_for_update=True)
+            if not nft or not nft.is_available:
+                raise HTTPException(404, "nft_not_found")
+
+            # Check if currently rented
+            rental_check = (await s.execute(
+                select(NftRental)
+                .where(NftRental.nft_id == nft.id, NftRental.status == "active", NftRental.expires_at > now)
+                .limit(1)
+            )).scalar_one_or_none()
+            if rental_check:
+                raise HTTPException(409, "currently_rented")
+
+            # Check balance
+            u = await s.get(User, user.id, with_for_update=True)
+            if u.balance_stars < nft.price_stars:
+                raise HTTPException(400, "insufficient_balance")
+
+            u.balance_stars -= nft.price_stars
+            price_usd = Decimal(str(round(nft.price_stars * settings.STAR_DISPLAY_USD, 6)))
+
+            order = Order(
+                user_id=u.id,
+                product_id=0,
+                price_usd=price_usd,
+                cost_usd=Decimal("0"),
+                category="nft_rental",
+                status="delivered",
+                delivered_data=f"@{nft.username}",
+                smm_quantity=0,
+            )
+            s.add(order)
+            await s.flush()
+
+            expires_at = now + timedelta(days=nft.duration_days)
+            rental = NftRental(
+                nft_id=nft.id,
+                user_id=u.id,
+                order_id=order.id,
+                started_at=now,
+                expires_at=expires_at,
+                status="active",
+            )
+            s.add(rental)
+            order_id = order.id
+
+    # Notify admin
+    if _bot and settings.ADMIN_IDS:
+        uname = f"@{user.username}" if user.username else f"ID:{user.id}"
+        txt = (
+            f"🔤 <b>NFT Username оренда!</b>\n\n"
+            f"👤 {uname} (<code>{user.id}</code>)\n"
+            f"📛 Юзернейм: <b>@{nft.username}</b>\n"
+            f"⏳ Тривалість: <b>{nft.duration_days} днів</b>\n"
+            f"📅 Закінчується: <b>{expires_at.strftime('%d.%m.%Y')}</b>\n"
+            f"💫 Оплачено: <b>⭐{nft.price_stars}</b>\n"
+            f"🆔 Замовлення: <code>#{order_id}</code>"
+        )
+        for admin_id in settings.ADMIN_IDS:
+            try:
+                await _bot.send_message(admin_id, txt, parse_mode="HTML")
+            except Exception as e:
+                log.warning("Admin NFT notify failed for %s: %s", admin_id, e)
+
+    return {"order_id": order_id, "stars_spent": nft.price_stars, "expires_at": expires_at.isoformat()}
+
+
+# ── Admin NFT endpoints ──────────────────────────────────────────────────────
+
+@app.get("/api/admin/nft/list")
+async def api_admin_nft_list(admin: User = Depends(require_admin)):
+    now = datetime.utcnow()
+    async with AsyncSessionLocal() as s:
+        rows = (await s.execute(select(NftUsername).order_by(NftUsername.id.asc()))).scalars().all()
+        result = []
+        for nft in rows:
+            rental = (await s.execute(
+                select(NftRental)
+                .where(NftRental.nft_id == nft.id, NftRental.status == "active", NftRental.expires_at > now)
+                .limit(1)
+            )).scalar_one_or_none()
+            result.append({
+                "id": nft.id,
+                "username": nft.username,
+                "description": nft.description,
+                "price_stars": nft.price_stars,
+                "duration_days": nft.duration_days,
+                "is_available": nft.is_available,
+                "currently_rented": rental is not None,
+                "expires_at": rental.expires_at.isoformat() if rental else None,
+                "added_by": nft.added_by,
+                "created_at": nft.created_at.isoformat(),
+            })
+    return result
+
+
+class NftAddRequest(BaseModel):
+    username: str
+    description: str = ""
+    price_stars: int
+    duration_days: int = 30
+
+
+@app.post("/api/admin/nft/add")
+async def api_admin_nft_add(body: NftAddRequest, admin: User = Depends(require_admin)):
+    uname = body.username.lstrip("@").strip()
+    if not uname:
+        raise HTTPException(400, "invalid_username")
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            nft = NftUsername(
+                username=uname,
+                description=body.description.strip() or None,
+                price_stars=body.price_stars,
+                duration_days=body.duration_days,
+                is_available=True,
+                added_by=admin.id,
+            )
+            s.add(nft)
+            await s.flush()
+            nft_id = nft.id
+    return {"ok": True, "id": nft_id}
+
+
+class NftEditRequest(BaseModel):
+    username: str | None = None
+    description: str | None = None
+    price_stars: int | None = None
+    duration_days: int | None = None
+    is_available: bool | None = None
+
+
+@app.post("/api/admin/nft/{nft_id}/edit")
+async def api_admin_nft_edit(nft_id: int, body: NftEditRequest, admin: User = Depends(require_admin)):
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            nft = await s.get(NftUsername, nft_id)
+            if not nft:
+                raise HTTPException(404, "not_found")
+            if body.username is not None:
+                nft.username = body.username.lstrip("@").strip()
+            if body.description is not None:
+                nft.description = body.description.strip() or None
+            if body.price_stars is not None:
+                nft.price_stars = body.price_stars
+            if body.duration_days is not None:
+                nft.duration_days = body.duration_days
+            if body.is_available is not None:
+                nft.is_available = body.is_available
+    return {"ok": True}
+
+
+@app.delete("/api/admin/nft/{nft_id}")
+async def api_admin_nft_delete(nft_id: int, admin: User = Depends(require_admin)):
+    now = datetime.utcnow()
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            nft = await s.get(NftUsername, nft_id)
+            if not nft:
+                raise HTTPException(404, "not_found")
+            active = (await s.execute(
+                select(NftRental)
+                .where(NftRental.nft_id == nft_id, NftRental.status == "active", NftRental.expires_at > now)
+                .limit(1)
+            )).scalar_one_or_none()
+            if active:
+                raise HTTPException(409, "has_active_rental")
+            await s.delete(nft)
+    return {"ok": True}
+
+
+@app.get("/api/admin/nft/rentals")
+async def api_admin_nft_rentals(admin: User = Depends(require_admin)):
+    now = datetime.utcnow()
+    async with AsyncSessionLocal() as s:
+        rows = (await s.execute(
+            select(NftRental, NftUsername.username, User.full_name, User.username)
+            .join(NftUsername, NftUsername.id == NftRental.nft_id)
+            .join(User, User.id == NftRental.user_id)
+            .order_by(NftRental.created_at.desc())
+            .limit(50)
+        )).all()
+    result = []
+    for rental, nft_uname, user_name, user_uname in rows:
+        days_left = int((rental.expires_at - now).total_seconds() // 86400)
+        result.append({
+            "id": rental.id,
+            "nft_id": rental.nft_id,
+            "username": nft_uname,
+            "user_id": rental.user_id,
+            "user_name": user_name or str(rental.user_id),
+            "user_username": user_uname,
+            "started_at": rental.started_at.isoformat(),
+            "expires_at": rental.expires_at.isoformat(),
+            "status": rental.status,
+            "days_left": days_left,
+        })
+    return result
 
 
 @app.get("/{path:path}")
