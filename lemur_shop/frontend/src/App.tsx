@@ -23,7 +23,7 @@ export default function App() {
     const tgLang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code ?? ''
     if (tgLang.startsWith('uk')) return 'ua'
     if (tgLang.startsWith('en')) return 'en'
-    return 'ru'
+    return 'ua'
   })
   const [subChecked, setSubChecked] = useState(false)
   const [subscribed, setSubscribed] = useState(true)
