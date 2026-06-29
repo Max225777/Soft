@@ -67,7 +67,7 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
 
   const labels: Record<Tab, string> = {
     shop:     'Магазин',
-    fortune:  lang === 'ru' ? 'Фортуна' : lang === 'ua' ? 'Фортуна' : 'Fortune',
+    fortune:  lang === 'en' ? 'Mini-games' : 'Мін-ігри',
     profile:  lang === 'ru' ? 'Профиль' : lang === 'ua' ? 'Профіль' : 'Profile',
     orders:   lang === 'ru' ? 'Заказы' : lang === 'ua' ? 'Замовлення' : 'Orders',
     balance:  lang === 'ru' ? 'Баланс' : lang === 'ua' ? 'Баланс' : 'Balance',
@@ -76,7 +76,7 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
   }
 
   const leftTabs: Tab[] = ['profile', 'orders']
-  const rightTabs: Tab[] = isAdmin ? ['fortune', 'balance', 'admin'] : ['fortune', 'balance', 'referral']
+  const rightTabs: Tab[] = isAdmin ? ['fortune', 'balance', 'admin'] : ['balance', 'referral']
 
   return (
     <nav className="nav" style={{ overflow: 'visible', alignItems: 'stretch', gap: 0 }}>
