@@ -65,6 +65,24 @@ export const api = {
   nftBuy:       (nft_id: number) => req<{ order_id: number; stars_spent: number; expires_at: string }>('/nft/buy', { method: 'POST', body: JSON.stringify({ nft_id }) }),
 }
 
+export interface FortunePrize { seg: number; label: string; emoji: string; color: string; type: string }
+export interface FortuneSpinResult {
+  spin_id: number; prize_type: string; prize_stars: number | null
+  prize_equiv: number; prize_label: string; prize_emoji: string
+  prize_color: string; prize_seg: number; prize_cat: string | null
+  new_balance: number; needs_claim: boolean
+}
+export interface FortuneRecentWin { user_display: string; prize_label: string; prize_type: string; created_at: string | null }
+export interface FortuneClaimResult { claimed: string; stars?: number; phone?: string; order_id?: number; new_balance: number; fallback?: boolean }
+
+export const fortuneApi = {
+  prizes: () => req<FortunePrize[]>('/fortune/prizes'),
+  spin:   () => req<FortuneSpinResult>('/fortune/spin', { method: 'POST' }),
+  recent: () => req<FortuneRecentWin[]>('/fortune/recent'),
+  claim:  (spin_id: number, claim_type: 'stars' | 'account') =>
+            req<FortuneClaimResult>('/fortune/claim', { method: 'POST', body: JSON.stringify({ spin_id, claim_type }) }),
+}
+
 export const smmApi = {
   services:  () => req<SmmService[]>('/smm/services'),
   reactions: () => req<{ emoji: string; service_id: number }[]>('/smm/reactions'),

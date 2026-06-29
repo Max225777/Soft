@@ -200,3 +200,19 @@ class NftRental(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     status: Mapped[str] = mapped_column(String(16), default="active")  # active / expired / cancelled
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class FortuneSpin(Base):
+    """Колесо фортуни — кожен прокрут і його приз."""
+    __tablename__ = "fortune_spins"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False, index=True)
+    prize_type: Mapped[str] = mapped_column(String(16), nullable=False)      # 'stars' | 'account'
+    prize_stars: Mapped[int | None] = mapped_column(Integer, nullable=True)   # зірки якщо тип stars
+    prize_category: Mapped[str | None] = mapped_column(String(16), nullable=True)  # us/ua/kz якщо account
+    prize_stars_equiv: Mapped[int | None] = mapped_column(Integer, nullable=True)   # еквівалент зірок для акаунту
+    prize_label: Mapped[str] = mapped_column(String(64), nullable=False)      # читаємо текст призу
+    prize_segment: Mapped[int] = mapped_column(Integer, nullable=False)       # індекс сегменту (0-7) для анімації колеса
+    claim_type: Mapped[str | None] = mapped_column(String(16), nullable=True) # NULL | 'stars' | 'account'
+    order_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("orders.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)

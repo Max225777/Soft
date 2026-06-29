@@ -27,7 +27,7 @@ from sqlalchemy.exc import IntegrityError
 from lemur_shop.api.lolz import LolzApiError
 from lemur_shop.config import settings
 from lemur_shop.db.init import create_tables
-from lemur_shop.db.models import BioPromo, NftRental, NftUsername, Order, PromoCode, PromoActivation, ReferralPayout, TopUp, User
+from lemur_shop.db.models import BioPromo, FortuneSpin, NftRental, NftUsername, Order, PromoCode, PromoActivation, ReferralPayout, TopUp, User
 from lemur_shop.db.session import AsyncSessionLocal
 from decimal import Decimal
 
@@ -2771,6 +2771,211 @@ async def api_admin_nft_rentals(admin: User = Depends(require_admin)):
             "status": rental.status,
             "days_left": days_left,
         })
+    return result
+
+
+# ─── Fortune Wheel ─────────────────────────────────────────────────────────────
+
+FORTUNE_SPIN_COST = 100   # зірок за прокрут
+
+# Таблиця призів: (type, value_or_category, stars_equiv, weight, label, emoji, color, segment_idx)
+# EV ≈ 79 зірок (house edge ~21%)
+FORTUNE_PRIZES = [
+    {"type": "stars",   "stars": 30,  "equiv": 30,  "weight": 30, "label": "30 ⭐",        "emoji": "✨", "color": "#6b7280", "seg": 0},
+    {"type": "stars",   "stars": 50,  "equiv": 50,  "weight": 22, "label": "50 ⭐",        "emoji": "⭐", "color": "#eab308", "seg": 1},
+    {"type": "stars",   "stars": 75,  "equiv": 75,  "weight": 18, "label": "75 ⭐",        "emoji": "💫", "color": "#f97316", "seg": 2},
+    {"type": "stars",   "stars": 100, "equiv": 100, "weight": 12, "label": "100 ⭐",       "emoji": "🌟", "color": "#ff6b2b", "seg": 3},
+    {"type": "stars",   "stars": 200, "equiv": 200, "weight": 8,  "label": "200 ⭐",       "emoji": "💥", "color": "#ef4444", "seg": 4},
+    {"type": "stars",   "stars": 500, "equiv": 500, "weight": 4,  "label": "500 ⭐",       "emoji": "🔥", "color": "#8b5cf6", "seg": 5},
+    {"type": "account", "cat": "us",  "equiv": 220, "weight": 5,  "label": "🇺🇸 TG USA",  "emoji": "🎁", "color": "#22c55e", "seg": 6},
+    {"type": "account", "cat": "ua",  "equiv": 170, "weight": 1,  "label": "🇺🇦 TG Укр",  "emoji": "🏆", "color": "#10b981", "seg": 7},
+]
+_FORTUNE_WEIGHTS = [p["weight"] for p in FORTUNE_PRIZES]
+_FORTUNE_TOTAL_W = sum(_FORTUNE_WEIGHTS)
+
+
+class FortuneClaimBody(BaseModel):
+    spin_id: int
+    claim_type: str   # 'stars' | 'account'
+
+
+@app.get("/api/fortune/prizes")
+async def api_fortune_prizes(user: User = Depends(get_current_user)):
+    return [
+        {"seg": p["seg"], "label": p["label"], "emoji": p["emoji"],
+         "color": p["color"], "type": p["type"]}
+        for p in FORTUNE_PRIZES
+    ]
+
+
+@app.get("/api/fortune/recent")
+async def api_fortune_recent(user: User = Depends(get_current_user)):
+    """Останні 20 виграшів (публічно, без особистих даних)."""
+    async with AsyncSessionLocal() as s:
+        rows = (await s.execute(
+            select(FortuneSpin.prize_label, FortuneSpin.prize_type,
+                   FortuneSpin.prize_stars, FortuneSpin.prize_stars_equiv,
+                   FortuneSpin.created_at, User.full_name, User.username)
+            .join(User, User.id == FortuneSpin.user_id)
+            .where(FortuneSpin.prize_label != "")   # всі рядки
+            .order_by(FortuneSpin.created_at.desc())
+            .limit(20)
+        )).all()
+    result = []
+    for label, ptype, pstars, pequiv, cat, name, uname in rows:
+        display = f"@{uname}" if uname else (name or "Гравець")[:10]
+        result.append({
+            "user_display": display,
+            "prize_label": label,
+            "prize_type": ptype,
+            "created_at": cat.isoformat() if cat else None,
+        })
+    return result
+
+
+@app.post("/api/fortune/spin")
+async def api_fortune_spin(user: User = Depends(get_current_user)):
+    import random as _rnd
+    # Вибираємо приз до транзакції (чистий random, не залежить від БД)
+    pick = _rnd.choices(FORTUNE_PRIZES, weights=_FORTUNE_WEIGHTS, k=1)[0]
+
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            u = await s.get(User, user.id, with_for_update=True)
+            if u.balance_stars < FORTUNE_SPIN_COST:
+                raise HTTPException(402, "insufficient_balance")
+            u.balance_stars -= FORTUNE_SPIN_COST
+            u.balance_usd = max(Decimal(0), u.balance_usd - Decimal(str(round(FORTUNE_SPIN_COST * settings.STAR_DISPLAY_USD, 4))))
+
+            # Одразу зараховуємо зірки (для акаунту — після claim)
+            if pick["type"] == "stars":
+                u.balance_stars += pick["stars"]
+                u.balance_usd += Decimal(str(round(pick["stars"] * settings.STAR_DISPLAY_USD, 4)))
+
+            spin = FortuneSpin(
+                user_id=user.id,
+                prize_type=pick["type"],
+                prize_stars=pick.get("stars"),
+                prize_category=pick.get("cat"),
+                prize_stars_equiv=pick["equiv"],
+                prize_label=pick["label"],
+                prize_segment=pick["seg"],
+                claim_type="stars" if pick["type"] == "stars" else None,
+            )
+            s.add(spin)
+            await s.flush()
+            spin_id = spin.id
+            new_balance = u.balance_stars
+
+    log.info("FORTUNE: user=%s spin=%s prize=%s", user.id, spin_id, pick["label"])
+
+    # Сповіщення адміну якщо приз — акаунт
+    if pick["type"] == "account" and _bot and settings.ADMIN_IDS:
+        uname = f"@{user.username}" if user.username else f"ID:{user.id}"
+        txt = (
+            f"🎡 <b>Колесо фортуни — виграш акаунту!</b>\n\n"
+            f"👤 Гравець: {uname} (<code>{user.id}</code>)\n"
+            f"🏆 Приз: {pick['label']}\n"
+            f"💫 Еквівалент: ⭐{pick['equiv']}\n"
+            f"🆔 Spin ID: <code>{spin_id}</code>\n\n"
+            f"⏳ Очікує вибору гравця (акаунт чи зірки)."
+        )
+        for aid in settings.ADMIN_IDS:
+            try:
+                await _bot.send_message(aid, txt, parse_mode="HTML")
+            except Exception:
+                pass
+
+    return {
+        "spin_id":     spin_id,
+        "prize_type":  pick["type"],
+        "prize_stars": pick.get("stars"),
+        "prize_equiv": pick["equiv"],
+        "prize_label": pick["label"],
+        "prize_emoji": pick["emoji"],
+        "prize_color": pick["color"],
+        "prize_seg":   pick["seg"],
+        "prize_cat":   pick.get("cat"),
+        "new_balance": new_balance,
+        "needs_claim": pick["type"] == "account",
+    }
+
+
+@app.post("/api/fortune/claim")
+async def api_fortune_claim(body: FortuneClaimBody, user: User = Depends(get_current_user)):
+    if body.claim_type not in ("stars", "account"):
+        raise HTTPException(400, "invalid_claim_type")
+
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            spin = await s.get(FortuneSpin, body.spin_id, with_for_update=True)
+            if not spin or spin.user_id != user.id:
+                raise HTTPException(404, "spin_not_found")
+            if spin.claim_type is not None:
+                raise HTTPException(409, "already_claimed")
+            if spin.prize_type != "account":
+                raise HTTPException(400, "not_account_prize")
+
+            spin.claim_type = body.claim_type
+            u = await s.get(User, user.id, with_for_update=True)
+
+            if body.claim_type == "stars":
+                # Зараховуємо зірки-еквівалент
+                equiv = spin.prize_stars_equiv or 0
+                u.balance_stars += equiv
+                u.balance_usd += Decimal(str(round(equiv * settings.STAR_DISPLAY_USD, 4)))
+                new_balance = u.balance_stars
+                result = {"claimed": "stars", "stars": equiv, "new_balance": new_balance}
+
+            else:
+                # Спробуємо автоматично купити акаунт (та ж логіка що в /api/buy)
+                cat = spin.prize_category
+                equiv = spin.prize_stars_equiv or 0
+                try:
+                    from lemur_shop.services.lolz_shop import auto_buy_category, CATEGORIES
+                    cat_info = CATEGORIES.get(cat, {})
+                    price_stars = equiv
+                    price_usd = Decimal(str(round(price_stars * settings.STAR_DISPLAY_USD, 4)))
+                    phone, lolz_item_id, lolz_price = await auto_buy_category(cat)
+                    lolz_cost = Decimal(str(round(lolz_price, 2)))
+                    order = Order(
+                        user_id=user.id, product_id=0,
+                        lolz_item_id=lolz_item_id,
+                        price_usd=price_usd, cost_usd=lolz_cost,
+                        category=cat, status="delivered",
+                        delivered_data=phone, resend_count=0,
+                    )
+                    s.add(order)
+                    await s.flush()
+                    spin.order_id = order.id
+                    result = {"claimed": "account", "phone": phone, "category": cat, "order_id": order.id, "new_balance": u.balance_stars}
+                except Exception as e:
+                    # Не вдалось — повертаємо зірки-еквівалент
+                    log.warning("FORTUNE claim account failed (%s), giving stars instead", e)
+                    spin.claim_type = "stars"
+                    equiv = spin.prize_stars_equiv or 0
+                    u.balance_stars += equiv
+                    u.balance_usd += Decimal(str(round(equiv * settings.STAR_DISPLAY_USD, 4)))
+                    result = {"claimed": "stars", "stars": equiv, "new_balance": u.balance_stars, "fallback": True}
+
+    # Повідомлення гравцю
+    if _bot:
+        try:
+            lang = getattr(user, "lang", "ru")
+            if result["claimed"] == "account" and "phone" in result:
+                txt = (
+                    f"🎡 <b>Ваш виграш з колеса фортуни!</b>\n\n"
+                    f"📱 Номер телефону: <code>{result['phone']}</code>\n"
+                    f"🆔 Замовлення: #{result['order_id']}"
+                ) if lang == "ua" else (
+                    f"🎡 <b>Ваш выигрыш с колеса фортуны!</b>\n\n"
+                    f"📱 Номер телефона: <code>{result['phone']}</code>\n"
+                    f"🆔 Заказ: #{result['order_id']}"
+                )
+                await _bot.send_message(user.id, txt, parse_mode="HTML")
+        except Exception:
+            pass
+
     return result
 
 

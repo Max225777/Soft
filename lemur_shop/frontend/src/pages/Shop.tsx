@@ -318,8 +318,8 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           </button>
         </div>
 
-        {/* NFT Usernames card */}
-        <div style={{
+        {/* NFT Usernames card — hidden until feature is ready */}
+        <div style={{ display: 'none' }}><div style={{
           background: 'linear-gradient(135deg, #1a0d2e 0%, #130924 100%)',
           border: '1px solid rgba(160,80,255,.25)',
           borderRadius: 20, padding: '18px 16px', marginTop: 10,
@@ -352,7 +352,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           }}>
             Орендувати →
           </button>
-        </div>
+        </div></div>
 
         <LegalFooter />
       </div>

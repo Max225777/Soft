@@ -74,6 +74,19 @@ _MIGRATIONS = [
     )""",
     "CREATE TABLE IF NOT EXISTS nft_usernames (id SERIAL PRIMARY KEY, username VARCHAR(64) NOT NULL, description VARCHAR(255), price_stars INT NOT NULL, duration_days INT NOT NULL DEFAULT 30, is_available BOOLEAN DEFAULT TRUE, added_by BIGINT NOT NULL, created_at TIMESTAMP DEFAULT NOW())",
     "CREATE TABLE IF NOT EXISTS nft_rentals (id SERIAL PRIMARY KEY, nft_id INT REFERENCES nft_usernames(id), user_id BIGINT REFERENCES users(id), order_id INT REFERENCES orders(id), started_at TIMESTAMP DEFAULT NOW(), expires_at TIMESTAMP NOT NULL, status VARCHAR(16) DEFAULT 'active', created_at TIMESTAMP DEFAULT NOW())",
+    """CREATE TABLE IF NOT EXISTS fortune_spins (
+        id SERIAL PRIMARY KEY,
+        user_id BIGINT NOT NULL REFERENCES users(id),
+        prize_type VARCHAR(16) NOT NULL,
+        prize_stars INT,
+        prize_category VARCHAR(16),
+        prize_stars_equiv INT,
+        prize_label VARCHAR(64) NOT NULL,
+        prize_segment INT NOT NULL DEFAULT 0,
+        claim_type VARCHAR(16),
+        order_id INT REFERENCES orders(id),
+        created_at TIMESTAMP DEFAULT NOW()
+    )""",
 ]
 
 
