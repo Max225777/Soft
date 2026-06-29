@@ -3,10 +3,11 @@ import { api, smmApi, type Category, type BuyResult, type Me, type SmmService, t
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
 import BioPromoButton from '../components/BioPromoButton'
+import Fortune from './Fortune'
 
 interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void; onGoToProfile?: () => void; onBuy?: () => void }
 
-type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars' | 'smm' | 'smm_list' | 'smm_reactions' | 'nft'
+type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars' | 'smm' | 'smm_list' | 'smm_reactions' | 'nft' | 'minigames'
 
 function localPrice(stars: number, usd: number): JSX.Element {
   return (
@@ -354,7 +355,60 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           </button>
         </div></div>
 
+        {/* Mini-games card — admin only */}
+        {me?.is_admin && (
+          <div style={{
+            background: 'linear-gradient(135deg, #1E1428 0%, #130924 100%)',
+            border: '1px solid rgba(255,107,43,.25)',
+            borderRadius: 20, padding: '18px 16px', marginTop: 10,
+            position: 'relative', overflow: 'hidden',
+            boxShadow: '0 6px 28px rgba(255,107,43,.1)',
+          }}>
+            <div style={{
+              position: 'absolute', top: -20, right: -20, width: 120, height: 120, borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(255,107,43,.1) 0%, transparent 70%)',
+              pointerEvents: 'none',
+            }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+              <div style={{
+                width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+                background: 'linear-gradient(135deg, #ff6b2b, #e8530a)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 14px rgba(255,107,43,.4)',
+                fontSize: 28,
+              }}>🎮</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 800, fontSize: 17 }}>Міні-ігри</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>Колесо фортуни — виграй TG акаунт</div>
+              </div>
+            </div>
+            <button className="btn btn-primary" onClick={() => setView('minigames')} style={{
+              width: '100%', padding: '11px', fontSize: 14, fontWeight: 700,
+              background: 'linear-gradient(135deg, #ff6b2b, #e8530a)',
+              boxShadow: '0 3px 14px rgba(255,107,43,.35)',
+            }}>
+              🎡 Грати →
+            </button>
+          </div>
+        )}
+
         <LegalFooter />
+      </div>
+    )
+  }
+
+  // ─── Міні-ігри ───────────────────────────────────────────────────────────
+  if (view === 'minigames') {
+    return (
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px 0' }}>
+          <button
+            onClick={() => setView('menu')}
+            style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer', padding: 0 }}
+          >‹</button>
+          <span style={{ fontWeight: 700, fontSize: 16 }}>🎮 Міні-ігри</span>
+        </div>
+        <Fortune me={me} lang={lang} onRefresh={onBuy ?? (() => {})} />
       </div>
     )
   }

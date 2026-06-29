@@ -292,19 +292,8 @@ export default function Fortune({ me, lang, onRefresh }: Props) {
   const [phase,    setPhase]    = useState<'idle' | 'spinning' | 'done'>('idle')
   const [err,      setErr]      = useState<string | null>(null)
 
-  const isAdmin = me?.is_admin ?? false
   const balance = me?.balance_stars ?? 0
   const canSpin = balance >= SPIN_COST && phase === 'idle'
-
-  if (!isAdmin) {
-    return (
-      <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 12 }}>
-        <div style={{ fontSize: 48 }}>🔒</div>
-        <div style={{ fontWeight: 800, fontSize: 18, textAlign: 'center' }}>Розділ недоступний</div>
-        <div style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center' }}>Скоро відкриємо для всіх!</div>
-      </div>
-    )
-  }
 
   useEffect(() => {
     fortuneApi.prizes().then(d => { setCats(d.cats); setPoolBal(d.pool_balance) }).catch(() => {})

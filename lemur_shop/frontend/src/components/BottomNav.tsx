@@ -76,7 +76,7 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
   }
 
   const leftTabs: Tab[] = ['profile', 'orders']
-  const rightTabs: Tab[] = isAdmin ? ['fortune', 'balance', 'admin'] : ['balance', 'referral']
+  const rightTabs: Tab[] = isAdmin ? ['balance', 'admin'] : ['balance', 'referral']
 
   return (
     <nav className="nav" style={{ overflow: 'visible', alignItems: 'stretch', gap: 0 }}>
