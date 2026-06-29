@@ -87,6 +87,15 @@ _MIGRATIONS = [
         order_id INT REFERENCES orders(id),
         created_at TIMESTAMP DEFAULT NOW()
     )""",
+    """CREATE TABLE IF NOT EXISTS fortune_pool (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        balance_stars INT NOT NULL DEFAULT 0,
+        total_spins INT NOT NULL DEFAULT 0,
+        total_admin_profit_stars INT NOT NULL DEFAULT 0,
+        total_prizes_count INT NOT NULL DEFAULT 0,
+        total_prizes_stars INT NOT NULL DEFAULT 0
+    )""",
+    "INSERT INTO fortune_pool (id) VALUES (1) ON CONFLICT (id) DO NOTHING",
 ]
 
 

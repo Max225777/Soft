@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminReferralInvitedUser, type AdminPromoCode, type AdminPromoActivation, type EarningsChart, type EarningsDay, type AdminNftItem, type AdminNftRental } from '../api'
+import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminReferralInvitedUser, type AdminPromoCode, type AdminPromoActivation, type EarningsChart, type EarningsDay, type AdminNftItem, type AdminNftRental, type FortunePoolInfo } from '../api'
 
 type DateMode = 'today' | 'all' | 'custom'
 
@@ -14,7 +14,7 @@ function useOverviewStats(dateFrom: string, dateTo: string) {
   return { stats, loading, reload }
 }
 
-type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'earnings' | 'broadcast' | 'promo' | 'referrals' | 'codes' | 'nft'
+type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'earnings' | 'broadcast' | 'promo' | 'referrals' | 'codes' | 'nft' | 'fortune'
 
 const CATEGORY_FLAGS: Record<string, string> = { us: '🇺🇸', ua: '🇺🇦', kz: '🇰🇿' }
 
@@ -1492,6 +1492,61 @@ function NftAdminTab() {
   )
 }
 
+// ── Fortune admin tab ─────────────────────────────────────────────────────────
+function FortuneAdminTab() {
+  const [data, setData] = useState<FortunePoolInfo | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    adminApi.fortune().then(setData).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 32, color: 'var(--muted)' }}>⏳</div>
+  if (!data) return <div style={{ textAlign: 'center', padding: 32, color: 'var(--muted)' }}>Немає даних</div>
+
+  const profit_usd = (data.total_admin_profit_stars * 0.013).toFixed(2)
+  const prizes_usd = (data.total_prizes_stars * 0.013).toFixed(2)
+  const revenue_usd = ((data.total_spins * 100) * 0.013).toFixed(2)
+
+  const stat = (label: string, val: string, sub?: string) => (
+    <div style={{
+      background: 'var(--bg2)', border: '1px solid var(--border)',
+      borderRadius: 14, padding: '14px 16px',
+    }}>
+      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 900 }}>{val}</div>
+      {sub && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{sub}</div>}
+    </div>
+  )
+
+  return (
+    <div>
+      <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>🎡 Статистика Колеса</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+        {stat('Всього прокрутів', `${data.total_spins}`, `~$${revenue_usd}`)}
+        {stat('Прибуток адміна', `⭐${data.total_admin_profit_stars}`, `~$${profit_usd}`)}
+        {stat('Поточний пул', `⭐${data.balance_stars}`, `~$${(data.balance_stars * 0.013).toFixed(2)}`)}
+        {stat('Виграшів', `${data.total_prizes_count}`, `⭐${data.total_prizes_stars} (~$${prizes_usd})`)}
+      </div>
+
+      <div style={{
+        background: 'rgba(255,107,43,.08)', border: '1px solid rgba(255,107,43,.2)',
+        borderRadius: 14, padding: 14,
+      }}>
+        <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>💰 Маржа</div>
+        <div style={{ fontSize: 13, color: 'var(--muted)' }}>
+          З кожного прокруту: +25⭐ адмін / +75⭐ у пул
+        </div>
+        {data.total_spins > 0 && (
+          <div style={{ fontSize: 13, marginTop: 6 }}>
+            Ефективна маржа: {((data.total_admin_profit_stars / (data.total_spins * 100)) * 100).toFixed(1)}%
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Main Admin page ───────────────────────────────────────────────────────────
 const TABS: { id: AdminTab; label: string }[] = [
   { id: 'overview',  label: '📊 Огляд' },
@@ -1504,6 +1559,7 @@ const TABS: { id: AdminTab; label: string }[] = [
   { id: 'referrals', label: '👥 Рефи' },
   { id: 'codes',     label: '🎟 Промокоди' },
   { id: 'nft',       label: '🔤 NFT Юзи' },
+  { id: 'fortune',   label: '🎡 Фортуна' },
 ]
 
 export default function Admin() {
@@ -1544,6 +1600,7 @@ export default function Admin() {
       {tab === 'referrals' && <ReferralsTab />}
       {tab === 'codes'     && <PromoCodesTab />}
       {tab === 'nft'       && <NftAdminTab />}
+      {tab === 'fortune'   && <FortuneAdminTab />}
     </div>
   )
 }

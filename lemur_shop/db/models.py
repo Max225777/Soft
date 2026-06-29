@@ -207,12 +207,23 @@ class FortuneSpin(Base):
     __tablename__ = "fortune_spins"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False, index=True)
-    prize_type: Mapped[str] = mapped_column(String(16), nullable=False)      # 'stars' | 'account'
-    prize_stars: Mapped[int | None] = mapped_column(Integer, nullable=True)   # зірки якщо тип stars
-    prize_category: Mapped[str | None] = mapped_column(String(16), nullable=True)  # us/ua/kz якщо account
-    prize_stars_equiv: Mapped[int | None] = mapped_column(Integer, nullable=True)   # еквівалент зірок для акаунту
-    prize_label: Mapped[str] = mapped_column(String(64), nullable=False)      # читаємо текст призу
-    prize_segment: Mapped[int] = mapped_column(Integer, nullable=False)       # індекс сегменту (0-7) для анімації колеса
-    claim_type: Mapped[str | None] = mapped_column(String(16), nullable=True) # NULL | 'stars' | 'account'
+    prize_type: Mapped[str] = mapped_column(String(16), nullable=False)      # 'account' | 'none'
+    prize_stars: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    prize_category: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    prize_stars_equiv: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    prize_label: Mapped[str] = mapped_column(String(64), nullable=False)
+    prize_segment: Mapped[int] = mapped_column(Integer, nullable=False)
+    claim_type: Mapped[str | None] = mapped_column(String(16), nullable=True)  # 'account' | 'none'
     order_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("orders.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+
+class FortunePool(Base):
+    """Singleton (id=1) — стан пулу призів колеса фортуни."""
+    __tablename__ = "fortune_pool"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    balance_stars: Mapped[int] = mapped_column(Integer, default=0)
+    total_spins: Mapped[int] = mapped_column(Integer, default=0)
+    total_admin_profit_stars: Mapped[int] = mapped_column(Integer, default=0)
+    total_prizes_count: Mapped[int] = mapped_column(Integer, default=0)
+    total_prizes_stars: Mapped[int] = mapped_column(Integer, default=0)

@@ -65,22 +65,30 @@ export const api = {
   nftBuy:       (nft_id: number) => req<{ order_id: number; stars_spent: number; expires_at: string }>('/nft/buy', { method: 'POST', body: JSON.stringify({ nft_id }) }),
 }
 
-export interface FortunePrize { seg: number; label: string; emoji: string; color: string; type: string }
-export interface FortuneSpinResult {
-  spin_id: number; prize_type: string; prize_stars: number | null
-  prize_equiv: number; prize_label: string; prize_emoji: string
-  prize_color: string; prize_seg: number; prize_cat: string | null
-  new_balance: number; needs_claim: boolean
+export interface FortuneCat {
+  seg: number; cat: string; label: string; emoji: string; color: string; threshold: number
 }
-export interface FortuneRecentWin { user_display: string; prize_label: string; prize_type: string; created_at: string | null }
-export interface FortuneClaimResult { claimed: string; stars?: number; phone?: string; order_id?: number; new_balance: number; fallback?: boolean }
+export interface FortunePrizesInfo {
+  cats: FortuneCat[]; pool_balance: number; spin_cost: number
+}
+export interface FortunePoolInfo {
+  balance_stars: number; total_spins: number; total_admin_profit_stars: number
+  total_prizes_count: number; total_prizes_stars: number
+}
+export interface FortuneSpinResult {
+  spin_id: number; won: boolean
+  prize_cat: string | null; prize_seg: number
+  prize_label: string; prize_emoji: string; prize_color: string
+  phone: string | null; order_id: number | null
+  pool_balance: number; pool_threshold: number; new_balance: number
+}
+export interface FortuneRecentWin { user_display: string; prize_label: string; created_at: string | null }
 
 export const fortuneApi = {
-  prizes: () => req<FortunePrize[]>('/fortune/prizes'),
+  prizes: () => req<FortunePrizesInfo>('/fortune/prizes'),
+  pool:   () => req<FortunePoolInfo>('/fortune/pool'),
   spin:   () => req<FortuneSpinResult>('/fortune/spin', { method: 'POST' }),
   recent: () => req<FortuneRecentWin[]>('/fortune/recent'),
-  claim:  (spin_id: number, claim_type: 'stars' | 'account') =>
-            req<FortuneClaimResult>('/fortune/claim', { method: 'POST', body: JSON.stringify({ spin_id, claim_type }) }),
 }
 
 export const smmApi = {
@@ -165,6 +173,7 @@ export const adminApi = {
                      req<{ ok: boolean }>('/admin/promo/create', { method: 'POST', body: JSON.stringify({ code, reward_stars, max_activations }) }),
   promoToggle:     (id: number) => req<{ ok: boolean; is_active: boolean }>(`/admin/promo/${id}/toggle`, { method: 'POST' }),
   promoActivations:(id: number) => req<AdminPromoActivation[]>(`/admin/promo/${id}/activations`),
+  fortune:         () => req<FortunePoolInfo>('/admin/fortune'),
   nftList:         () => req<AdminNftItem[]>('/admin/nft/list'),
   nftAdd:          (username: string, description: string, price_stars: number, duration_days: number) => req<{ ok: boolean; id: number }>('/admin/nft/add', { method: 'POST', body: JSON.stringify({ username, description, price_stars, duration_days }) }),
   nftEdit:         (id: number, data: Partial<{ username: string; description: string; price_stars: number; duration_days: number; is_available: boolean }>) => req<{ ok: boolean }>(`/admin/nft/${id}/edit`, { method: 'POST', body: JSON.stringify(data) }),
