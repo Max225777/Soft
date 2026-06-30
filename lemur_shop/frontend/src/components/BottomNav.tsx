@@ -1,7 +1,7 @@
 import type { Lang } from '../i18n'
 import { getT } from '../i18n'
 
-export type Tab = 'shop' | 'profile' | 'orders' | 'balance' | 'referral' | 'admin' | 'fortune'
+export type Tab = 'shop' | 'profile' | 'orders' | 'balance' | 'referral' | 'admin'
 
 interface Props {
   active: Tab
@@ -19,12 +19,6 @@ const shopIcon = (
 )
 
 const icons: Record<Exclude<Tab, 'shop'>, JSX.Element> = {
-  fortune: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="24" height="24">
-      <circle cx="12" cy="12" r="10"/>
-      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-    </svg>
-  ),
   profile: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
@@ -67,7 +61,6 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
 
   const labels: Record<Tab, string> = {
     shop:     'Магазин',
-    fortune:  lang === 'en' ? 'Mini-games' : 'Мін-ігри',
     profile:  lang === 'ru' ? 'Профиль' : lang === 'ua' ? 'Профіль' : 'Profile',
     orders:   lang === 'ru' ? 'Заказы' : lang === 'ua' ? 'Замовлення' : 'Orders',
     balance:  lang === 'ru' ? 'Баланс' : lang === 'ua' ? 'Баланс' : 'Balance',

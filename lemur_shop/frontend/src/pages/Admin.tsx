@@ -1559,7 +1559,7 @@ const TABS: { id: AdminTab; label: string }[] = [
   { id: 'referrals', label: '👥 Рефи' },
   { id: 'codes',     label: '🎟 Промокоди' },
   { id: 'nft',       label: '🔤 NFT Юзи' },
-  { id: 'fortune',   label: '🎡 Фортуна' },
+  { id: 'fortune',   label: '🎲 Рандом акк' },
 ]
 
 export default function Admin() {

@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { api, smmApi, type Category, type BuyResult, type Me, type SmmService, type NftItem } from '../api'
+import { api, smmApi, fortuneApi, type Category, type BuyResult, type Me, type SmmService, type NftItem, type FortuneSpinResult } from '../api'
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
 import BioPromoButton from '../components/BioPromoButton'
-import Fortune from './Fortune'
 
 interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void; onGoToProfile?: () => void; onBuy?: () => void }
 
-type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars' | 'smm' | 'smm_list' | 'smm_reactions' | 'nft' | 'minigames'
+type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars' | 'smm' | 'smm_list' | 'smm_reactions' | 'nft'
 
 function localPrice(stars: number, usd: number): JSX.Element {
   return (
@@ -30,6 +29,108 @@ const EYE_ICON = (
     <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
   </svg>
 )
+
+const EMOJI_BG = '🎲 ✨ 💎 🎰 ⭐ 🎲 ✨ 💎 🎰 ⭐ 🎲 ✨ 💎 🎰 ⭐ '
+
+function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void }) {
+  const [spinning, setSpinning] = useState(false)
+  const [result, setResult] = useState<FortuneSpinResult | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  if (!me?.is_admin) return null
+
+  async function spin() {
+    setSpinning(true)
+    setErr(null)
+    setResult(null)
+    try {
+      const r = await fortuneApi.spin()
+      setResult(r)
+      onBuy?.()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Ошибка. Попробуйте позже.')
+    } finally {
+      setSpinning(false)
+    }
+  }
+
+  return (
+    <div style={{
+      position: 'relative', overflow: 'hidden',
+      background: 'linear-gradient(135deg, #2A1A3D 0%, #1A0F2E 50%, #0D0618 100%)',
+      border: '1px solid rgba(255,200,80,.35)',
+      borderRadius: 20, padding: '18px 16px', marginBottom: 14,
+      boxShadow: '0 8px 32px rgba(255,180,40,.18), inset 0 1px 0 rgba(255,255,255,.06)',
+    }}>
+      <div style={{
+        position: 'absolute', inset: 0, fontSize: 26, lineHeight: '40px',
+        opacity: 0.08, whiteSpace: 'nowrap', userSelect: 'none', pointerEvents: 'none',
+        letterSpacing: 6, transform: 'rotate(-6deg) scale(1.3)',
+      }}>
+        {EMOJI_BG.repeat(6)}
+        <br />{EMOJI_BG.repeat(6)}
+        <br />{EMOJI_BG.repeat(6)}
+      </div>
+
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+        <div style={{
+          width: 54, height: 54, borderRadius: 16, flexShrink: 0,
+          background: 'linear-gradient(135deg, #FFD166, #FF8C42, #B8860B)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 4px 18px rgba(255,180,40,.5)',
+          fontSize: 28,
+        }}>🎲</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 800, fontSize: 17, color: '#FFD166' }}>Случайный TG аккаунт</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>Премиум-розыгрыш — только для админа</div>
+        </div>
+      </div>
+
+      <button
+        className="btn btn-primary"
+        onClick={spin}
+        disabled={spinning}
+        style={{
+          position: 'relative', width: '100%', padding: '12px', fontSize: 14, fontWeight: 800,
+          background: 'linear-gradient(135deg, #FFD166, #FF8C42, #B8860B)',
+          color: '#1A0F2E',
+          boxShadow: '0 4px 18px rgba(255,180,40,.4)',
+        }}
+      >
+        {spinning ? '🎲 Крутим...' : '🎲 Получить случайный аккаунт'}
+      </button>
+
+      {result && (
+        <div style={{
+          position: 'relative', marginTop: 12, padding: '12px 14px', borderRadius: 14,
+          background: result.won ? 'rgba(74,222,128,.1)' : 'rgba(255,255,255,.04)',
+          border: result.won ? '1px solid rgba(74,222,128,.35)' : '1px solid rgba(255,255,255,.08)',
+          fontSize: 13, lineHeight: 1.5,
+        }}>
+          {result.won ? (
+            <>
+              <div style={{ fontWeight: 800, color: '#4ade80', marginBottom: 4 }}>
+                🎉 Выигрыш! {result.prize_emoji} {result.prize_label}
+              </div>
+              {result.phone && <div style={{ color: 'var(--text2)' }}>Номер: <b>{result.phone}</b></div>}
+              <div style={{ color: 'var(--muted)', marginTop: 4 }}>Аккаунт уже в разделе «Заказы»</div>
+            </>
+          ) : (
+            <div style={{ color: 'var(--text2)' }}>
+              Не повезло в этот раз. Пул пополнен: <b>{result.pool_balance}⭐</b> / {result.pool_threshold}⭐
+            </div>
+          )}
+        </div>
+      )}
+
+      {err && (
+        <div style={{ position: 'relative', marginTop: 10, color: '#ef4444', fontSize: 12, fontWeight: 600 }}>
+          ⚠️ {err}
+        </div>
+      )}
+    </div>
+  )
+}
 
 interface ConfirmProps {
   cat: Category; me: Me | null; lang: Lang
@@ -355,60 +456,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           </button>
         </div></div>
 
-        {/* Mini-games card — admin only */}
-        {me?.is_admin && (
-          <div style={{
-            background: 'linear-gradient(135deg, #1E1428 0%, #130924 100%)',
-            border: '1px solid rgba(255,107,43,.25)',
-            borderRadius: 20, padding: '18px 16px', marginTop: 10,
-            position: 'relative', overflow: 'hidden',
-            boxShadow: '0 6px 28px rgba(255,107,43,.1)',
-          }}>
-            <div style={{
-              position: 'absolute', top: -20, right: -20, width: 120, height: 120, borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(255,107,43,.1) 0%, transparent 70%)',
-              pointerEvents: 'none',
-            }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-              <div style={{
-                width: 52, height: 52, borderRadius: 16, flexShrink: 0,
-                background: 'linear-gradient(135deg, #ff6b2b, #e8530a)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 4px 14px rgba(255,107,43,.4)',
-                fontSize: 28,
-              }}>🎮</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 800, fontSize: 17 }}>Міні-ігри</div>
-                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>Колесо фортуни — виграй TG акаунт</div>
-              </div>
-            </div>
-            <button className="btn btn-primary" onClick={() => setView('minigames')} style={{
-              width: '100%', padding: '11px', fontSize: 14, fontWeight: 700,
-              background: 'linear-gradient(135deg, #ff6b2b, #e8530a)',
-              boxShadow: '0 3px 14px rgba(255,107,43,.35)',
-            }}>
-              🎡 Грати →
-            </button>
-          </div>
-        )}
-
         <LegalFooter />
-      </div>
-    )
-  }
-
-  // ─── Міні-ігри ───────────────────────────────────────────────────────────
-  if (view === 'minigames') {
-    return (
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px 0' }}>
-          <button
-            onClick={() => setView('menu')}
-            style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer', padding: 0 }}
-          >‹</button>
-          <span style={{ fontWeight: 700, fontSize: 16 }}>🎮 Міні-ігри</span>
-        </div>
-        <Fortune me={me} lang={lang} onRefresh={onBuy ?? (() => {})} />
       </div>
     )
   }
@@ -431,6 +479,8 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           >‹</button>
           <h1 style={{ margin: 0 }}>{T.tg_accounts}</h1>
         </div>
+
+        <RandomAccountButton me={me} onBuy={onBuy} />
 
         {/* How-it-works banner */}
         <div style={{
