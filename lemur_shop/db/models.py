@@ -213,7 +213,7 @@ class FortuneSpin(Base):
     prize_stars_equiv: Mapped[int | None] = mapped_column(Integer, nullable=True)
     prize_label: Mapped[str] = mapped_column(String(64), nullable=False)
     prize_segment: Mapped[int] = mapped_column(Integer, nullable=False)
-    claim_type: Mapped[str | None] = mapped_column(String(16), nullable=True)  # 'account' | 'none'
+    claim_type: Mapped[str | None] = mapped_column(String(16), nullable=True)  # 'account' | 'stars' | 'none' | 'pending'
     order_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("orders.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 

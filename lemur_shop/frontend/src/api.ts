@@ -81,6 +81,11 @@ export interface FortuneSpinResult {
   prize_label: string; prize_emoji: string; prize_color: string
   phone: string | null; order_id: number | null
   pool_balance: number; pool_threshold: number; new_balance: number
+  stars_option: number | null
+}
+export interface FortuneClaimResult {
+  ok: boolean; choice: string
+  phone: string | null; order_id: number | null; stars_awarded: number | null
 }
 export interface FortuneRecentWin { user_display: string; prize_label: string; created_at: string | null }
 
@@ -89,6 +94,8 @@ export const fortuneApi = {
   pool:   () => req<FortunePoolInfo>('/fortune/pool'),
   spin:   () => req<FortuneSpinResult>('/fortune/spin', { method: 'POST' }),
   recent: () => req<FortuneRecentWin[]>('/fortune/recent'),
+  claim:  (spin_id: number, choice: 'account' | 'stars') =>
+    req<FortuneClaimResult>('/fortune/claim', { method: 'POST', body: JSON.stringify({ spin_id, choice }) }),
 }
 
 export const smmApi = {

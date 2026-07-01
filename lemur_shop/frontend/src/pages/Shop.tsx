@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { api, smmApi, fortuneApi, type Category, type BuyResult, type Me, type SmmService, type NftItem, type FortuneSpinResult } from '../api'
+import { api, smmApi, fortuneApi, type Category, type BuyResult, type Me, type SmmService, type NftItem, type FortuneSpinResult, type FortuneClaimResult } from '../api'
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
 import BioPromoButton from '../components/BioPromoButton'
@@ -77,11 +77,12 @@ function ReelItem({ cat }: { cat: CatDef }) {
 }
 
 function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void }) {
-  const [phase, setPhase] = useState<'idle' | 'spinning' | 'done'>('idle')
+  const [phase, setPhase] = useState<'idle' | 'spinning' | 'choosing' | 'claiming' | 'claimed'>('idle')
   const [reel, setReel] = useState<CatDef[]>(() =>
     Array.from({ length: REEL_LEN }, (_, i) => FORTUNE_CATS_DATA[i % FORTUNE_CATS_DATA.length])
   )
   const [result, setResult] = useState<FortuneSpinResult | null>(null)
+  const [claimed, setClaimed] = useState<FortuneClaimResult | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const trackRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -92,6 +93,7 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
     if (phase === 'spinning') return
     setErr(null)
     setResult(null)
+    setClaimed(null)
     setPhase('spinning')
     if (trackRef.current) {
       trackRef.current.style.transition = 'none'
@@ -113,8 +115,8 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
         }
         setTimeout(() => {
           setResult(r)
-          setPhase('done')
-          onBuy?.()
+          setPhase(r.won ? 'choosing' : 'idle')
+          if (!r.won) onBuy?.()
         }, 5700)
       }, 60)
     } catch (e) {
@@ -123,9 +125,25 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
     }
   }
 
+  async function claim(choice: 'account' | 'stars') {
+    if (!result?.spin_id) return
+    setPhase('claiming')
+    setErr(null)
+    try {
+      const r = await fortuneApi.claim(result.spin_id, choice)
+      setClaimed(r)
+      setPhase('claimed')
+      onBuy?.()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Ошибка получения приза')
+      setPhase('choosing')
+    }
+  }
+
   function reset() {
     setPhase('idle')
     setResult(null)
+    setClaimed(null)
     setErr(null)
     if (trackRef.current) {
       trackRef.current.style.transition = 'none'
@@ -133,6 +151,8 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
     }
     setReel(Array.from({ length: REEL_LEN }, (_, i) => FORTUNE_CATS_DATA[i % FORTUNE_CATS_DATA.length]))
   }
+
+  const winCatDef = result?.prize_cat ? FORTUNE_CATS_DATA.find(c => c.cat === result.prize_cat) : null
 
   return (
     <div style={{
@@ -178,35 +198,28 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
         background: 'rgba(0,0,0,.5)',
         border: '1px solid rgba(255,200,80,.15)',
       }}>
-        {/* Fade left */}
         <div style={{
           position: 'absolute', left: 0, top: 0, bottom: 0, width: 56, zIndex: 3, pointerEvents: 'none',
           background: 'linear-gradient(90deg, rgba(0,0,0,.65) 0%, transparent 100%)',
         }} />
-        {/* Fade right */}
         <div style={{
           position: 'absolute', right: 0, top: 0, bottom: 0, width: 56, zIndex: 3, pointerEvents: 'none',
           background: 'linear-gradient(270deg, rgba(0,0,0,.65) 0%, transparent 100%)',
         }} />
-        {/* Center selector box */}
         <div style={{
           position: 'absolute', left: '50%', top: 0, bottom: 0, zIndex: 2, pointerEvents: 'none',
           transform: 'translateX(-50%)', width: ITEM_W + 6,
           border: '2px solid rgba(255,200,80,.8)', borderRadius: 14,
           boxShadow: '0 0 28px rgba(255,180,40,.4), inset 0 0 14px rgba(255,180,40,.08)',
         }} />
-        {/* Top arrow */}
         <div style={{
           position: 'absolute', left: '50%', top: 1, transform: 'translateX(-50%)',
           color: '#FFD166', fontSize: 13, zIndex: 4, lineHeight: 1,
         }}>▼</div>
-        {/* Bottom arrow */}
         <div style={{
           position: 'absolute', left: '50%', bottom: 1, transform: 'translateX(-50%)',
           color: '#FFD166', fontSize: 13, zIndex: 4, lineHeight: 1,
         }}>▲</div>
-
-        {/* Scrolling track */}
         <div ref={trackRef} style={{
           display: 'flex', gap: ITEM_GAP, alignItems: 'center',
           paddingLeft: ITEM_GAP, height: '100%', willChange: 'transform',
@@ -215,7 +228,7 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
         </div>
       </div>
 
-      {/* Actions */}
+      {/* ── IDLE: кнопка спіна ── */}
       {phase === 'idle' && (
         <button onClick={spin} style={{
           width: '100%', padding: '13px', fontSize: 15, fontWeight: 800,
@@ -227,6 +240,7 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
         </button>
       )}
 
+      {/* ── SPINNING ── */}
       {phase === 'spinning' && (
         <button disabled style={{
           width: '100%', padding: '13px', fontSize: 14, fontWeight: 700,
@@ -237,25 +251,79 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
         </button>
       )}
 
-      {phase === 'done' && result && (
+      {/* ── CHOOSING: вибір після виграшу ── */}
+      {phase === 'choosing' && result?.won && (
         <div>
           <div style={{
             padding: '12px 14px', borderRadius: 14, marginBottom: 10,
-            background: result.won ? 'rgba(74,222,128,.1)' : 'rgba(255,255,255,.04)',
-            border: result.won ? '1px solid rgba(74,222,128,.35)' : '1px solid rgba(255,255,255,.1)',
+            background: 'rgba(255,200,80,.08)', border: '1px solid rgba(255,200,80,.3)',
+            textAlign: 'center',
           }}>
-            {result.won ? (
+            <div style={{ fontSize: 26, marginBottom: 4 }}>{result.prize_emoji}</div>
+            <div style={{ fontWeight: 800, color: '#FFD166', fontSize: 15 }}>
+              Выигрыш: {result.prize_label}
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 3 }}>
+              Выберите как получить приз
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => claim('account')} style={{
+              flex: 1, padding: '12px 8px', fontSize: 12, fontWeight: 800,
+              background: winCatDef ? `linear-gradient(135deg, ${winCatDef.color}33, ${winCatDef.color}11)` : 'rgba(74,222,128,.12)',
+              color: winCatDef?.color ?? '#4ade80',
+              border: `1.5px solid ${winCatDef?.color ?? '#4ade80'}55`,
+              borderRadius: 14, cursor: 'pointer', lineHeight: 1.4,
+            }}>
+              📱 Получить<br />аккаунт
+            </button>
+            <button onClick={() => claim('stars')} style={{
+              flex: 1, padding: '12px 8px', fontSize: 12, fontWeight: 800,
+              background: 'rgba(255,200,80,.12)',
+              color: '#FFD166',
+              border: '1.5px solid rgba(255,200,80,.4)',
+              borderRadius: 14, cursor: 'pointer', lineHeight: 1.4,
+            }}>
+              ⭐ Получить<br />{result.stars_option}⭐ (−25%)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── CLAIMING ── */}
+      {phase === 'claiming' && (
+        <button disabled style={{
+          width: '100%', padding: '13px', fontSize: 14, fontWeight: 700,
+          background: 'rgba(255,200,80,.08)', color: 'rgba(255,209,102,.5)',
+          border: '1px solid rgba(255,200,80,.2)', borderRadius: 14, cursor: 'not-allowed',
+        }}>
+          ⏳ Получаем приз...
+        </button>
+      )}
+
+      {/* ── CLAIMED: фінальний результат ── */}
+      {phase === 'claimed' && claimed && (
+        <div>
+          <div style={{
+            padding: '13px 14px', borderRadius: 14, marginBottom: 10,
+            background: 'rgba(74,222,128,.1)', border: '1px solid rgba(74,222,128,.35)',
+          }}>
+            {claimed.choice === 'account' ? (
               <>
                 <div style={{ fontWeight: 800, color: '#4ade80', fontSize: 14, marginBottom: 4 }}>
-                  🎉 Выигрыш! {result.prize_emoji} {result.prize_label}
+                  🎉 Аккаунт выдан!
                 </div>
-                {result.phone && <div style={{ color: 'var(--text2)', fontSize: 13 }}>Номер: <b>{result.phone}</b></div>}
-                <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 4 }}>Аккаунт уже в разделе «Заказы»</div>
+                {claimed.phone && <div style={{ color: 'var(--text2)', fontSize: 13 }}>📱 Номер: <b>{claimed.phone}</b></div>}
+                <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 4 }}>Заказ #{claimed.order_id} · раздел «Заказы»</div>
               </>
             ) : (
-              <div style={{ color: 'var(--text2)', fontSize: 13 }}>
-                Не повезло. Пул пополнен: <b>{result.pool_balance}⭐</b> / {result.pool_threshold}⭐
-              </div>
+              <>
+                <div style={{ fontWeight: 800, color: '#FFD166', fontSize: 14, marginBottom: 4 }}>
+                  ⭐ Зачислено на баланс!
+                </div>
+                <div style={{ color: 'var(--text2)', fontSize: 15, fontWeight: 700 }}>+{claimed.stars_awarded}⭐</div>
+              </>
             )}
           </div>
           <button onClick={reset} style={{

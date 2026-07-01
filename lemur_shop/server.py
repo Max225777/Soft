@@ -2887,6 +2887,7 @@ async def api_fortune_spin(user: User = Depends(get_current_user)):
                 pool.total_prizes_count += 1
                 pool.total_prizes_stars += threshold
 
+            stars_option = int(threshold * 0.75) if won else None
             spin = FortuneSpin(
                 user_id=user.id,
                 prize_type="account" if won else "none",
@@ -2895,7 +2896,7 @@ async def api_fortune_spin(user: User = Depends(get_current_user)):
                 prize_stars_equiv=threshold if won else None,
                 prize_label=pick["label"] if won else "Без виграшу",
                 prize_segment=pick["seg"],
-                claim_type="account" if won else "none",
+                claim_type="pending" if won else "none",
             )
             s.add(spin)
             await s.flush()
@@ -2905,67 +2906,14 @@ async def api_fortune_spin(user: User = Depends(get_current_user)):
 
     log.info("FORTUNE: user=%s spin=%s won=%s cat=%s pool=%s", user.id, spin_id, won, pick["cat"], pool_balance_after)
 
-    # Купуємо акаунт якщо виграш
-    if won:
-        try:
-            from lemur_shop.services.lolz_shop import auto_buy_category as _abc
-            price_usd = Decimal(str(round(threshold * settings.STAR_DISPLAY_USD, 4)))
-            phone_val, lolz_item_id, lolz_price = await _abc(pick["cat"])
-            lolz_cost = Decimal(str(round(lolz_price, 6)))
-            async with AsyncSessionLocal() as s:
-                async with s.begin():
-                    order = Order(
-                        user_id=user.id, product_id=0,
-                        lolz_item_id=lolz_item_id,
-                        price_usd=price_usd, cost_usd=lolz_cost,
-                        category=pick["cat"], status="delivered",
-                        delivered_data=phone_val, resend_count=0,
-                    )
-                    s.add(order)
-                    await s.flush()
-                    order_id = order.id
-                    sp = await s.get(FortuneSpin, spin_id, with_for_update=True)
-                    if sp:
-                        sp.order_id = order_id
-            phone = phone_val
-        except Exception as e:
-            log.warning("FORTUNE auto_buy failed (%s), reverting win", e)
-            async with AsyncSessionLocal() as s:
-                async with s.begin():
-                    pool_r = await s.get(FortunePool, 1, with_for_update=True)
-                    if pool_r:
-                        pool_r.balance_stars += threshold
-                        pool_r.total_prizes_count = max(0, pool_r.total_prizes_count - 1)
-                        pool_r.total_prizes_stars = max(0, pool_r.total_prizes_stars - threshold)
-                    sp = await s.get(FortuneSpin, spin_id, with_for_update=True)
-                    if sp:
-                        sp.prize_type = "none"
-                        sp.prize_category = None
-                        sp.claim_type = "none"
-            won = False
-            pool_balance_after += threshold
-            if _bot and settings.ADMIN_IDS:
-                uname_s = f"@{user.username}" if user.username else f"ID:{user.id}"
-                for aid in settings.ADMIN_IDS:
-                    try:
-                        await _bot.send_message(
-                            aid,
-                            f"⚠️ <b>FORTUNE: помилка покупки!</b>\n👤 {uname_s}\n🎁 {pick['label']}\n❌ {e}",
-                            parse_mode="HTML",
-                        )
-                    except Exception:
-                        pass
-
     # Сповіщення адміну про кожен прокрут
     if _bot and settings.ADMIN_IDS:
         uname_s = f"@{user.username}" if user.username else f"ID:{user.id}"
         if won:
             notify_txt = (
-                f"🎡 <b>Фортуна — ВИГРАШ!</b>\n\n"
+                f"🎡 <b>Фортуна — ВИГРАШ (очікує вибір)!</b>\n\n"
                 f"👤 {uname_s} (<code>{user.id}</code>)\n"
                 f"🏆 Приз: <b>{pick['label']}</b>\n"
-                f"📱 Номер: <code>{phone}</code>\n"
-                f"🆔 Замовлення: #{order_id}\n\n"
                 f"💰 Адм. прибуток: +⭐{FORTUNE_ADMIN_CUT}\n"
                 f"🏦 Залишок пулу: ⭐{pool_balance_after}"
             )
@@ -2984,31 +2932,137 @@ async def api_fortune_spin(user: User = Depends(get_current_user)):
             except Exception:
                 pass
 
-    # Повідомлення гравцю якщо виграш
-    if won and phone and _bot:
-        try:
-            lang_u = getattr(user, "lang", "ru")
-            if lang_u == "ua":
-                txt = f"🎡 <b>Вітаємо з виграшем!</b>\n\n📱 Номер: <code>{phone}</code>\n🆔 Замовлення: #{order_id}"
-            else:
-                txt = f"🎡 <b>Поздравляем с выигрышем!</b>\n\n📱 Номер: <code>{phone}</code>\n🆔 Заказ: #{order_id}"
-            await _bot.send_message(user.id, txt, parse_mode="HTML")
-        except Exception:
-            pass
-
     return {
         "spin_id":        spin_id,
         "won":            won,
         "prize_cat":      pick["cat"] if won else None,
         "prize_seg":      pick["seg"],
         "prize_label":    pick["label"] if won else "Без виграшу",
-        "prize_emoji":    pick["emoji"],
+        "prize_emoji":    pick["emoji"] if won else "❌",
         "prize_color":    pick["color"],
-        "phone":          phone,
-        "order_id":       order_id,
+        "phone":          None,
+        "order_id":       None,
         "pool_balance":   pool_balance_after,
         "pool_threshold": pick["threshold"],
         "new_balance":    new_balance,
+        "stars_option":   stars_option,
+    }
+
+
+class FortuneClaim(BaseModel):
+    spin_id: int
+    choice: str  # "account" | "stars"
+
+
+@app.post("/api/fortune/claim")
+async def api_fortune_claim(body: FortuneClaim, user: User = Depends(get_current_user)):
+    phone: str | None = None
+    order_id: int | None = None
+    stars_awarded: int | None = None
+
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            sp = await s.get(FortuneSpin, body.spin_id, with_for_update=True)
+            if not sp or sp.user_id != user.id:
+                raise HTTPException(404, "spin_not_found")
+            if sp.claim_type != "pending":
+                raise HTTPException(409, "already_claimed")
+            if not sp.prize_category or not sp.prize_stars_equiv:
+                raise HTTPException(400, "no_prize")
+
+            if body.choice == "stars":
+                stars_awarded = int(sp.prize_stars_equiv * 0.75)
+                u = await s.get(User, user.id, with_for_update=True)
+                u.balance_stars += stars_awarded
+                sp.claim_type = "stars"
+                sp.prize_stars = stars_awarded
+
+    if body.choice == "account":
+        try:
+            from lemur_shop.services.lolz_shop import auto_buy_category as _abc
+            threshold = sp.prize_stars_equiv
+            price_usd = Decimal(str(round(threshold * settings.STAR_DISPLAY_USD, 4)))
+            phone_val, lolz_item_id, lolz_price = await _abc(sp.prize_category)
+            lolz_cost = Decimal(str(round(lolz_price, 6)))
+            async with AsyncSessionLocal() as s:
+                async with s.begin():
+                    order = Order(
+                        user_id=user.id, product_id=0,
+                        lolz_item_id=lolz_item_id,
+                        price_usd=price_usd, cost_usd=lolz_cost,
+                        category=sp.prize_category, status="delivered",
+                        delivered_data=phone_val, resend_count=0,
+                    )
+                    s.add(order)
+                    await s.flush()
+                    order_id = order.id
+                    sp2 = await s.get(FortuneSpin, body.spin_id, with_for_update=True)
+                    if sp2:
+                        sp2.claim_type = "account"
+                        sp2.order_id = order_id
+            phone = phone_val
+        except Exception as e:
+            log.warning("FORTUNE claim account failed (%s), reverting", e)
+            async with AsyncSessionLocal() as s:
+                async with s.begin():
+                    pool_r = await s.get(FortunePool, 1, with_for_update=True)
+                    if pool_r:
+                        pool_r.balance_stars += sp.prize_stars_equiv
+                        pool_r.total_prizes_count = max(0, pool_r.total_prizes_count - 1)
+                        pool_r.total_prizes_stars = max(0, pool_r.total_prizes_stars - sp.prize_stars_equiv)
+                    sp3 = await s.get(FortuneSpin, body.spin_id, with_for_update=True)
+                    if sp3:
+                        sp3.prize_type = "none"
+                        sp3.prize_category = None
+                        sp3.claim_type = "none"
+            if _bot and settings.ADMIN_IDS:
+                uname_s = f"@{user.username}" if user.username else f"ID:{user.id}"
+                for aid in settings.ADMIN_IDS:
+                    try:
+                        await _bot.send_message(
+                            aid,
+                            f"⚠️ <b>FORTUNE: помилка покупки!</b>\n👤 {uname_s}\n🎁 {sp.prize_label}\n❌ {e}",
+                            parse_mode="HTML",
+                        )
+                    except Exception:
+                        pass
+            raise HTTPException(500, "purchase_failed")
+
+    # Сповіщення адміну про вибір
+    if _bot and settings.ADMIN_IDS:
+        uname_s = f"@{user.username}" if user.username else f"ID:{user.id}"
+        if body.choice == "account":
+            n = (f"✅ <b>Фортуна — видано акаунт</b>\n👤 {uname_s}\n"
+                 f"🏆 {sp.prize_label}\n📱 <code>{phone}</code>\n🆔 #{order_id}")
+        else:
+            n = (f"⭐ <b>Фортуна — вибрано зірки</b>\n👤 {uname_s}\n"
+                 f"🏆 {sp.prize_label} → ⭐{stars_awarded}")
+        for aid in settings.ADMIN_IDS:
+            try:
+                await _bot.send_message(aid, n, parse_mode="HTML")
+            except Exception:
+                pass
+
+    # Повідомлення гравцю
+    if _bot:
+        try:
+            if body.choice == "account" and phone:
+                txt = f"🎡 <b>Поздравляем с выигрышем!</b>\n\n📱 Номер: <code>{phone}</code>\n🆔 Заказ: #{order_id}"
+            elif body.choice == "stars":
+                txt = f"⭐ <b>Выигрыш зачислен!</b>\n\n+{stars_awarded}⭐ на баланс\n🏆 Приз: {sp.prize_label}"
+            else:
+                txt = None
+            if txt:
+                await _bot.send_message(user.id, txt, parse_mode="HTML")
+        except Exception:
+            pass
+
+    return {
+        "ok":           True,
+        "choice":       body.choice,
+        "phone":        phone,
+        "order_id":     order_id,
+        "stars_awarded": stars_awarded,
     }
 
 
