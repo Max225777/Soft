@@ -30,104 +30,245 @@ const EYE_ICON = (
   </svg>
 )
 
-const EMOJI_BG = '🎲 ✨ 💎 🎰 ⭐ 🎲 ✨ 💎 🎰 ⭐ 🎲 ✨ 💎 🎰 ⭐ '
+type CatDef = { cat: string; label: string; emoji: string; color: string; bg: string; prob: number }
+
+const FORTUNE_CATS_DATA: CatDef[] = [
+  { cat: 'mm', label: '🇲🇲 Мьянма',    emoji: '🎁', color: '#22c55e', bg: 'rgba(34,197,94,.15)',  prob: 25 },
+  { cat: 'us', label: '🇺🇸 США',        emoji: '🎁', color: '#3b82f6', bg: 'rgba(59,130,246,.15)', prob: 25 },
+  { cat: 'co', label: '🇨🇴 Колумбия',  emoji: '💫', color: '#8b5cf6', bg: 'rgba(139,92,246,.15)', prob: 20 },
+  { cat: 'de', label: '🇩🇪 Германия',  emoji: '💎', color: '#f59e0b', bg: 'rgba(245,158,11,.15)', prob: 15 },
+  { cat: 'ua', label: '🇺🇦 Украина',   emoji: '🏆', color: '#ef4444', bg: 'rgba(239,68,68,.15)',  prob: 10 },
+  { cat: 'kz', label: '🇰🇿 Казахстан', emoji: '🔥', color: '#ec4899', bg: 'rgba(236,72,153,.15)', prob: 5  },
+]
+
+const ITEM_W = 126
+const ITEM_GAP = 6
+const ITEM_STRIDE = ITEM_W + ITEM_GAP
+const WIN_IDX = 48
+const REEL_LEN = 60
+
+function buildReel(winCat: string): CatDef[] {
+  const total = FORTUNE_CATS_DATA.reduce((s, c) => s + c.prob, 0)
+  const items: CatDef[] = []
+  for (let i = 0; i < REEL_LEN; i++) {
+    let r = Math.floor(Math.random() * total)
+    let picked = FORTUNE_CATS_DATA[0]
+    for (const c of FORTUNE_CATS_DATA) { r -= c.prob; if (r < 0) { picked = c; break } }
+    items.push(picked)
+  }
+  items[WIN_IDX] = FORTUNE_CATS_DATA.find(c => c.cat === winCat) ?? FORTUNE_CATS_DATA[0]
+  return items
+}
+
+function ReelItem({ cat }: { cat: CatDef }) {
+  return (
+    <div style={{
+      minWidth: ITEM_W, height: 94, borderRadius: 12, flexShrink: 0,
+      background: cat.bg, border: `1.5px solid ${cat.color}44`,
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', gap: 5,
+    }}>
+      <div style={{ fontSize: 28 }}>{cat.emoji}</div>
+      <div style={{ fontSize: 9, fontWeight: 700, color: cat.color, textAlign: 'center', lineHeight: 1.3, padding: '0 6px' }}>
+        {cat.label.split(' ').slice(1).join(' ')}
+      </div>
+    </div>
+  )
+}
 
 function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void }) {
-  const [spinning, setSpinning] = useState(false)
+  const [phase, setPhase] = useState<'idle' | 'spinning' | 'done'>('idle')
+  const [reel, setReel] = useState<CatDef[]>(() =>
+    Array.from({ length: REEL_LEN }, (_, i) => FORTUNE_CATS_DATA[i % FORTUNE_CATS_DATA.length])
+  )
   const [result, setResult] = useState<FortuneSpinResult | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const trackRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   if (!me?.is_admin) return null
 
   async function spin() {
-    setSpinning(true)
+    if (phase === 'spinning') return
     setErr(null)
     setResult(null)
+    setPhase('spinning')
+    if (trackRef.current) {
+      trackRef.current.style.transition = 'none'
+      trackRef.current.style.transform = 'translateX(0)'
+    }
     try {
       const r = await fortuneApi.spin()
-      setResult(r)
-      onBuy?.()
+      const winCat = r.won && r.prize_cat
+        ? r.prize_cat
+        : FORTUNE_CATS_DATA[Math.floor(Math.random() * FORTUNE_CATS_DATA.length)].cat
+      const newReel = buildReel(winCat)
+      setReel(newReel)
+      setTimeout(() => {
+        if (trackRef.current && containerRef.current) {
+          const cw = containerRef.current.offsetWidth
+          const targetX = -(WIN_IDX * ITEM_STRIDE) + cw / 2 - ITEM_W / 2
+          trackRef.current.style.transition = 'transform 5.5s cubic-bezier(0.08, 0.82, 0.17, 1)'
+          trackRef.current.style.transform = `translateX(${targetX}px)`
+        }
+        setTimeout(() => {
+          setResult(r)
+          setPhase('done')
+          onBuy?.()
+        }, 5700)
+      }, 60)
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Ошибка. Попробуйте позже.')
-    } finally {
-      setSpinning(false)
+      setPhase('idle')
     }
+  }
+
+  function reset() {
+    setPhase('idle')
+    setResult(null)
+    setErr(null)
+    if (trackRef.current) {
+      trackRef.current.style.transition = 'none'
+      trackRef.current.style.transform = 'translateX(0)'
+    }
+    setReel(Array.from({ length: REEL_LEN }, (_, i) => FORTUNE_CATS_DATA[i % FORTUNE_CATS_DATA.length]))
   }
 
   return (
     <div style={{
-      position: 'relative', overflow: 'hidden',
       background: 'linear-gradient(135deg, #2A1A3D 0%, #1A0F2E 50%, #0D0618 100%)',
       border: '1px solid rgba(255,200,80,.35)',
-      borderRadius: 20, padding: '18px 16px', marginBottom: 14,
-      boxShadow: '0 8px 32px rgba(255,180,40,.18), inset 0 1px 0 rgba(255,255,255,.06)',
+      borderRadius: 20, padding: '14px 14px 16px', marginBottom: 14,
+      boxShadow: '0 8px 32px rgba(255,180,40,.15), inset 0 1px 0 rgba(255,255,255,.05)',
     }}>
-      <div style={{
-        position: 'absolute', inset: 0, fontSize: 26, lineHeight: '40px',
-        opacity: 0.08, whiteSpace: 'nowrap', userSelect: 'none', pointerEvents: 'none',
-        letterSpacing: 6, transform: 'rotate(-6deg) scale(1.3)',
-      }}>
-        {EMOJI_BG.repeat(6)}
-        <br />{EMOJI_BG.repeat(6)}
-        <br />{EMOJI_BG.repeat(6)}
-      </div>
 
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         <div style={{
-          width: 54, height: 54, borderRadius: 16, flexShrink: 0,
-          background: 'linear-gradient(135deg, #FFD166, #FF8C42, #B8860B)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 18px rgba(255,180,40,.5)',
-          fontSize: 28,
+          width: 42, height: 42, borderRadius: 13, flexShrink: 0,
+          background: 'linear-gradient(135deg, #FFD166, #FF8C42)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22,
+          boxShadow: '0 4px 12px rgba(255,180,40,.45)',
         }}>🎲</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 800, fontSize: 17, color: '#FFD166' }}>Случайный TG аккаунт</div>
-          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>Премиум-розыгрыш — только для админа</div>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 15, color: '#FFD166' }}>Случайный TG аккаунт</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>Стоимость прокрутки: ⭐100</div>
         </div>
       </div>
 
-      <button
-        className="btn btn-primary"
-        onClick={spin}
-        disabled={spinning}
-        style={{
-          position: 'relative', width: '100%', padding: '12px', fontSize: 14, fontWeight: 800,
-          background: 'linear-gradient(135deg, #FFD166, #FF8C42, #B8860B)',
-          color: '#1A0F2E',
-          boxShadow: '0 4px 18px rgba(255,180,40,.4)',
-        }}
-      >
-        {spinning ? '🎲 Крутим...' : '🎲 Получить случайный аккаунт'}
-      </button>
+      {/* Probability badges */}
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 12 }}>
+        {FORTUNE_CATS_DATA.map(c => (
+          <div key={c.cat} style={{
+            background: c.bg, border: `1px solid ${c.color}55`,
+            borderRadius: 8, padding: '3px 8px',
+            fontSize: 10, fontWeight: 700, color: c.color,
+            display: 'flex', alignItems: 'center', gap: 3,
+          }}>
+            {c.emoji} {c.label.split(' ').slice(1).join(' ')}
+            <span style={{ opacity: .65, fontWeight: 400 }}>{c.prob}%</span>
+          </div>
+        ))}
+      </div>
 
-      {result && (
+      {/* Reel */}
+      <div ref={containerRef} style={{
+        position: 'relative', overflow: 'hidden', height: 112,
+        borderRadius: 14, marginBottom: 12,
+        background: 'rgba(0,0,0,.5)',
+        border: '1px solid rgba(255,200,80,.15)',
+      }}>
+        {/* Fade left */}
         <div style={{
-          position: 'relative', marginTop: 12, padding: '12px 14px', borderRadius: 14,
-          background: result.won ? 'rgba(74,222,128,.1)' : 'rgba(255,255,255,.04)',
-          border: result.won ? '1px solid rgba(74,222,128,.35)' : '1px solid rgba(255,255,255,.08)',
-          fontSize: 13, lineHeight: 1.5,
+          position: 'absolute', left: 0, top: 0, bottom: 0, width: 56, zIndex: 3, pointerEvents: 'none',
+          background: 'linear-gradient(90deg, rgba(0,0,0,.65) 0%, transparent 100%)',
+        }} />
+        {/* Fade right */}
+        <div style={{
+          position: 'absolute', right: 0, top: 0, bottom: 0, width: 56, zIndex: 3, pointerEvents: 'none',
+          background: 'linear-gradient(270deg, rgba(0,0,0,.65) 0%, transparent 100%)',
+        }} />
+        {/* Center selector box */}
+        <div style={{
+          position: 'absolute', left: '50%', top: 0, bottom: 0, zIndex: 2, pointerEvents: 'none',
+          transform: 'translateX(-50%)', width: ITEM_W + 6,
+          border: '2px solid rgba(255,200,80,.8)', borderRadius: 14,
+          boxShadow: '0 0 28px rgba(255,180,40,.4), inset 0 0 14px rgba(255,180,40,.08)',
+        }} />
+        {/* Top arrow */}
+        <div style={{
+          position: 'absolute', left: '50%', top: 1, transform: 'translateX(-50%)',
+          color: '#FFD166', fontSize: 13, zIndex: 4, lineHeight: 1,
+        }}>▼</div>
+        {/* Bottom arrow */}
+        <div style={{
+          position: 'absolute', left: '50%', bottom: 1, transform: 'translateX(-50%)',
+          color: '#FFD166', fontSize: 13, zIndex: 4, lineHeight: 1,
+        }}>▲</div>
+
+        {/* Scrolling track */}
+        <div ref={trackRef} style={{
+          display: 'flex', gap: ITEM_GAP, alignItems: 'center',
+          paddingLeft: ITEM_GAP, height: '100%', willChange: 'transform',
         }}>
-          {result.won ? (
-            <>
-              <div style={{ fontWeight: 800, color: '#4ade80', marginBottom: 4 }}>
-                🎉 Выигрыш! {result.prize_emoji} {result.prize_label}
+          {reel.map((c, i) => <ReelItem key={i} cat={c} />)}
+        </div>
+      </div>
+
+      {/* Actions */}
+      {phase === 'idle' && (
+        <button onClick={spin} style={{
+          width: '100%', padding: '13px', fontSize: 15, fontWeight: 800,
+          background: 'linear-gradient(135deg, #FFD166, #FF8C42)',
+          color: '#1A0F2E', border: 'none', borderRadius: 14, cursor: 'pointer',
+          boxShadow: '0 4px 18px rgba(255,180,40,.45)',
+        }}>
+          🎲 Открыть кейс
+        </button>
+      )}
+
+      {phase === 'spinning' && (
+        <button disabled style={{
+          width: '100%', padding: '13px', fontSize: 14, fontWeight: 700,
+          background: 'rgba(255,180,40,.1)', color: 'rgba(255,209,102,.6)',
+          border: '1px solid rgba(255,180,40,.25)', borderRadius: 14, cursor: 'not-allowed',
+        }}>
+          🎰 Крутим...
+        </button>
+      )}
+
+      {phase === 'done' && result && (
+        <div>
+          <div style={{
+            padding: '12px 14px', borderRadius: 14, marginBottom: 10,
+            background: result.won ? 'rgba(74,222,128,.1)' : 'rgba(255,255,255,.04)',
+            border: result.won ? '1px solid rgba(74,222,128,.35)' : '1px solid rgba(255,255,255,.1)',
+          }}>
+            {result.won ? (
+              <>
+                <div style={{ fontWeight: 800, color: '#4ade80', fontSize: 14, marginBottom: 4 }}>
+                  🎉 Выигрыш! {result.prize_emoji} {result.prize_label}
+                </div>
+                {result.phone && <div style={{ color: 'var(--text2)', fontSize: 13 }}>Номер: <b>{result.phone}</b></div>}
+                <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 4 }}>Аккаунт уже в разделе «Заказы»</div>
+              </>
+            ) : (
+              <div style={{ color: 'var(--text2)', fontSize: 13 }}>
+                Не повезло. Пул пополнен: <b>{result.pool_balance}⭐</b> / {result.pool_threshold}⭐
               </div>
-              {result.phone && <div style={{ color: 'var(--text2)' }}>Номер: <b>{result.phone}</b></div>}
-              <div style={{ color: 'var(--muted)', marginTop: 4 }}>Аккаунт уже в разделе «Заказы»</div>
-            </>
-          ) : (
-            <div style={{ color: 'var(--text2)' }}>
-              Не повезло в этот раз. Пул пополнен: <b>{result.pool_balance}⭐</b> / {result.pool_threshold}⭐
-            </div>
-          )}
+            )}
+          </div>
+          <button onClick={reset} style={{
+            width: '100%', padding: '11px', fontSize: 13, fontWeight: 700,
+            background: 'rgba(255,180,40,.1)', color: '#FFD166',
+            border: '1px solid rgba(255,180,40,.3)', borderRadius: 14, cursor: 'pointer',
+          }}>
+            Крутить ещё раз
+          </button>
         </div>
       )}
 
-      {err && (
-        <div style={{ position: 'relative', marginTop: 10, color: '#ef4444', fontSize: 12, fontWeight: 600 }}>
-          ⚠️ {err}
-        </div>
-      )}
+      {err && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8, fontWeight: 600 }}>⚠️ {err}</div>}
     </div>
   )
 }
