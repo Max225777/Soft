@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { api, smmApi, fortuneApi, type Category, type BuyResult, type Me, type SmmService, type NftItem, type FortuneSpinResult, type FortuneClaimResult } from '../api'
+import { api, smmApi, fortuneApi, type Category, type BuyResult, type Me, type SmmService, type NftItem, type FortuneSpinResult, type FortuneClaimResult, type FortuneRecentWin, type FortunePoolInfo } from '../api'
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
 import BioPromoButton from '../components/BioPromoButton'
@@ -40,6 +40,21 @@ const FORTUNE_CATS_DATA: CatDef[] = [
   { cat: 'ua', label: '🇺🇦 Украина',   emoji: '🏆', color: '#ef4444', bg: 'rgba(239,68,68,.15)',  prob: 10, shopStars: 250, poolNeeded: 150 },
   { cat: 'kz', label: '🇰🇿 Казахстан', emoji: '🔥', color: '#ec4899', bg: 'rgba(236,72,153,.15)', prob: 5,  shopStars: 250, poolNeeded: 150 },
 ]
+
+const POOL_TIERS = [
+  { label: '0–49⭐',   minPool: 0,   maxPool: 49,       poolExample: 0   },
+  { label: '50–149⭐', minPool: 50,  maxPool: 149,      poolExample: 50  },
+  { label: '150+⭐',   minPool: 150, maxPool: Infinity,  poolExample: 150 },
+]
+
+function oddsForTier(poolExample: number): Array<CatDef & { pct: number }> {
+  const eligible = FORTUNE_CATS_DATA.filter(c => poolExample >= c.poolNeeded)
+  const total = eligible.reduce((s, c) => s + c.prob, 0)
+  return FORTUNE_CATS_DATA.map(c => ({
+    ...c,
+    pct: eligible.find(e => e.cat === c.cat) ? Math.round(c.prob / total * 1000) / 10 : 0,
+  }))
+}
 
 const ITEM_W = 126
 const ITEM_GAP = 6
@@ -84,8 +99,14 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
   const [result, setResult] = useState<FortuneSpinResult | null>(null)
   const [claimed, setClaimed] = useState<FortuneClaimResult | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [poolBalance, setPoolBalance] = useState(0)
   const trackRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!me?.is_admin) return
+    fortuneApi.pool().then((p: FortunePoolInfo) => setPoolBalance(p.balance_stars)).catch(() => {})
+  }, [me?.id])
 
   if (!me?.is_admin) return null
 
@@ -115,6 +136,7 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
         }
         setTimeout(() => {
           setResult(r)
+          setPoolBalance(r.pool_balance)
           setPhase('choosing')  // завжди виграш
         }, 5700)
       }, 60)
@@ -175,24 +197,40 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
         </div>
       </div>
 
-      {/* Probability badges */}
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 12 }}>
-        {FORTUNE_CATS_DATA.map(c => (
-          <div key={c.cat} style={{
-            background: c.bg, border: `1px solid ${c.color}55`,
-            borderRadius: 8, padding: '4px 8px',
-            fontSize: 10, fontWeight: 700, color: c.color,
-            display: 'flex', flexDirection: 'column', gap: 1,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-              {c.emoji} {c.label.split(' ').slice(1).join(' ')}
-              <span style={{ opacity: .6, fontWeight: 400 }}>{c.prob}%</span>
+      {/* Odds table by pool tier */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 6, textTransform: 'uppercase' }}>
+          Шансы · пул сейчас: ⭐{poolBalance}
+        </div>
+        {POOL_TIERS.map((tier, ti) => {
+          const isActive = poolBalance >= tier.minPool && poolBalance <= tier.maxPool
+          const odds = oddsForTier(tier.poolExample)
+          return (
+            <div key={tier.label} style={{
+              padding: '7px 10px', borderRadius: 10, marginBottom: 5,
+              background: isActive ? 'rgba(255,200,80,.1)' : 'rgba(255,255,255,.03)',
+              border: isActive ? '1px solid rgba(255,200,80,.4)' : '1px solid rgba(255,255,255,.06)',
+            }}>
+              <div style={{ fontWeight: 700, fontSize: 10, color: isActive ? '#FFD166' : 'rgba(255,255,255,.35)', marginBottom: 5 }}>
+                {isActive ? '▶ ' : '   '}{tier.label}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                {odds.map(c => (
+                  <div key={c.cat} style={{
+                    background: c.pct > 0 ? `${c.color}18` : 'rgba(255,255,255,.03)',
+                    border: `1px solid ${c.pct > 0 ? c.color + '40' : 'rgba(255,255,255,.06)'}`,
+                    borderRadius: 6, padding: '2px 6px',
+                    fontSize: 10, color: c.pct > 0 ? c.color : 'rgba(255,255,255,.2)',
+                    fontWeight: c.pct > 0 ? 700 : 400,
+                    opacity: c.pct > 0 ? 1 : 0.5,
+                  }}>
+                    {c.emoji} {c.label.split(' ').slice(1).join(' ')} {c.pct > 0 ? `${c.pct}%` : '0%'}
+                  </div>
+                ))}
+              </div>
             </div>
-            <div style={{ fontSize: 9, opacity: .7, fontWeight: 400 }}>
-              ⭐{c.shopStars}
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Reel */}
@@ -341,6 +379,45 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
       )}
 
       {err && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8, fontWeight: 600 }}>⚠️ {err}</div>}
+    </div>
+  )
+}
+
+function RecentWinsList({ me }: { me: Me | null }) {
+  const [wins, setWins] = useState<FortuneRecentWin[]>([])
+
+  useEffect(() => {
+    if (!me) return
+    fortuneApi.recent().then(setWins).catch(() => {})
+  }, [me?.id])
+
+  if (wins.length === 0) return null
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 7, textTransform: 'uppercase' }}>
+        🏆 Последние победы
+      </div>
+      {wins.map((w, i) => (
+        <div key={i} style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 12px', borderRadius: 11, marginBottom: 5,
+          background: 'rgba(255,200,80,.05)', border: '1px solid rgba(255,200,80,.12)',
+        }}>
+          <div style={{ fontSize: 20, flexShrink: 0 }}>🎁</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+              {w.prize_label}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>{w.user_display}</div>
+          </div>
+          {w.created_at && (
+            <div style={{ fontSize: 10, color: 'var(--muted)', flexShrink: 0 }}>
+              {new Date(w.created_at).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   )
 }
@@ -694,6 +771,8 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
         </div>
 
         <RandomAccountButton me={me} onBuy={onBuy} />
+
+        <RecentWinsList me={me} />
 
         {/* How-it-works banner */}
         <div style={{
