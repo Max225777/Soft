@@ -108,7 +108,7 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
     fortuneApi.pool().then((p: FortunePoolInfo) => setPoolBalance(p.balance_stars)).catch(() => {})
   }, [me?.id])
 
-  if (!me?.is_admin) return null
+  if (!me) return null
 
   async function spin() {
     if (phase === 'spinning') return
@@ -197,41 +197,60 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
         </div>
       </div>
 
-      {/* Odds table by pool tier */}
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 6, textTransform: 'uppercase' }}>
-          Шансы · пул сейчас: ⭐{poolBalance}
+      {/* Шансы: адмін бачить тири по пулу, звичайний — завжди всі категорії */}
+      {me?.is_admin ? (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 6, textTransform: 'uppercase' }}>
+            Шансы по уровню пула · сейчас: ⭐{poolBalance}
+          </div>
+          {POOL_TIERS.map((tier) => {
+            const isActive = poolBalance >= tier.minPool && poolBalance <= tier.maxPool
+            const odds = oddsForTier(tier.poolExample)
+            return (
+              <div key={tier.label} style={{
+                padding: '7px 10px', borderRadius: 10, marginBottom: 5,
+                background: isActive ? 'rgba(255,200,80,.1)' : 'rgba(255,255,255,.03)',
+                border: isActive ? '1px solid rgba(255,200,80,.4)' : '1px solid rgba(255,255,255,.06)',
+              }}>
+                <div style={{ fontWeight: 700, fontSize: 10, color: isActive ? '#FFD166' : 'rgba(255,255,255,.35)', marginBottom: 5 }}>
+                  {isActive ? '▶ ' : '   '}{tier.label}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                  {odds.map(c => (
+                    <div key={c.cat} style={{
+                      background: c.pct > 0 ? `${c.color}18` : 'rgba(255,255,255,.03)',
+                      border: `1px solid ${c.pct > 0 ? c.color + '40' : 'rgba(255,255,255,.06)'}`,
+                      borderRadius: 6, padding: '2px 6px',
+                      fontSize: 10, color: c.pct > 0 ? c.color : 'rgba(255,255,255,.2)',
+                      fontWeight: c.pct > 0 ? 700 : 400,
+                      opacity: c.pct > 0 ? 1 : 0.5,
+                    }}>
+                      {c.emoji} {c.label.split(' ').slice(1).join(' ')} {c.pct > 0 ? `${c.pct}%` : '0%'}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
         </div>
-        {POOL_TIERS.map((tier, ti) => {
-          const isActive = poolBalance >= tier.minPool && poolBalance <= tier.maxPool
-          const odds = oddsForTier(tier.poolExample)
-          return (
-            <div key={tier.label} style={{
-              padding: '7px 10px', borderRadius: 10, marginBottom: 5,
-              background: isActive ? 'rgba(255,200,80,.1)' : 'rgba(255,255,255,.03)',
-              border: isActive ? '1px solid rgba(255,200,80,.4)' : '1px solid rgba(255,255,255,.06)',
+      ) : (
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 12 }}>
+          {FORTUNE_CATS_DATA.map(c => (
+            <div key={c.cat} style={{
+              background: c.bg, border: `1px solid ${c.color}55`,
+              borderRadius: 8, padding: '4px 8px',
+              fontSize: 10, fontWeight: 700, color: c.color,
+              display: 'flex', flexDirection: 'column', gap: 1,
             }}>
-              <div style={{ fontWeight: 700, fontSize: 10, color: isActive ? '#FFD166' : 'rgba(255,255,255,.35)', marginBottom: 5 }}>
-                {isActive ? '▶ ' : '   '}{tier.label}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                {c.emoji} {c.label.split(' ').slice(1).join(' ')}
+                <span style={{ opacity: .65, fontWeight: 500 }}>{c.prob}%</span>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                {odds.map(c => (
-                  <div key={c.cat} style={{
-                    background: c.pct > 0 ? `${c.color}18` : 'rgba(255,255,255,.03)',
-                    border: `1px solid ${c.pct > 0 ? c.color + '40' : 'rgba(255,255,255,.06)'}`,
-                    borderRadius: 6, padding: '2px 6px',
-                    fontSize: 10, color: c.pct > 0 ? c.color : 'rgba(255,255,255,.2)',
-                    fontWeight: c.pct > 0 ? 700 : 400,
-                    opacity: c.pct > 0 ? 1 : 0.5,
-                  }}>
-                    {c.emoji} {c.label.split(' ').slice(1).join(' ')} {c.pct > 0 ? `${c.pct}%` : '0%'}
-                  </div>
-                ))}
-              </div>
+              <div style={{ fontSize: 9, opacity: .65 }}>⭐{c.shopStars}</div>
             </div>
-          )
-        })}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Reel */}
       <div ref={containerRef} style={{
