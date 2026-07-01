@@ -30,15 +30,15 @@ const EYE_ICON = (
   </svg>
 )
 
-type CatDef = { cat: string; label: string; emoji: string; color: string; bg: string; prob: number }
+type CatDef = { cat: string; label: string; emoji: string; color: string; bg: string; prob: number; shopStars: number }
 
 const FORTUNE_CATS_DATA: CatDef[] = [
-  { cat: 'mm', label: '🇲🇲 Мьянма',    emoji: '🎁', color: '#22c55e', bg: 'rgba(34,197,94,.15)',  prob: 25 },
-  { cat: 'us', label: '🇺🇸 США',        emoji: '🎁', color: '#3b82f6', bg: 'rgba(59,130,246,.15)', prob: 25 },
-  { cat: 'co', label: '🇨🇴 Колумбия',  emoji: '💫', color: '#8b5cf6', bg: 'rgba(139,92,246,.15)', prob: 20 },
-  { cat: 'de', label: '🇩🇪 Германия',  emoji: '💎', color: '#f59e0b', bg: 'rgba(245,158,11,.15)', prob: 15 },
-  { cat: 'ua', label: '🇺🇦 Украина',   emoji: '🏆', color: '#ef4444', bg: 'rgba(239,68,68,.15)',  prob: 10 },
-  { cat: 'kz', label: '🇰🇿 Казахстан', emoji: '🔥', color: '#ec4899', bg: 'rgba(236,72,153,.15)', prob: 5  },
+  { cat: 'mm', label: '🇲🇲 Мьянма',    emoji: '🎁', color: '#22c55e', bg: 'rgba(34,197,94,.15)',  prob: 25, shopStars: 50  },
+  { cat: 'us', label: '🇺🇸 США',        emoji: '🎁', color: '#3b82f6', bg: 'rgba(59,130,246,.15)', prob: 25, shopStars: 50  },
+  { cat: 'co', label: '🇨🇴 Колумбия',  emoji: '💫', color: '#8b5cf6', bg: 'rgba(139,92,246,.15)', prob: 20, shopStars: 60  },
+  { cat: 'de', label: '🇩🇪 Германия',  emoji: '💎', color: '#f59e0b', bg: 'rgba(245,158,11,.15)', prob: 15, shopStars: 150 },
+  { cat: 'ua', label: '🇺🇦 Украина',   emoji: '🏆', color: '#ef4444', bg: 'rgba(239,68,68,.15)',  prob: 10, shopStars: 250 },
+  { cat: 'kz', label: '🇰🇿 Казахстан', emoji: '🔥', color: '#ec4899', bg: 'rgba(236,72,153,.15)', prob: 5,  shopStars: 250 },
 ]
 
 const ITEM_W = 126
@@ -181,12 +181,17 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
         {FORTUNE_CATS_DATA.map(c => (
           <div key={c.cat} style={{
             background: c.bg, border: `1px solid ${c.color}55`,
-            borderRadius: 8, padding: '3px 8px',
+            borderRadius: 8, padding: '4px 8px',
             fontSize: 10, fontWeight: 700, color: c.color,
-            display: 'flex', alignItems: 'center', gap: 3,
+            display: 'flex', flexDirection: 'column', gap: 1,
           }}>
-            {c.emoji} {c.label.split(' ').slice(1).join(' ')}
-            <span style={{ opacity: .65, fontWeight: 400 }}>{c.prob}%</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              {c.emoji} {c.label.split(' ').slice(1).join(' ')}
+              <span style={{ opacity: .6, fontWeight: 400 }}>{c.prob}%</span>
+            </div>
+            <div style={{ fontSize: 9, opacity: .7, fontWeight: 400 }}>
+              ⭐{c.shopStars} · или {Math.floor(c.shopStars * 0.75)}⭐
+            </div>
           </div>
         ))}
       </div>

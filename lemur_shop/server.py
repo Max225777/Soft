@@ -2782,12 +2782,12 @@ FORTUNE_POOL_CONTRIB = 75   # зірок у призовий пул
 
 # Категорії-призи: threshold — скільки зірок потрібно в пулі для виграшу
 FORTUNE_CATS = [
-    {"cat": "mm", "label": "🇲🇲 Myanmar",   "emoji": "🎁", "color": "#22c55e", "threshold": 150, "weight": 25, "seg": 0},
-    {"cat": "us", "label": "🇺🇸 USA",        "emoji": "🎁", "color": "#3b82f6", "threshold": 150, "weight": 25, "seg": 1},
-    {"cat": "co", "label": "🇨🇴 Colombia",   "emoji": "💫", "color": "#8b5cf6", "threshold": 200, "weight": 20, "seg": 2},
-    {"cat": "de", "label": "🇩🇪 Germany",    "emoji": "💎", "color": "#f59e0b", "threshold": 400, "weight": 15, "seg": 3},
-    {"cat": "ua", "label": "🇺🇦 Ukraine",    "emoji": "🏆", "color": "#ef4444", "threshold": 700, "weight": 10, "seg": 4},
-    {"cat": "kz", "label": "🇰🇿 Kazakhstan", "emoji": "🔥", "color": "#ec4899", "threshold": 700, "weight": 5,  "seg": 5},
+    {"cat": "mm", "label": "🇲🇲 Myanmar",   "emoji": "🎁", "color": "#22c55e", "threshold": 150, "shop_stars": 50,  "weight": 25, "seg": 0},
+    {"cat": "us", "label": "🇺🇸 USA",        "emoji": "🎁", "color": "#3b82f6", "threshold": 150, "shop_stars": 50,  "weight": 25, "seg": 1},
+    {"cat": "co", "label": "🇨🇴 Colombia",   "emoji": "💫", "color": "#8b5cf6", "threshold": 200, "shop_stars": 60,  "weight": 20, "seg": 2},
+    {"cat": "de", "label": "🇩🇪 Germany",    "emoji": "💎", "color": "#f59e0b", "threshold": 400, "shop_stars": 150, "weight": 15, "seg": 3},
+    {"cat": "ua", "label": "🇺🇦 Ukraine",    "emoji": "🏆", "color": "#ef4444", "threshold": 700, "shop_stars": 250, "weight": 10, "seg": 4},
+    {"cat": "kz", "label": "🇰🇿 Kazakhstan", "emoji": "🔥", "color": "#ec4899", "threshold": 700, "shop_stars": 250, "weight": 5,  "seg": 5},
 ]
 _FORTUNE_WEIGHTS = [c["weight"] for c in FORTUNE_CATS]
 
@@ -2887,7 +2887,7 @@ async def api_fortune_spin(user: User = Depends(get_current_user)):
                 pool.total_prizes_count += 1
                 pool.total_prizes_stars += threshold
 
-            stars_option = int(threshold * 0.75) if won else None
+            stars_option = int(pick["shop_stars"] * 0.75) if won else None
             spin = FortuneSpin(
                 user_id=user.id,
                 prize_type="account" if won else "none",
@@ -2971,7 +2971,9 @@ async def api_fortune_claim(body: FortuneClaim, user: User = Depends(get_current
                 raise HTTPException(400, "no_prize")
 
             if body.choice == "stars":
-                stars_awarded = int(sp.prize_stars_equiv * 0.75)
+                _fc = next((c for c in FORTUNE_CATS if c["cat"] == sp.prize_category), None)
+                _shop_stars = _fc["shop_stars"] if _fc else sp.prize_stars_equiv
+                stars_awarded = int(_shop_stars * 0.75)
                 u = await s.get(User, user.id, with_for_update=True)
                 u.balance_stars += stars_awarded
                 sp.claim_type = "stars"
