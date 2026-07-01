@@ -2835,7 +2835,7 @@ async def api_fortune_recent(user: User = Depends(get_current_user)):
         rows = (await s.execute(
             select(FortuneSpin.prize_label, FortuneSpin.created_at, User.full_name, User.username)
             .join(User, User.id == FortuneSpin.user_id)
-            .where(FortuneSpin.prize_type == "account")
+            .where(FortuneSpin.prize_type == "account", FortuneSpin.claim_type.in_(["account", "stars"]))
             .order_by(FortuneSpin.created_at.desc())
             .limit(20)
         )).all()
