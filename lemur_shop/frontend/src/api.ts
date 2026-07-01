@@ -82,6 +82,7 @@ export interface FortuneSpinResult {
   phone: string | null; order_id: number | null
   pool_balance: number; pool_threshold: number; new_balance: number
   stars_option: number | null
+  was_downgraded: boolean; rolled_label: string | null
 }
 export interface FortuneClaimResult {
   ok: boolean; choice: string

@@ -2776,19 +2776,21 @@ async def api_admin_nft_rentals(admin: User = Depends(require_admin)):
 
 # ─── Fortune Wheel (Pool-based) ────────────────────────────────────────────────
 
-FORTUNE_SPIN_COST    = 100  # зірок за прокрут
-FORTUNE_ADMIN_CUT    = 25   # зірок адміну з кожного прокруту
-FORTUNE_POOL_CONTRIB = 75   # зірок у призовий пул
+FORTUNE_SPIN_COST     = 100   # зірок за прокрут
+FORTUNE_ADMIN_CUT_PCT = 0.20  # 20% від маржі прибутку → адміну, 80% → пул
 
-# Категорії-призи: threshold — скільки зірок потрібно в пулі для виграшу
+# threshold = скільки зірок потрібно В ПУЛ щоб акк міг випасти
+# = max(0, shop_stars - FORTUNE_SPIN_COST)
+# MM/US/CO завжди виграють (прибуткові), DE/UA/KZ потребують пул
 FORTUNE_CATS = [
-    {"cat": "mm", "label": "🇲🇲 Myanmar",   "emoji": "🎁", "color": "#22c55e", "threshold": 150, "shop_stars": 50,  "weight": 25, "seg": 0},
-    {"cat": "us", "label": "🇺🇸 USA",        "emoji": "🎁", "color": "#3b82f6", "threshold": 150, "shop_stars": 50,  "weight": 25, "seg": 1},
-    {"cat": "co", "label": "🇨🇴 Colombia",   "emoji": "💫", "color": "#8b5cf6", "threshold": 200, "shop_stars": 60,  "weight": 20, "seg": 2},
-    {"cat": "de", "label": "🇩🇪 Germany",    "emoji": "💎", "color": "#f59e0b", "threshold": 400, "shop_stars": 150, "weight": 15, "seg": 3},
-    {"cat": "ua", "label": "🇺🇦 Ukraine",    "emoji": "🏆", "color": "#ef4444", "threshold": 700, "shop_stars": 250, "weight": 10, "seg": 4},
-    {"cat": "kz", "label": "🇰🇿 Kazakhstan", "emoji": "🔥", "color": "#ec4899", "threshold": 700, "shop_stars": 250, "weight": 5,  "seg": 5},
+    {"cat": "mm", "label": "🇲🇲 Myanmar",   "emoji": "🎁", "color": "#22c55e", "threshold": 0,   "shop_stars": 50,  "weight": 25, "seg": 0},
+    {"cat": "us", "label": "🇺🇸 USA",        "emoji": "🎁", "color": "#3b82f6", "threshold": 0,   "shop_stars": 50,  "weight": 25, "seg": 1},
+    {"cat": "co", "label": "🇨🇴 Colombia",   "emoji": "💫", "color": "#8b5cf6", "threshold": 0,   "shop_stars": 60,  "weight": 20, "seg": 2},
+    {"cat": "de", "label": "🇩🇪 Germany",    "emoji": "💎", "color": "#f59e0b", "threshold": 50,  "shop_stars": 150, "weight": 15, "seg": 3},
+    {"cat": "ua", "label": "🇺🇦 Ukraine",    "emoji": "🏆", "color": "#ef4444", "threshold": 150, "shop_stars": 250, "weight": 10, "seg": 4},
+    {"cat": "kz", "label": "🇰🇿 Kazakhstan", "emoji": "🔥", "color": "#ec4899", "threshold": 150, "shop_stars": 250, "weight": 5,  "seg": 5},
 ]
+_FORTUNE_FALLBACK = FORTUNE_CATS[0]  # мінімальний приз (MM) якщо пулу не вистачає
 _FORTUNE_WEIGHTS = [c["weight"] for c in FORTUNE_CATS]
 
 
@@ -2851,14 +2853,13 @@ async def api_fortune_recent(user: User = Depends(get_current_user)):
 @app.post("/api/fortune/spin")
 async def api_fortune_spin(user: User = Depends(get_current_user)):
     import random as _rnd
-    pick = _rnd.choices(FORTUNE_CATS, weights=_FORTUNE_WEIGHTS, k=1)[0]
+    rolled = _rnd.choices(FORTUNE_CATS, weights=_FORTUNE_WEIGHTS, k=1)[0]
 
-    won = False
-    phone: str | None = None
-    order_id: int | None = None
     pool_balance_after = 0
     spin_id: int | None = None
     new_balance = 0
+    admin_profit_this_spin = 0
+    actual_cat: dict | None = None  # реальна категорія що отримує гравець
 
     async with AsyncSessionLocal() as s:
         async with s.begin():
@@ -2875,28 +2876,38 @@ async def api_fortune_spin(user: User = Depends(get_current_user)):
 
             u.balance_stars -= FORTUNE_SPIN_COST
             u.balance_usd = max(Decimal(0), u.balance_usd - Decimal(str(round(FORTUNE_SPIN_COST * settings.STAR_DISPLAY_USD, 4))))
-
-            pool.balance_stars += FORTUNE_POOL_CONTRIB
-            pool.total_admin_profit_stars += FORTUNE_ADMIN_CUT
             pool.total_spins += 1
 
-            threshold = pick["threshold"]
-            if pool.balance_stars >= threshold:
-                won = True
-                pool.balance_stars -= threshold
-                pool.total_prizes_count += 1
-                pool.total_prizes_stars += threshold
+            # Чи може впасти rolled категорія (чи пул достатній)?
+            can_win_rolled = pool.balance_stars >= rolled["threshold"]
+            actual_cat = rolled if can_win_rolled else _FORTUNE_FALLBACK
 
-            stars_option = int(pick["shop_stars"] * 0.75) if won else None
+            shop_stars = actual_cat["shop_stars"]
+            margin = FORTUNE_SPIN_COST - shop_stars  # >0 якщо дешевий акк, <0 якщо дорогий
+
+            if margin > 0:
+                # Прибутковий прокрут: 20% адміну, 80% в пул
+                admin_profit_this_spin = int(margin * FORTUNE_ADMIN_CUT_PCT)
+                pool_gain = margin - admin_profit_this_spin
+                pool.balance_stars += pool_gain
+                pool.total_admin_profit_stars += admin_profit_this_spin
+            else:
+                # Дорогий акк: пул покриває різницю (margin < 0)
+                pool.balance_stars += margin  # від'ємне — зменшує пул
+
+            pool.total_prizes_count += 1
+            pool.total_prizes_stars += shop_stars
+
+            stars_option = int(shop_stars * 0.75)
             spin = FortuneSpin(
                 user_id=user.id,
-                prize_type="account" if won else "none",
+                prize_type="account",
                 prize_stars=None,
-                prize_category=pick["cat"] if won else None,
-                prize_stars_equiv=threshold if won else None,
-                prize_label=pick["label"] if won else "Без виграшу",
-                prize_segment=pick["seg"],
-                claim_type="pending" if won else "none",
+                prize_category=actual_cat["cat"],
+                prize_stars_equiv=shop_stars,
+                prize_label=actual_cat["label"],
+                prize_segment=actual_cat["seg"],
+                claim_type="pending",
             )
             s.add(spin)
             await s.flush()
@@ -2904,28 +2915,23 @@ async def api_fortune_spin(user: User = Depends(get_current_user)):
             pool_balance_after = pool.balance_stars
             new_balance = u.balance_stars
 
-    log.info("FORTUNE: user=%s spin=%s won=%s cat=%s pool=%s", user.id, spin_id, won, pick["cat"], pool_balance_after)
+    was_downgraded = (rolled["cat"] != actual_cat["cat"]) and (rolled["threshold"] > 0)
+    log.info(
+        "FORTUNE: user=%s spin=%s rolled=%s actual=%s pool=%s admin=%s",
+        user.id, spin_id, rolled["cat"], actual_cat["cat"], pool_balance_after, admin_profit_this_spin,
+    )
 
-    # Сповіщення адміну про кожен прокрут
+    # Сповіщення адміну
     if _bot and settings.ADMIN_IDS:
         uname_s = f"@{user.username}" if user.username else f"ID:{user.id}"
-        if won:
-            notify_txt = (
-                f"🎡 <b>Фортуна — ВИГРАШ (очікує вибір)!</b>\n\n"
-                f"👤 {uname_s} (<code>{user.id}</code>)\n"
-                f"🏆 Приз: <b>{pick['label']}</b>\n"
-                f"💰 Адм. прибуток: +⭐{FORTUNE_ADMIN_CUT}\n"
-                f"🏦 Залишок пулу: ⭐{pool_balance_after}"
-            )
-        else:
-            notify_txt = (
-                f"🎡 <b>Фортуна — прокрут</b>\n\n"
-                f"👤 {uname_s} (<code>{user.id}</code>)\n"
-                f"🎰 Сегмент: {pick['label']}\n"
-                f"❌ Пул: {pool_balance_after}⭐ / {pick['threshold']}⭐\n\n"
-                f"💰 Адм. прибуток: +⭐{FORTUNE_ADMIN_CUT}\n"
-                f"🏦 Поточний пул: ⭐{pool_balance_after}"
-            )
+        downgrade_note = f"\n⬇️ Випало {rolled['label']}, пулу не вистачало ({pool_balance_after + abs(FORTUNE_SPIN_COST - actual_cat['shop_stars'])}⭐ / {rolled['threshold']}⭐)" if was_downgraded else ""
+        notify_txt = (
+            f"🎲 <b>Кейс — виграш (очікує вибір)</b>\n\n"
+            f"👤 {uname_s} (<code>{user.id}</code>)\n"
+            f"🏆 Приз: <b>{actual_cat['label']}</b>{downgrade_note}\n"
+            f"💰 Адм. прибуток з прокруту: +⭐{admin_profit_this_spin}\n"
+            f"🏦 Пул: ⭐{pool_balance_after}"
+        )
         for aid in settings.ADMIN_IDS:
             try:
                 await _bot.send_message(aid, notify_txt, parse_mode="HTML")
@@ -2934,16 +2940,18 @@ async def api_fortune_spin(user: User = Depends(get_current_user)):
 
     return {
         "spin_id":        spin_id,
-        "won":            won,
-        "prize_cat":      pick["cat"] if won else None,
-        "prize_seg":      pick["seg"],
-        "prize_label":    pick["label"] if won else "Без виграшу",
-        "prize_emoji":    pick["emoji"] if won else "❌",
-        "prize_color":    pick["color"],
+        "won":            True,  # гравець завжди виграє щось
+        "prize_cat":      actual_cat["cat"],
+        "prize_seg":      actual_cat["seg"],
+        "prize_label":    actual_cat["label"],
+        "prize_emoji":    actual_cat["emoji"],
+        "prize_color":    actual_cat["color"],
         "phone":          None,
         "order_id":       None,
         "pool_balance":   pool_balance_after,
-        "pool_threshold": pick["threshold"],
+        "pool_threshold": rolled["threshold"],
+        "was_downgraded": was_downgraded,
+        "rolled_label":   rolled["label"] if was_downgraded else None,
         "new_balance":    new_balance,
         "stars_option":   stars_option,
     }

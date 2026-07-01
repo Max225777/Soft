@@ -30,15 +30,15 @@ const EYE_ICON = (
   </svg>
 )
 
-type CatDef = { cat: string; label: string; emoji: string; color: string; bg: string; prob: number; shopStars: number }
+type CatDef = { cat: string; label: string; emoji: string; color: string; bg: string; prob: number; shopStars: number; poolNeeded: number }
 
 const FORTUNE_CATS_DATA: CatDef[] = [
-  { cat: 'mm', label: '🇲🇲 Мьянма',    emoji: '🎁', color: '#22c55e', bg: 'rgba(34,197,94,.15)',  prob: 25, shopStars: 50  },
-  { cat: 'us', label: '🇺🇸 США',        emoji: '🎁', color: '#3b82f6', bg: 'rgba(59,130,246,.15)', prob: 25, shopStars: 50  },
-  { cat: 'co', label: '🇨🇴 Колумбия',  emoji: '💫', color: '#8b5cf6', bg: 'rgba(139,92,246,.15)', prob: 20, shopStars: 60  },
-  { cat: 'de', label: '🇩🇪 Германия',  emoji: '💎', color: '#f59e0b', bg: 'rgba(245,158,11,.15)', prob: 15, shopStars: 150 },
-  { cat: 'ua', label: '🇺🇦 Украина',   emoji: '🏆', color: '#ef4444', bg: 'rgba(239,68,68,.15)',  prob: 10, shopStars: 250 },
-  { cat: 'kz', label: '🇰🇿 Казахстан', emoji: '🔥', color: '#ec4899', bg: 'rgba(236,72,153,.15)', prob: 5,  shopStars: 250 },
+  { cat: 'mm', label: '🇲🇲 Мьянма',    emoji: '🎁', color: '#22c55e', bg: 'rgba(34,197,94,.15)',  prob: 25, shopStars: 50,  poolNeeded: 0   },
+  { cat: 'us', label: '🇺🇸 США',        emoji: '🎁', color: '#3b82f6', bg: 'rgba(59,130,246,.15)', prob: 25, shopStars: 50,  poolNeeded: 0   },
+  { cat: 'co', label: '🇨🇴 Колумбия',  emoji: '💫', color: '#8b5cf6', bg: 'rgba(139,92,246,.15)', prob: 20, shopStars: 60,  poolNeeded: 0   },
+  { cat: 'de', label: '🇩🇪 Германия',  emoji: '💎', color: '#f59e0b', bg: 'rgba(245,158,11,.15)', prob: 15, shopStars: 150, poolNeeded: 50  },
+  { cat: 'ua', label: '🇺🇦 Украина',   emoji: '🏆', color: '#ef4444', bg: 'rgba(239,68,68,.15)',  prob: 10, shopStars: 250, poolNeeded: 150 },
+  { cat: 'kz', label: '🇰🇿 Казахстан', emoji: '🔥', color: '#ec4899', bg: 'rgba(236,72,153,.15)', prob: 5,  shopStars: 250, poolNeeded: 150 },
 ]
 
 const ITEM_W = 126
@@ -115,8 +115,7 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
         }
         setTimeout(() => {
           setResult(r)
-          setPhase(r.won ? 'choosing' : 'idle')
-          if (!r.won) onBuy?.()
+          setPhase('choosing')  // завжди виграш
         }, 5700)
       }, 60)
     } catch (e) {
@@ -190,7 +189,7 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
               <span style={{ opacity: .6, fontWeight: 400 }}>{c.prob}%</span>
             </div>
             <div style={{ fontSize: 9, opacity: .7, fontWeight: 400 }}>
-              ⭐{c.shopStars} · или {Math.floor(c.shopStars * 0.75)}⭐
+              ⭐{c.shopStars} · {c.poolNeeded === 0 ? 'всегда' : `пул ≥ ${c.poolNeeded}⭐`}
             </div>
           </div>
         ))}
@@ -257,7 +256,7 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
       )}
 
       {/* ── CHOOSING: вибір після виграшу ── */}
-      {phase === 'choosing' && result?.won && (
+      {phase === 'choosing' && result && (
         <div>
           <div style={{
             padding: '12px 14px', borderRadius: 14, marginBottom: 10,
@@ -266,8 +265,13 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
           }}>
             <div style={{ fontSize: 26, marginBottom: 4 }}>{result.prize_emoji}</div>
             <div style={{ fontWeight: 800, color: '#FFD166', fontSize: 15 }}>
-              Выигрыш: {result.prize_label}
+              🎉 Выигрыш: {result.prize_label}
             </div>
+            {result.was_downgraded && (
+              <div style={{ color: 'var(--muted)', fontSize: 10, marginTop: 4 }}>
+                Выпало {result.rolled_label}, но пул ещё не накопился
+              </div>
+            )}
             <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 3 }}>
               Выберите как получить приз
             </div>
