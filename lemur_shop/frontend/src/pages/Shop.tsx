@@ -189,7 +189,7 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
               <span style={{ opacity: .6, fontWeight: 400 }}>{c.prob}%</span>
             </div>
             <div style={{ fontSize: 9, opacity: .7, fontWeight: 400 }}>
-              ⭐{c.shopStars} · {c.poolNeeded === 0 ? 'всегда' : `пул ≥ ${c.poolNeeded}⭐`}
+              ⭐{c.shopStars}
             </div>
           </div>
         ))}
@@ -267,11 +267,6 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
             <div style={{ fontWeight: 800, color: '#FFD166', fontSize: 15 }}>
               🎉 Выигрыш: {result.prize_label}
             </div>
-            {result.was_downgraded && (
-              <div style={{ color: 'var(--muted)', fontSize: 10, marginTop: 4 }}>
-                Выпало {result.rolled_label}, но пул ещё не накопился
-              </div>
-            )}
             <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 3 }}>
               Выберите как получить приз
             </div>
