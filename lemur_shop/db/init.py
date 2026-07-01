@@ -95,7 +95,9 @@ _MIGRATIONS = [
         total_prizes_count INT NOT NULL DEFAULT 0,
         total_prizes_stars INT NOT NULL DEFAULT 0
     )""",
-    "INSERT INTO fortune_pool (id) VALUES (1) ON CONFLICT (id) DO NOTHING",
+    """INSERT INTO fortune_pool
+        (id, balance_stars, total_spins, total_admin_profit_stars, total_prizes_count, total_prizes_stars)
+        VALUES (1, 0, 0, 0, 0, 0) ON CONFLICT (id) DO NOTHING""",
 ]
 
 
