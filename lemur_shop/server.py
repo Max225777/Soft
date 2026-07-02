@@ -2981,8 +2981,12 @@ async def api_fortune_claim(body: FortuneClaim, user: User = Depends(get_current
     if body.choice == "account":
         try:
             from lemur_shop.services.lolz_shop import auto_buy_category as _abc
-            threshold = sp.prize_stars_equiv
-            price_usd = Decimal(str(round(threshold * settings.STAR_DISPLAY_USD, 4)))
+            # Дохід з видачі акаунта = ціна акаунта в шопі + частка адміна з маржі прокрута.
+            # (решта маржі — 80% — лишається в пулі й тут не рахується)
+            _shop_stars = sp.prize_stars_equiv
+            _margin = FORTUNE_SPIN_COST - _shop_stars
+            _admin_cut = int(_margin * FORTUNE_ADMIN_CUT_PCT) if _margin > 0 else 0
+            price_usd = Decimal(str(round((_shop_stars + _admin_cut) * settings.STAR_DISPLAY_USD, 4)))
             phone_val, lolz_item_id, lolz_price = await _abc(sp.prize_category)
             lolz_cost = Decimal(str(round(lolz_price, 6)))
             async with AsyncSessionLocal() as s:
