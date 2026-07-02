@@ -6,7 +6,7 @@ import BioPromoButton from '../components/BioPromoButton'
 
 interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void; onGoToProfile?: () => void; onBuy?: () => void }
 
-type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars' | 'smm' | 'smm_list' | 'smm_reactions' | 'nft'
+type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars' | 'smm' | 'smm_list' | 'smm_reactions' | 'nft' | 'case'
 
 function localPrice(stars: number, usd: number): JSX.Element {
   return (
@@ -75,18 +75,43 @@ function buildReel(winCat: string): CatDef[] {
   return items
 }
 
+function catFlag(c: CatDef) { return c.label.split(' ')[0] }
+function catName(c: CatDef) { return c.label.split(' ').slice(1).join(' ') }
+
+// Флаг страны с бейджем Telegram-мессенджера в углу
+function PrizeIcon({ flag, size = 32 }: { flag: string; size?: number }) {
+  const badge = Math.round(size * 0.54)
+  return (
+    <div style={{ position: 'relative', width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <span style={{ fontSize: Math.round(size * 0.92), lineHeight: 1 }}>{flag}</span>
+      <span style={{
+        position: 'absolute', right: -3, bottom: -3,
+        width: badge, height: badge, borderRadius: '50%',
+        background: 'linear-gradient(135deg, #2AABEE, #1178B8)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#fff', border: '1.5px solid #0D0618', boxShadow: '0 1px 4px rgba(0,0,0,.5)',
+      }}>
+        <svg viewBox="0 0 24 24" fill="currentColor" width={Math.round(badge * 0.66)} height={Math.round(badge * 0.66)}>
+          <path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71l-4.14-3.05-1.99 1.93c-.23.23-.42.42-.83.42z"/>
+        </svg>
+      </span>
+    </div>
+  )
+}
+
 function ReelItem({ cat }: { cat: CatDef }) {
   return (
     <div style={{
       minWidth: ITEM_W, height: 94, borderRadius: 12, flexShrink: 0,
       background: cat.bg, border: `1.5px solid ${cat.color}44`,
       display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', gap: 5,
+      justifyContent: 'center', gap: 7, padding: '4px 6px',
     }}>
-      <div style={{ fontSize: 28 }}>{cat.emoji}</div>
-      <div style={{ fontSize: 9, fontWeight: 700, color: cat.color, textAlign: 'center', lineHeight: 1.3, padding: '0 6px' }}>
-        {cat.label.split(' ').slice(1).join(' ')}
+      <PrizeIcon flag={catFlag(cat)} size={30} />
+      <div style={{ fontSize: 10, fontWeight: 700, color: cat.color, textAlign: 'center', lineHeight: 1.15 }}>
+        {catName(cat)}
       </div>
+      <div style={{ fontSize: 10, fontWeight: 800, color: '#FFD166', lineHeight: 1 }}>⭐{cat.shopStars}</div>
     </div>
   )
 }
@@ -225,7 +250,7 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
                       fontWeight: c.pct > 0 ? 700 : 400,
                       opacity: c.pct > 0 ? 1 : 0.5,
                     }}>
-                      {c.emoji} {c.label.split(' ').slice(1).join(' ')} {c.pct > 0 ? `${c.pct}%` : '0%'}
+                      {catFlag(c)} {catName(c)} {c.pct > 0 ? `${c.pct}%` : '0%'}
                     </div>
                   ))}
                 </div>
@@ -243,7 +268,7 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
               display: 'flex', flexDirection: 'column', gap: 1,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                {c.emoji} {c.label.split(' ').slice(1).join(' ')}
+                {catFlag(c)} {catName(c)}
                 <span style={{ opacity: .65, fontWeight: 500 }}>{c.prob}%</span>
               </div>
               <div style={{ fontSize: 9, opacity: .65 }}>⭐{c.shopStars}</div>
@@ -320,11 +345,16 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
             background: 'rgba(255,200,80,.08)', border: '1px solid rgba(255,200,80,.3)',
             textAlign: 'center',
           }}>
-            <div style={{ fontSize: 26, marginBottom: 4 }}>{result.prize_emoji}</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+              <PrizeIcon flag={winCatDef ? catFlag(winCatDef) : (result.prize_emoji || '🎁')} size={46} />
+            </div>
             <div style={{ fontWeight: 800, color: '#FFD166', fontSize: 15 }}>
               🎉 Выигрыш: {result.prize_label}
             </div>
-            <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 3 }}>
+            <div style={{ color: '#FFD166', fontSize: 12, fontWeight: 700, marginTop: 2 }}>
+              📱 TG аккаунт{winCatDef ? ` · стоимость ⭐${winCatDef.shopStars}` : ''}
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 4 }}>
               Выберите как получить приз
             </div>
           </div>
@@ -417,13 +447,15 @@ function RecentWinsList({ me }: { me: Me | null }) {
       <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 7, textTransform: 'uppercase' }}>
         🏆 Последние победы
       </div>
-      {wins.map((w, i) => (
+      {wins.map((w, i) => {
+        const fm = (w.prize_label || '').match(/^(\p{Regional_Indicator}{2})/u)
+        return (
         <div key={i} style={{
-          display: 'flex', alignItems: 'center', gap: 10,
+          display: 'flex', alignItems: 'center', gap: 12,
           padding: '8px 12px', borderRadius: 11, marginBottom: 5,
           background: 'rgba(255,200,80,.05)', border: '1px solid rgba(255,200,80,.12)',
         }}>
-          <div style={{ fontSize: 20, flexShrink: 0 }}>🎁</div>
+          <div style={{ flexShrink: 0 }}><PrizeIcon flag={fm ? fm[1] : '🎁'} size={26} /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
               {w.prize_label}
@@ -436,7 +468,8 @@ function RecentWinsList({ me }: { me: Me | null }) {
             </div>
           )}
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -729,6 +762,43 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           </button>
         </div>
 
+        {/* Кейс — Случайный TG аккаунт (окреме меню, поки лише адмін) */}
+        {me?.is_admin && (
+          <div style={{
+            background: 'linear-gradient(135deg, #2A1A3D 0%, #1A0F2E 100%)',
+            border: '1px solid rgba(255,200,80,.35)',
+            borderRadius: 20, padding: '18px 16px', marginTop: 10,
+            position: 'relative', overflow: 'hidden',
+            boxShadow: '0 6px 28px rgba(255,180,40,.12)',
+          }}>
+            <div style={{
+              position: 'absolute', top: -20, right: -20, width: 120, height: 120, borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(255,200,80,.14) 0%, transparent 70%)',
+              pointerEvents: 'none',
+            }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+              <div style={{
+                width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+                background: 'linear-gradient(135deg, #FFD166, #FF8C42)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
+                boxShadow: '0 4px 14px rgba(255,180,40,.4)',
+              }}>🎲</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 800, fontSize: 17 }}>Случайный TG аккаунт</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>Открой кейс за ⭐100 — аккаунт или звёзды</div>
+              </div>
+            </div>
+            <button className="btn" onClick={() => setView('case')} style={{
+              width: '100%', padding: '11px',
+              background: 'linear-gradient(135deg, #FFD166, #FF8C42)',
+              color: '#1A0F2E', fontSize: 14, fontWeight: 800,
+              boxShadow: '0 3px 14px rgba(255,180,40,.4)',
+            }}>
+              🎲 Открыть кейс →
+            </button>
+          </div>
+        )}
+
         {/* NFT Usernames card — hidden until feature is ready */}
         <div style={{ display: 'none' }}><div style={{
           background: 'linear-gradient(135deg, #1a0d2e 0%, #130924 100%)',
@@ -770,6 +840,24 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
     )
   }
 
+  // ─── Кейс (окреме меню) ─────────────────────────────────────────────────────
+  if (view === 'case') return (
+    <div className="page">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <button
+          onClick={() => setView('menu')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--orange)', fontSize: 26, lineHeight: 1 }}
+        >‹</button>
+        <h1 style={{ margin: 0 }}>🎲 Кейс</h1>
+      </div>
+
+      <RandomAccountButton me={me} onBuy={onBuy} />
+      <RecentWinsList me={me} />
+
+      <LegalFooter />
+    </div>
+  )
+
   // ─── Список ───────────────────────────────────────────────────────────────
   if (view === 'list') return (
     <>
@@ -788,14 +876,6 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           >‹</button>
           <h1 style={{ margin: 0 }}>{T.tg_accounts}</h1>
         </div>
-
-        {me?.is_admin && (
-          <>
-            <RandomAccountButton me={me} onBuy={onBuy} />
-
-            <RecentWinsList me={me} />
-          </>
-        )}
 
         {/* How-it-works banner */}
         <div style={{
