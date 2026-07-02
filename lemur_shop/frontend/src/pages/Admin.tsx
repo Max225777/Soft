@@ -1521,7 +1521,7 @@ function FortuneAdminTab() {
 
   return (
     <div>
-      <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>🎡 Статистика Колеса</div>
+      <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>🎲 Статистика кейса</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
         {stat('Всього прокрутів', `${data.total_spins}`, `~$${revenue_usd}`)}
         {stat('Прибуток адміна', `⭐${data.total_admin_profit_stars}`, `~$${profit_usd}`)}
@@ -1533,13 +1533,15 @@ function FortuneAdminTab() {
         background: 'rgba(255,107,43,.08)', border: '1px solid rgba(255,107,43,.2)',
         borderRadius: 14, padding: 14,
       }}>
-        <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>💰 Маржа</div>
-        <div style={{ fontSize: 13, color: 'var(--muted)' }}>
-          З кожного прокруту: +25⭐ адмін / +75⭐ у пул
+        <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>💰 Механіка маржі</div>
+        <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>
+          Прокрут: 100⭐. Маржа = 100 − вартість акаунта в шопі.<br />
+          З маржі: 20% → адмін, 80% → пул.<br />
+          Дорогі акаунти (&gt;100⭐) — пул покриває різницю.
         </div>
         {data.total_spins > 0 && (
           <div style={{ fontSize: 13, marginTop: 6 }}>
-            Ефективна маржа: {((data.total_admin_profit_stars / (data.total_spins * 100)) * 100).toFixed(1)}%
+            Ефективний профіт адміна: {((data.total_admin_profit_stars / (data.total_spins * 100)) * 100).toFixed(1)}% від обороту
           </div>
         )}
       </div>
