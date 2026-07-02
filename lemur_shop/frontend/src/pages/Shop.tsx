@@ -699,9 +699,8 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           </div>
         </div>
 
-        {/* ─── Мини-игры (над магазином, поки лише адмін) ─── */}
-        {me?.is_admin && (
-          <>
+        {/* ─── Мини-игры (над магазином, видно всім) ─── */}
+        <>
             <h1 style={{ marginBottom: 14, fontSize: 19 }}>Мини-игры</h1>
             <div style={{
               background: 'linear-gradient(135deg, #2A1A3D 0%, #1A0F2E 100%)',
@@ -736,8 +735,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
                 🎲 Открыть кейс →
               </button>
             </div>
-          </>
-        )}
+        </>
 
         <h1 style={{ marginBottom: 14, fontSize: 19 }}>{T.shop}</h1>
 
