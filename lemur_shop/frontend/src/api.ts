@@ -74,6 +74,7 @@ export interface FortunePrizesInfo {
 export interface FortunePoolInfo {
   balance_stars: number; total_spins: number; total_admin_profit_stars: number
   total_prizes_count: number; total_prizes_stars: number
+  acc_claims?: number; acc_cost_usd?: number; acc_value_stars?: number; stars_claims?: number
 }
 export interface FortuneSpinResult {
   spin_id: number; won: boolean
