@@ -2909,7 +2909,7 @@ async def api_fortune_spin(user: User = Depends(get_current_user)):
             pool_balance_after = pool.balance_stars
             new_balance = u.balance_stars
 
-    stars_option = int(pick["shop_stars"] * 0.75)
+    stars_option = int(pick["shop_stars"] * 0.90)
     log.info("FORTUNE: user=%s spin=%s cat=%s pool=%s admin=%s",
              user.id, spin_id, pick["cat"], pool_balance_after, admin_profit_this_spin)
 
@@ -2972,7 +2972,7 @@ async def api_fortune_claim(body: FortuneClaim, user: User = Depends(get_current
             if body.choice == "stars":
                 _fc = next((c for c in FORTUNE_CATS if c["cat"] == sp.prize_category), None)
                 _shop_stars = _fc["shop_stars"] if _fc else sp.prize_stars_equiv
-                stars_awarded = int(_shop_stars * 0.75)
+                stars_awarded = int(_shop_stars * 0.90)
                 u = await s.get(User, user.id, with_for_update=True)
                 u.balance_stars += stars_awarded
                 sp.claim_type = "stars"
@@ -3044,19 +3044,7 @@ async def api_fortune_claim(body: FortuneClaim, user: User = Depends(get_current
             except Exception:
                 pass
 
-    # Повідомлення гравцю
-    if _bot:
-        try:
-            if body.choice == "account" and phone:
-                txt = f"🎡 <b>Поздравляем с выигрышем!</b>\n\n📱 Номер: <code>{phone}</code>\n🆔 Заказ: #{order_id}"
-            elif body.choice == "stars":
-                txt = f"⭐ <b>Выигрыш зачислен!</b>\n\n+{stars_awarded}⭐ на баланс\n🏆 Приз: {sp.prize_label}"
-            else:
-                txt = None
-            if txt:
-                await _bot.send_message(user.id, txt, parse_mode="HTML")
-        except Exception:
-            pass
+    # Гравцю в ЛС нічого не надсилаємо — результат показується у міні-аппі
 
     return {
         "ok":           True,
@@ -3075,13 +3063,33 @@ async def api_admin_fortune(user: User = Depends(get_current_user)):
         pool = await s.get(FortunePool, 1)
         if not pool:
             return {"balance_stars": 0, "total_spins": 0, "total_admin_profit_stars": 0,
-                    "total_prizes_count": 0, "total_prizes_stars": 0}
+                    "total_prizes_count": 0, "total_prizes_stars": 0,
+                    "acc_claims": 0, "acc_cost_usd": 0.0, "acc_value_stars": 0, "stars_claims": 0}
+
+        # Дохід з ТГ-акаунтів, виданих через кейс (claim = account)
+        acc_count, acc_cost, acc_value = (await s.execute(
+            select(
+                func.count(FortuneSpin.id),
+                func.coalesce(func.sum(Order.cost_usd), 0),
+                func.coalesce(func.sum(FortuneSpin.prize_stars_equiv), 0),
+            )
+            .join(Order, Order.id == FortuneSpin.order_id)
+            .where(FortuneSpin.claim_type == "account")
+        )).one()
+        stars_claims = (await s.execute(
+            select(func.count(FortuneSpin.id)).where(FortuneSpin.claim_type == "stars")
+        )).scalar() or 0
+
         return {
             "balance_stars": pool.balance_stars,
             "total_spins": pool.total_spins,
             "total_admin_profit_stars": pool.total_admin_profit_stars,
             "total_prizes_count": pool.total_prizes_count,
             "total_prizes_stars": pool.total_prizes_stars,
+            "acc_claims": int(acc_count or 0),
+            "acc_cost_usd": float(acc_cost or 0),
+            "acc_value_stars": int(acc_value or 0),
+            "stars_claims": int(stars_claims),
         }
 
 

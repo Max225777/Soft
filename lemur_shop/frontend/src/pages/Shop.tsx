@@ -116,7 +116,7 @@ function ReelItem({ cat }: { cat: CatDef }) {
   )
 }
 
-function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void }) {
+function RandomAccountButton({ me, onBuy, onAccountWon }: { me: Me | null; onBuy?: () => void; onAccountWon?: (r: BuyResult) => void }) {
   const [phase, setPhase] = useState<'idle' | 'spinning' | 'choosing' | 'claiming' | 'claimed'>('idle')
   const [reel, setReel] = useState<CatDef[]>(() =>
     Array.from({ length: REEL_LEN }, (_, i) => FORTUNE_CATS_DATA[i % FORTUNE_CATS_DATA.length])
@@ -177,9 +177,14 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
     setErr(null)
     try {
       const r = await fortuneApi.claim(result.spin_id, choice)
+      onBuy?.()
+      // Аккаунт — показываем полноэкранный экран успеха как при обычной покупке
+      if (choice === 'account' && r.order_id && r.phone) {
+        onAccountWon?.({ order_id: r.order_id, phone: r.phone, created_at: new Date().toISOString() })
+        return
+      }
       setClaimed(r)
       setPhase('claimed')
-      onBuy?.()
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Ошибка получения приза')
       setPhase('choosing')
@@ -376,7 +381,7 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
               border: '1.5px solid rgba(255,200,80,.4)',
               borderRadius: 14, cursor: 'pointer', lineHeight: 1.4,
             }}>
-              ⭐ Получить<br />{result.stars_option}⭐ (−25%)
+              ⭐ Получить<br />{result.stars_option}⭐ (−10%)
             </button>
           </div>
         </div>
@@ -853,7 +858,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
         <h1 style={{ margin: 0 }}>🎲 Кейс</h1>
       </div>
 
-      <RandomAccountButton me={me} onBuy={onBuy} />
+      <RandomAccountButton me={me} onBuy={onBuy} onAccountWon={(r) => { setResult(r); setCode(''); setView('success') }} />
       <RecentWinsList me={me} />
 
       <LegalFooter />

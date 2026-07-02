@@ -1545,6 +1545,45 @@ function FortuneAdminTab() {
           </div>
         )}
       </div>
+
+      {/* Дохід з ТГ-акаунтів, виданих через кейс */}
+      {(() => {
+        const accClaims = data.acc_claims ?? 0
+        const accCost = data.acc_cost_usd ?? 0
+        const starsClaims = data.stars_claims ?? 0
+        const accRevenue = accClaims * 100 * 0.013  // прокрути, що завершились акаунтом
+        const accNet = accRevenue - accCost
+        return (
+          <div style={{
+            background: 'rgba(42,171,238,.08)', border: '1px solid rgba(42,171,238,.25)',
+            borderRadius: 14, padding: 14, marginTop: 12,
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>📱 Дохід з ТГ-акаунтів (через кейс)</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, fontSize: 13 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--muted)' }}>Видано акаунтів</span>
+                <span style={{ fontWeight: 700 }}>{accClaims}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--muted)' }}>Виручка (прокрути→акк)</span>
+                <span style={{ fontWeight: 700 }}>${accRevenue.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--muted)' }}>Собівартість (Lolz)</span>
+                <span style={{ fontWeight: 700 }}>${accCost.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 5, marginTop: 2 }}>
+                <span style={{ fontWeight: 700 }}>Чистий дохід</span>
+                <span style={{ fontWeight: 900, color: accNet >= 0 ? '#22c55e' : '#ef4444' }}>${accNet.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+                <span>Вибрали зірки замість акк</span>
+                <span>{starsClaims}</span>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
