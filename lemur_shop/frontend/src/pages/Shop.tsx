@@ -699,6 +699,46 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           </div>
         </div>
 
+        {/* ─── Мини-игры (над магазином, поки лише адмін) ─── */}
+        {me?.is_admin && (
+          <>
+            <h1 style={{ marginBottom: 14, fontSize: 19 }}>Мини-игры</h1>
+            <div style={{
+              background: 'linear-gradient(135deg, #2A1A3D 0%, #1A0F2E 100%)',
+              border: '1px solid rgba(255,200,80,.35)',
+              borderRadius: 20, padding: '18px 16px', marginBottom: 18,
+              position: 'relative', overflow: 'hidden',
+              boxShadow: '0 6px 28px rgba(255,180,40,.12)',
+            }}>
+              <div style={{
+                position: 'absolute', top: -20, right: -20, width: 120, height: 120, borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(255,200,80,.14) 0%, transparent 70%)',
+                pointerEvents: 'none',
+              }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+                <div style={{
+                  width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+                  background: 'linear-gradient(135deg, #FFD166, #FF8C42)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
+                  boxShadow: '0 4px 14px rgba(255,180,40,.4)',
+                }}>🎲</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 800, fontSize: 17 }}>Случайный TG аккаунт</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>Открой кейс за ⭐100 — аккаунт или звёзды</div>
+                </div>
+              </div>
+              <button className="btn" onClick={() => setView('case')} style={{
+                width: '100%', padding: '11px',
+                background: 'linear-gradient(135deg, #FFD166, #FF8C42)',
+                color: '#1A0F2E', fontSize: 14, fontWeight: 800,
+                boxShadow: '0 3px 14px rgba(255,180,40,.4)',
+              }}>
+                🎲 Открыть кейс →
+              </button>
+            </div>
+          </>
+        )}
+
         <h1 style={{ marginBottom: 14, fontSize: 19 }}>{T.shop}</h1>
 
         {/* TG Accounts card */}
@@ -762,42 +802,6 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           </button>
         </div>
 
-        {/* Кейс — Случайный TG аккаунт (окреме меню, поки лише адмін) */}
-        {me?.is_admin && (
-          <div style={{
-            background: 'linear-gradient(135deg, #2A1A3D 0%, #1A0F2E 100%)',
-            border: '1px solid rgba(255,200,80,.35)',
-            borderRadius: 20, padding: '18px 16px', marginTop: 10,
-            position: 'relative', overflow: 'hidden',
-            boxShadow: '0 6px 28px rgba(255,180,40,.12)',
-          }}>
-            <div style={{
-              position: 'absolute', top: -20, right: -20, width: 120, height: 120, borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(255,200,80,.14) 0%, transparent 70%)',
-              pointerEvents: 'none',
-            }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-              <div style={{
-                width: 52, height: 52, borderRadius: 16, flexShrink: 0,
-                background: 'linear-gradient(135deg, #FFD166, #FF8C42)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
-                boxShadow: '0 4px 14px rgba(255,180,40,.4)',
-              }}>🎲</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 800, fontSize: 17 }}>Случайный TG аккаунт</div>
-                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>Открой кейс за ⭐100 — аккаунт или звёзды</div>
-              </div>
-            </div>
-            <button className="btn" onClick={() => setView('case')} style={{
-              width: '100%', padding: '11px',
-              background: 'linear-gradient(135deg, #FFD166, #FF8C42)',
-              color: '#1A0F2E', fontSize: 14, fontWeight: 800,
-              boxShadow: '0 3px 14px rgba(255,180,40,.4)',
-            }}>
-              🎲 Открыть кейс →
-            </button>
-          </div>
-        )}
 
         {/* NFT Usernames card — hidden until feature is ready */}
         <div style={{ display: 'none' }}><div style={{
