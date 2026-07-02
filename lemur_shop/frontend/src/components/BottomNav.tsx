@@ -12,9 +12,9 @@ interface Props {
 
 const shopIcon = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="28" height="28">
-    <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
-    <line x1="3" y1="6" x2="21" y2="6"/>
-    <path d="M16 10a4 4 0 01-8 0"/>
+    <path d="M3 10.5L12 3l9 7.5"/>
+    <path d="M5 9.5V21h14V9.5"/>
+    <path d="M9 21v-6h6v6"/>
   </svg>
 )
 
@@ -60,7 +60,7 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
   const T = getT(lang)
 
   const labels: Record<Tab, string> = {
-    shop:     'Магазин',
+    shop:     lang === 'ru' ? 'Главная' : lang === 'ua' ? 'Головна' : 'Home',
     profile:  lang === 'ru' ? 'Профиль' : lang === 'ua' ? 'Профіль' : 'Profile',
     orders:   lang === 'ru' ? 'Заказы' : lang === 'ua' ? 'Замовлення' : 'Orders',
     balance:  lang === 'ru' ? 'Баланс' : lang === 'ua' ? 'Баланс' : 'Balance',
