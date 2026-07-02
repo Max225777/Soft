@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 from datetime import datetime, timezone, timedelta
 import hmac
@@ -1141,6 +1142,140 @@ async def crypto_notify(request: Request):
                 user_id,
                 f"✅ Баланс поповнено!\n\n"
                 f"💰 +${float(amount_usd):.2f} USDT = ⭐+{stars_credited}\n"
+                f"💫 Новий баланс: <b>⭐{user.balance_stars}</b>",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
+
+    return Response(content="ok")
+
+
+# ─── Heleket (crypto, ex-Cryptomus) ─────────────────────────────────────────────
+
+HELEKET_API = "https://api.heleket.com/v1"
+
+
+def _heleket_sign(body_str: str) -> str:
+    """md5( base64(json_body) + API_KEY ) — підпис як у Cryptomus/Heleket."""
+    raw = base64.b64encode(body_str.encode()).decode() + settings.HELEKET_API_KEY
+    return hashlib.md5(raw.encode()).hexdigest()
+
+
+async def _heleket(method: str, payload: dict) -> dict:
+    body_str = json.dumps(payload, separators=(",", ":"))
+    headers = {
+        "merchant": settings.HELEKET_MERCHANT_ID,
+        "sign": _heleket_sign(body_str),
+        "Content-Type": "application/json",
+    }
+    async with httpx.AsyncClient(timeout=20) as c:
+        r = await c.post(f"{HELEKET_API}/{method}", content=body_str, headers=headers)
+    data = r.json()
+    if data.get("state") != 0:
+        log.warning("Heleket API error: %s", data)
+        raise HTTPException(status_code=502, detail="Heleket error")
+    return data["result"]
+
+
+class HeleketCreateRequest(BaseModel):
+    amount_usd: float
+
+
+@app.post("/api/heleket/create")
+async def api_heleket_create(body: HeleketCreateRequest, user: User = Depends(get_current_user)):
+    if not settings.HELEKET_MERCHANT_ID or not settings.HELEKET_API_KEY:
+        raise HTTPException(status_code=503, detail="Heleket not configured")
+    amount = round(body.amount_usd, 2)
+    if amount < 0.1 or amount > 1000:
+        raise HTTPException(status_code=400, detail="Invalid amount")
+
+    # order_id несе user_id + суму (в центах) + нонс; парситься у вебхуку
+    order_id = f"topup_{user.id}_{int(round(amount * 100))}_{_uuid.uuid4().hex[:10]}"
+    callback = f"{settings.WEBAPP_URL.rstrip('/')}/api/heleket/notify"
+    result = await _heleket("payment", {
+        "amount": f"{amount:.2f}",
+        "currency": "USD",
+        "order_id": order_id,
+        "url_callback": callback,
+        "lifetime": 3600,
+    })
+    return {"url": result["url"], "uuid": result.get("uuid", "")}
+
+
+@app.post("/api/heleket/notify")
+async def heleket_notify(request: Request):
+    raw = await request.body()
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return Response(status_code=400)
+
+    recv_sign = data.get("sign", "")
+    check = {k: v for k, v in data.items() if k != "sign"}
+    body_str = json.dumps(check, separators=(",", ":")).replace("/", "\\/")
+    expected = _heleket_sign(body_str)
+    if not hmac.compare_digest(expected, recv_sign):
+        log.warning("Heleket bad signature")
+        return Response(status_code=400)
+
+    status = data.get("status", "")
+    if status not in ("paid", "paid_over"):
+        return Response(content="ok")
+
+    order_id = str(data.get("order_id", ""))
+    htk_uuid = str(data.get("uuid", ""))
+    try:
+        _, user_id_str, cents_str, _nonce = order_id.split("_", 3)
+        user_id = int(user_id_str)
+        amount_usd = Decimal(cents_str) / Decimal(100)
+    except Exception as e:
+        log.error("Heleket bad order_id %r: %s", order_id, e)
+        return Response(content="ok")
+
+    stars_credited = 0
+    try:
+        async with AsyncSessionLocal() as s:
+            async with s.begin():
+                user = await s.get(User, user_id, with_for_update=True)
+                if not user:
+                    log.error("Heleket payment for unknown user=%s", user_id)
+                    return Response(content="ok")
+                stars_credited = round(float(amount_usd) / settings.STAR_DISPLAY_USD)
+                bal_before = user.balance_stars
+                user.balance_usd = user.balance_usd + amount_usd
+                user.balance_stars = user.balance_stars + stars_credited
+                s.add(TopUp(
+                    user_id=user_id, amount_usd=amount_usd,
+                    amount_stars=stars_credited, admin_id=-1,
+                    method="crypto",
+                    charge_id=f"heleket:{htk_uuid}",
+                ))
+                log.info("Heleket paid: uuid=%s user=%s amount=%s stars=%s balance %s→%s",
+                         htk_uuid, user_id, amount_usd, stars_credited, bal_before, user.balance_stars)
+    except IntegrityError:
+        log.warning("Heleket DUPLICATE uuid=%s user=%s — skip", htk_uuid, user_id)
+        return Response(content="ok")
+
+    if _bot:
+        if settings.ADMIN_IDS:
+            uname = f"@{user.username}" if user.username else f"ID:{user_id}"
+            txt = (
+                f"💎 <b>Поповнення через Heleket!</b>\n\n"
+                f"👤 {uname} (<code>{user_id}</code>)\n"
+                f"💰 Зараховано: <b>${float(amount_usd):.2f} = ⭐{stars_credited}</b>\n"
+                f"💫 Баланс: <b>⭐{user.balance_stars}</b>"
+            )
+            for admin_id in settings.ADMIN_IDS:
+                try:
+                    await _bot.send_message(admin_id, txt, parse_mode="HTML")
+                except Exception:
+                    pass
+        try:
+            await _bot.send_message(
+                user_id,
+                f"✅ Баланс поповнено!\n\n"
+                f"💰 +${float(amount_usd):.2f} = ⭐+{stars_credited}\n"
                 f"💫 Новий баланс: <b>⭐{user.balance_stars}</b>",
                 parse_mode="HTML"
             )
