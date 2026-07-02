@@ -217,7 +217,7 @@ function RandomAccountButton({ me, onBuy }: { me: Me | null; onBuy?: () => void 
           boxShadow: '0 4px 12px rgba(255,180,40,.45)',
         }}>🎲</div>
         <div>
-          <div style={{ fontWeight: 800, fontSize: 15, color: '#FFD166' }}>Кейсы</div>
+          <div style={{ fontWeight: 800, fontSize: 15, color: '#FFD166' }}>Случайный TG аккаунт</div>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>Стоимость прокрутки: ⭐100</div>
         </div>
       </div>
@@ -723,7 +723,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
                   boxShadow: '0 4px 14px rgba(255,180,40,.4)',
                 }}>🎲</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 800, fontSize: 17 }}>Кейсы</div>
+                  <div style={{ fontWeight: 800, fontSize: 17 }}>Случайный TG аккаунт</div>
                   <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>Открой кейс за ⭐100 — аккаунт или звёзды</div>
                 </div>
               </div>
