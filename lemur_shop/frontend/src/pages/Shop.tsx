@@ -789,9 +789,13 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           <h1 style={{ margin: 0 }}>{T.tg_accounts}</h1>
         </div>
 
-        <RandomAccountButton me={me} onBuy={onBuy} />
+        {me?.is_admin && (
+          <>
+            <RandomAccountButton me={me} onBuy={onBuy} />
 
-        <RecentWinsList me={me} />
+            <RecentWinsList me={me} />
+          </>
+        )}
 
         {/* How-it-works banner */}
         <div style={{
