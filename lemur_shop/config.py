@@ -32,6 +32,11 @@ class Settings(BaseSettings):
 
     CRYPTOBOT_TOKEN: str = ""
 
+    # Heleket (крипто-платіжка, ex-Cryptomus). Обидва значення — з розділу API
+    # твого проєкту в дешборді Heleket.
+    HELEKET_MERCHANT_ID: str = ""
+    HELEKET_API_KEY: str = ""
+
     SMMWAY_API_KEY: str = ""
     PREVIEW_MODE: bool = False
 

@@ -50,7 +50,7 @@ function ExpandPanel({ children }: { children: React.ReactNode }) {
 
 export default function Balance({ me, lang, balanceDiff }: Props) {
   const T = getT(lang)
-  const [open, setOpen] = useState<'crypto' | 'stars' | null>(null)
+  const [open, setOpen] = useState<'crypto' | 'heleket' | 'stars' | null>(null)
   const [promoCode, setPromoCode] = useState('')
   const [promoLoading, setPromoLoading] = useState(false)
   const [promoResult, setPromoResult] = useState<{ ok: boolean; stars?: number; error?: string } | null>(null)
@@ -61,6 +61,10 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
   const [cryptoLoading, setCryptoLoading] = useState(false)
   const [starsLoading, setStarsLoading] = useState(false)
   const [cryptoError, setCryptoError] = useState<string | null>(null)
+  const [heleketAmount, setHeleketAmount] = useState(0)
+  const [customUsdH, setCustomUsdH] = useState('')
+  const [heleketLoading, setHeleketLoading] = useState(false)
+  const [heleketError, setHeleketError] = useState<string | null>(null)
   const [starsError, setStarsError] = useState<string | null>(null)
   const [topupSuccess, setTopupSuccess] = useState<number | null>(null)
 
@@ -81,6 +85,17 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
       else window.open(url, '_blank')
     } catch (e: any) { setCryptoError(e.message ?? 'Error') }
     finally { setCryptoLoading(false) }
+  }
+
+  async function payHeleket(amount: number) {
+    if (amount < 0.1) return
+    setHeleketLoading(true); setHeleketError(null)
+    try {
+      const { url } = await api.heleketCreate(amount)
+      if (window.Telegram?.WebApp) window.Telegram.WebApp.openLink(url)
+      else window.open(url, '_blank')
+    } catch (e: any) { setHeleketError(e.message ?? 'Error') }
+    finally { setHeleketLoading(false) }
   }
 
   async function payStars(count: number) {
@@ -132,6 +147,10 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
   function toggleCrypto() {
     if (open === 'crypto') { setOpen(null); return }
     setCryptoError(null); setCryptoAmount(0); setCustomUsd(''); setOpen('crypto')
+  }
+  function toggleHeleket() {
+    if (open === 'heleket') { setOpen(null); return }
+    setHeleketError(null); setHeleketAmount(0); setCustomUsdH(''); setOpen('heleket')
   }
   function toggleStars() {
     if (open === 'stars') { setOpen(null); return }
@@ -273,6 +292,66 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
               style={{ background: 'linear-gradient(135deg, #26A17B, #1a7a5e)' }}>
               {cryptoLoading ? '⏳...' : cryptoAmount >= 0.1
                 ? `${payLabel} $${cryptoAmount.toFixed(2)} → ⭐${Math.round(cryptoAmount / 0.013)}`
+                : payLabel}
+            </button>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{afterLabel}</div>
+          </ExpandPanel>
+        )}
+      </div>
+
+      {/* Heleket card */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(99,102,241,.08), rgba(99,102,241,.03))',
+        border: '1px solid rgba(99,102,241,.22)',
+        borderRadius: 14, marginBottom: 8, overflow: 'hidden',
+      }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer' }}
+          onClick={toggleHeleket}
+        >
+          <div style={{
+            width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+            background: 'rgba(99,102,241,.15)', border: '1px solid rgba(99,102,241,.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+          }}>🪙</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#818cf8' }}>Heleket</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+              {lang === 'ru' ? 'Криптовалюта' : lang === 'ua' ? 'Криптовалюта' : 'Cryptocurrency'} · USDT · BTC · TON
+            </div>
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: 18, transition: 'transform .2s', transform: open === 'heleket' ? 'rotate(90deg)' : '' }}>›</div>
+        </div>
+
+        {open === 'heleket' && (
+          <ExpandPanel>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
+              {PRESETS_USD.map(p => (
+                <button key={p} onClick={() => { setHeleketAmount(p); setCustomUsdH('') }}
+                  style={{ ...presetBtn(heleketAmount === p && !customUsdH), lineHeight: 1.3 }}>
+                  <div>${p}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7 }}>⭐{Math.round(p / 0.013)}</div>
+                </button>
+              ))}
+            </div>
+            <input
+              type="number" min="0.1" step="0.1"
+              placeholder={lang === 'ua' ? 'Сума від $0.10' : lang === 'ru' ? 'Сумма от $0.10' : 'Amount from $0.10'}
+              value={customUsdH}
+              onChange={e => { setCustomUsdH(e.target.value); setHeleketAmount(parseFloat(e.target.value) || 0) }}
+              style={{ ...inputStyle, marginBottom: heleketAmount > 0 ? 6 : 10 }}
+            />
+            {heleketAmount > 0 && (
+              <div style={{ fontSize: 13, color: '#818cf8', fontWeight: 600, marginBottom: 10, textAlign: 'center' }}>
+                ${heleketAmount.toFixed(2)} = <b>⭐{Math.round(heleketAmount / 0.013)}</b>
+              </div>
+            )}
+            {heleketError && <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--red)' }}>{heleketError}</div>}
+            <button className="btn btn-primary" disabled={heleketAmount < 0.1 || heleketLoading}
+              onClick={() => payHeleket(heleketAmount)}
+              style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}>
+              {heleketLoading ? '⏳...' : heleketAmount >= 0.1
+                ? `${payLabel} $${heleketAmount.toFixed(2)} → ⭐${Math.round(heleketAmount / 0.013)}`
                 : payLabel}
             </button>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{afterLabel}</div>
