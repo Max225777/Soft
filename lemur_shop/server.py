@@ -387,6 +387,17 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def _asset_cache_headers(request: Request, call_next):
+    """Хешовані ассети (/assets/index-XXXX.js) незмінні — кешуємо надовго,
+    щоб не перекачувати бандл при кожному відкритті (важливо для слабкого
+    з'єднання). index.html лишається no-cache (див. spa_fallback)."""
+    response = await call_next(request)
+    if request.url.path.startswith("/assets/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
+
 # ─── Static files ─────────────────────────────────────────────────────────────
 
 if os.path.exists(os.path.join(STATIC_DIR, "assets")):
