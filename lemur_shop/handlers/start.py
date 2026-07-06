@@ -13,7 +13,7 @@ from aiogram.types import (
 from lemur_shop.config import settings
 from lemur_shop.db.models import User
 from lemur_shop.db.session import AsyncSessionLocal
-from lemur_shop.services.referral import get_referrer_by_code
+from lemur_shop.services.referral import resolve_referral
 
 _REF_JOINED_MSG = {
     "ru": "👤 <b>Ваш реферал зашёл в бот!</b>",
@@ -77,13 +77,14 @@ async def cmd_start(message: Message) -> None:
             async with s.begin():
                 user = await s.get(User, message.from_user.id)
                 if user is None:
-                    referrer = await get_referrer_by_code(s, ref_code) if ref_code else None
+                    referrer, link_id = await resolve_referral(s, ref_code) if ref_code else (None, None)
                     user = User(
                         id=message.from_user.id,
                         username=message.from_user.username,
                         full_name=message.from_user.full_name or "",
                         referral_code=await _make_code(s),
                         referred_by_id=referrer.id if referrer else None,
+                        partner_link_id=link_id,
                     )
                     s.add(user)
                     lang = "ru"

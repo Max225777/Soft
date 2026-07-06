@@ -6,6 +6,7 @@ import Profile from './pages/Profile'
 import Balance from './pages/Balance'
 import Admin from './pages/Admin'
 import Referral from './pages/Referral'
+import Partner from './pages/Partner'
 import Orders from './pages/Orders'
 import type { Lang } from './i18n'
 
@@ -84,9 +85,10 @@ export default function App() {
         {tab === 'orders'   && <Orders   key="orders"   lang={lang} />}
         {tab === 'balance'  && <Balance  key="balance"  me={me} lang={lang} balanceDiff={balanceDiff} />}
         {tab === 'referral' && <Referral key="referral" lang={lang} botUsername={me?.bot_username ?? ''} />}
+        {tab === 'partner'  && <Partner  key="partner"  lang={lang} me={me} />}
         {tab === 'admin'    && <Admin    key="admin" />}
       </div>
-      <BottomNav active={tab} onChange={setTab} lang={lang} isAdmin={me?.is_admin} />
+      <BottomNav active={tab} onChange={setTab} lang={lang} isAdmin={me?.is_admin} isPartner={me?.is_partner} />
     </>
   )
 }

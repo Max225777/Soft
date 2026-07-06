@@ -1,13 +1,14 @@
 import type { Lang } from '../i18n'
 import { getT } from '../i18n'
 
-export type Tab = 'shop' | 'profile' | 'orders' | 'balance' | 'referral' | 'admin'
+export type Tab = 'shop' | 'profile' | 'orders' | 'balance' | 'referral' | 'admin' | 'partner'
 
 interface Props {
   active: Tab
   onChange(t: Tab): void
   lang: Lang
   isAdmin?: boolean
+  isPartner?: boolean
 }
 
 const shopIcon = (
@@ -54,9 +55,14 @@ const icons: Record<Exclude<Tab, 'shop'>, JSX.Element> = {
       <path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>
     </svg>
   ),
+  partner: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M20.42 4.58a5.4 5.4 0 00-7.65 0L12 5.35l-.77-.77a5.4 5.4 0 00-7.65 7.65l.77.77L12 20.66l7.65-7.66.77-.77a5.4 5.4 0 000-7.65z"/>
+    </svg>
+  ),
 }
 
-export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
+export default function BottomNav({ active, onChange, lang, isAdmin, isPartner }: Props) {
   const T = getT(lang)
 
   const labels: Record<Tab, string> = {
@@ -66,10 +72,15 @@ export default function BottomNav({ active, onChange, lang, isAdmin }: Props) {
     balance:  lang === 'ru' ? 'Баланс' : lang === 'ua' ? 'Баланс' : 'Balance',
     referral: lang === 'ru' ? 'Рефералы' : lang === 'ua' ? 'Реферали' : 'Referrals',
     admin:    'Адмін',
+    partner:  lang === 'ru' ? 'Партнёрка' : lang === 'ua' ? 'Партнёрка' : 'Partner',
   }
 
   const leftTabs: Tab[] = ['profile', 'orders']
-  const rightTabs: Tab[] = isAdmin ? ['balance', 'admin'] : ['balance', 'referral']
+  const rightTabs: Tab[] = isAdmin
+    ? ['balance', 'admin']
+    : isPartner
+      ? ['balance', 'partner']
+      : ['balance', 'referral']
 
   return (
     <nav className="nav" style={{ overflow: 'visible', alignItems: 'stretch', gap: 0 }}>

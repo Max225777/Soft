@@ -28,7 +28,7 @@ from sqlalchemy.exc import IntegrityError
 from lemur_shop.api.lolz import LolzApiError
 from lemur_shop.config import settings
 from lemur_shop.db.init import create_tables
-from lemur_shop.db.models import BioPromo, FortuneSpin, FortunePool, NftRental, NftUsername, Order, PromoCode, PromoActivation, ReferralPayout, TopUp, User
+from lemur_shop.db.models import BioPromo, FortuneSpin, FortunePool, NftRental, NftUsername, Order, PartnerEarning, PartnerLink, PartnerPayout, PromoCode, PromoActivation, ReferralPayout, TopUp, User
 from lemur_shop.db.session import AsyncSessionLocal
 from decimal import Decimal
 
@@ -491,6 +491,7 @@ async def api_me(user: User = Depends(get_current_user)):
         "rate_rub":      rub,
         "orders_count":  orders_count,
         "is_admin":      user.id in settings.ADMIN_IDS,
+        "is_partner":    bool(user.is_partner),
         "preview_mode":  settings.PREVIEW_MODE,
         "bot_username":  _BOT_USERNAME or "",
     }
@@ -614,25 +615,32 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
             log.info("BUY: user=%s category=%s item=#%s price=⭐%s balance %s→%s",
                      user.id, body.category, lolz_item_id, shop_price_stars, bal_before, u.balance_stars)
 
-    # Реферальна виплата — 25⭐ рефереру за ПЕРШУ покупку рефералу (одноразово)
-    await credit_referral_bonus(user, order_id, body.category)
+    # Партнёр (пріоритет) або звичайний 25⭐ реф-бонус
+    partner_cut = await credit_partner_or_referral(user, order_id, shop_price_usd, lolz_cost, body.category)
 
     # Нотифікація адміну
     if _bot and settings.ADMIN_IDS:
         from lemur_shop.services.lolz_shop import CATEGORIES as _CATS
         cat_info = _CATS.get(body.category, {})
         profit = shop_price_usd - lolz_cost
+        net_after_partner = profit - partner_cut
         uname = f"@{user.username}" if user.username else f"ID:{user.id}"
         flag = cat_info.get("flag", "")
         title = cat_info.get("title", body.category.upper())
         stars_usd_val = shop_price_stars * settings.STAR_DISPLAY_USD
+        partner_line = (
+            f"🤝 Партнёру: <b>-${float(partner_cut):.2f}</b>\n"
+            f"💰 Чистий (після партнёра): <b>${float(net_after_partner):.2f}</b>\n\n"
+            if partner_cut > 0 else ""
+        )
         txt = (
             f"🛒 <b>Нова покупка!</b>\n\n"
             f"👤 {uname} (<code>{user.id}</code>)\n"
             f"📦 {flag} {title}\n"
             f"💫 Ціна: <b>⭐{shop_price_stars}</b> (~${stars_usd_val:.2f})\n"
             f"💸 Витрати: ${float(lolz_cost):.2f}\n"
-            f"💰 Прибуток: <b>${float(profit):.2f}</b>\n\n"
+            f"💰 Прибуток: <b>${float(profit):.2f}</b>\n"
+            f"{partner_line}"
             f"📱 Номер: <code>{phone}</code>\n"
             f"🆔 ID: <code>{lolz_item_id}</code>"
         )
@@ -875,6 +883,68 @@ async def api_admin_promo_toggle(promo_id: int, admin: User = Depends(require_ad
 
 REFERRAL_BONUS_STARS = 25  # зірок за кожну покупку рефералу
 
+# Партнёрська програма: % з ЧИСТОГО прибутку (ціна − собівартість) покупки TG-акка
+PARTNER_FIRST_PCT = 0.50   # з першої покупки реферала
+PARTNER_NEXT_PCT = 0.10    # з усіх наступних
+
+
+async def credit_partner_or_referral(
+    user: User, order_id: int, price_usd, cost_usd, category_label: str
+) -> Decimal:
+    """Якщо реферер — партнёр: нараховуємо % з чистого прибутку на його
+    партнёрський баланс (50% з першої покупки TG-акка реферала, 10% з наступних)
+    і повертаємо суму комісії. Інакше — звичайний 25⭐ реф-бонус, повертаємо 0.
+    Викликається лише з покупки TG-акаунтів (накрутка партнёрку не годує)."""
+    if not user.referred_by_id:
+        return Decimal("0")
+    async with AsyncSessionLocal() as s:
+        referrer = await s.get(User, user.referred_by_id)
+    is_partner = bool(referrer and referrer.is_partner and not referrer.is_banned)
+    if not is_partner:
+        await credit_referral_bonus(user, order_id, category_label)
+        return Decimal("0")
+
+    net = Decimal(str(price_usd)) - Decimal(str(cost_usd))
+    if net < 0:
+        net = Decimal("0")
+    commission = Decimal("0")
+    try:
+        async with AsyncSessionLocal() as s:
+            async with s.begin():
+                if await s.scalar(select(func.count()).where(PartnerEarning.order_id == order_id)):
+                    return Decimal("0")
+                prev = await s.scalar(select(func.count()).where(
+                    PartnerEarning.partner_id == user.referred_by_id,
+                    PartnerEarning.referred_id == user.id,
+                ))
+                is_first = (prev == 0)
+                rate = Decimal(str(PARTNER_FIRST_PCT if is_first else PARTNER_NEXT_PCT))
+                commission = (net * rate).quantize(Decimal("0.0001"))
+                partner = await s.get(User, user.referred_by_id, with_for_update=True)
+                partner.partner_balance_usd = (partner.partner_balance_usd or Decimal("0")) + commission
+                s.add(PartnerEarning(
+                    partner_id=partner.id, link_id=user.partner_link_id,
+                    referred_id=user.id, order_id=order_id,
+                    amount_usd=commission, net_usd=net, is_first=is_first,
+                ))
+                log.info("PARTNER EARN: partner=%s referred=%s order=%s +$%s (first=%s)",
+                         partner.id, user.id, order_id, commission, is_first)
+    except IntegrityError:
+        return Decimal("0")
+
+    if _bot and commission > 0:
+        try:
+            await _bot.send_message(
+                user.referred_by_id,
+                f"🤝 <b>Партнёрская комиссия!</b>\n\n"
+                f"💰 +${float(commission):.2f} на партнёрский баланс\n"
+                f"🛍 Покупка вашего реферала",
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+    return commission
+
 
 async def credit_referral_bonus(user: User, order_id: int, category_label: str) -> None:
     """Реферальна виплата — 25⭐ рефереру за ПЕРШУ покупку рефералу (одноразово).
@@ -1035,6 +1105,244 @@ async def api_referral(user: User = Depends(get_current_user)):
         "earned_stars":    int(earned_stars),
         "referrals":       referrals_list,
     }
+
+
+# ─── Партнёрська програма ───────────────────────────────────────────────────────
+
+PARTNER_MIN_WITHDRAW_USD = 1.0
+
+
+async def _make_partner_code(s) -> str:
+    for _ in range(15):
+        code = _uuid.uuid4().hex[:8].upper()
+        u = await s.scalar(select(func.count()).where(User.referral_code == code))
+        l = await s.scalar(select(func.count()).where(PartnerLink.code == code))
+        if not u and not l:
+            return code
+    raise HTTPException(500, "code gen failed")
+
+
+@app.get("/api/partner")
+async def api_partner(user: User = Depends(get_current_user)):
+    if not user.is_partner:
+        raise HTTPException(403, "not_partner")
+    bot_un = _BOT_USERNAME or "bot"
+    async with AsyncSessionLocal() as s:
+        links = (await s.execute(
+            select(PartnerLink).where(PartnerLink.partner_id == user.id).order_by(PartnerLink.created_at.asc())
+        )).scalars().all()
+
+        # статистика по кожній лінці
+        link_rows = []
+        for lk in links:
+            invited = await s.scalar(select(func.count()).where(User.partner_link_id == lk.id)) or 0
+            earned = await s.scalar(
+                select(func.coalesce(func.sum(PartnerEarning.amount_usd), 0)).where(PartnerEarning.link_id == lk.id)
+            ) or 0
+            link_rows.append({
+                "id": lk.id, "title": lk.title, "code": lk.code,
+                "url": f"https://t.me/{bot_un}?start={lk.code}",
+                "invited": int(invited), "earned_usd": round(float(earned), 2),
+            })
+
+        total_invited = await s.scalar(select(func.count()).where(User.referred_by_id == user.id)) or 0
+        total_earned = await s.scalar(
+            select(func.coalesce(func.sum(PartnerEarning.amount_usd), 0)).where(PartnerEarning.partner_id == user.id)
+        ) or 0
+        pending = (await s.execute(
+            select(PartnerPayout).where(PartnerPayout.partner_id == user.id, PartnerPayout.status == "requested")
+        )).scalars().first()
+
+        recent = (await s.execute(
+            select(PartnerEarning.amount_usd, PartnerEarning.is_first, PartnerEarning.created_at)
+            .where(PartnerEarning.partner_id == user.id)
+            .order_by(PartnerEarning.created_at.desc()).limit(20)
+        )).all()
+
+    return {
+        "is_partner": True,
+        "balance_usd": round(float(user.partner_balance_usd or 0), 2),
+        "paid_usd": round(float(user.partner_paid_usd or 0), 2),
+        "total_earned_usd": round(float(total_earned), 2),
+        "total_invited": int(total_invited),
+        "min_withdraw_usd": PARTNER_MIN_WITHDRAW_USD,
+        "first_pct": int(PARTNER_FIRST_PCT * 100),
+        "next_pct": int(PARTNER_NEXT_PCT * 100),
+        "has_pending_payout": pending is not None,
+        "links": link_rows,
+        "recent": [
+            {"amount_usd": round(float(a), 2), "is_first": bool(f),
+             "created_at": c.isoformat() if c else None}
+            for a, f, c in recent
+        ],
+    }
+
+
+class PartnerLinkCreate(BaseModel):
+    title: str = ""
+
+
+@app.post("/api/partner/link/create")
+async def api_partner_link_create(body: PartnerLinkCreate, user: User = Depends(get_current_user)):
+    if not user.is_partner:
+        raise HTTPException(403, "not_partner")
+    title = (body.title or "").strip()[:64]
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            cnt = await s.scalar(select(func.count()).where(PartnerLink.partner_id == user.id)) or 0
+            if cnt >= 20:
+                raise HTTPException(400, "too_many_links")
+            code = await _make_partner_code(s)
+            link = PartnerLink(partner_id=user.id, code=code, title=title or f"Ссылка {cnt + 1}")
+            s.add(link)
+            await s.flush()
+            lid = link.id
+    bot_un = _BOT_USERNAME or "bot"
+    return {"ok": True, "id": lid, "code": code, "url": f"https://t.me/{bot_un}?start={code}"}
+
+
+@app.post("/api/partner/withdraw")
+async def api_partner_withdraw(user: User = Depends(get_current_user)):
+    if not user.is_partner:
+        raise HTTPException(403, "not_partner")
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            u = await s.get(User, user.id, with_for_update=True)
+            bal = u.partner_balance_usd or Decimal("0")
+            if float(bal) < PARTNER_MIN_WITHDRAW_USD:
+                raise HTTPException(400, "below_min")
+            pending = await s.scalar(select(func.count()).where(
+                PartnerPayout.partner_id == user.id, PartnerPayout.status == "requested"))
+            if pending:
+                raise HTTPException(409, "already_requested")
+            s.add(PartnerPayout(partner_id=user.id, amount_usd=bal, status="requested"))
+            u.partner_balance_usd = Decimal("0")
+    if _bot and settings.ADMIN_IDS:
+        uname = f"@{user.username}" if user.username else f"ID:{user.id}"
+        for aid in settings.ADMIN_IDS:
+            try:
+                await _bot.send_message(
+                    aid,
+                    f"💸 <b>Заявка на вывод (партнёрка)</b>\n\n"
+                    f"👤 {uname} (<code>{user.id}</code>)\n"
+                    f"💰 Сумма: <b>${float(bal):.2f}</b>\n\n"
+                    f"Отметь выплату в админ-панели (вкладка «Партнёры»).",
+                    parse_mode="HTML",
+                )
+            except Exception:
+                pass
+    return {"ok": True, "amount_usd": round(float(bal), 2)}
+
+
+@app.get("/api/admin/partners")
+async def api_admin_partners(admin: User = Depends(require_admin)):
+    async with AsyncSessionLocal() as s:
+        partners = (await s.execute(
+            select(User).where(User.is_partner == True).order_by(User.partner_balance_usd.desc())
+        )).scalars().all()
+        rows = []
+        for p in partners:
+            invited = await s.scalar(select(func.count()).where(User.referred_by_id == p.id)) or 0
+            earned = await s.scalar(
+                select(func.coalesce(func.sum(PartnerEarning.amount_usd), 0)).where(PartnerEarning.partner_id == p.id)
+            ) or 0
+            pending = await s.scalar(select(func.count()).where(
+                PartnerPayout.partner_id == p.id, PartnerPayout.status == "requested")) or 0
+            rows.append({
+                "id": p.id, "name": p.full_name or p.username or str(p.id), "username": p.username,
+                "balance_usd": round(float(p.partner_balance_usd or 0), 2),
+                "paid_usd": round(float(p.partner_paid_usd or 0), 2),
+                "earned_usd": round(float(earned), 2),
+                "invited": int(invited), "has_pending": bool(pending),
+            })
+        payouts = (await s.execute(
+            select(PartnerPayout, User)
+            .join(User, User.id == PartnerPayout.partner_id)
+            .where(PartnerPayout.status == "requested")
+            .order_by(PartnerPayout.created_at.asc())
+        )).all()
+        payout_rows = [{
+            "id": po.id, "partner_id": po.partner_id,
+            "name": u.full_name or u.username or str(u.id), "username": u.username,
+            "amount_usd": round(float(po.amount_usd), 2),
+            "created_at": po.created_at.isoformat() if po.created_at else None,
+        } for po, u in payouts]
+    return {"partners": rows, "payouts": payout_rows}
+
+
+class AdminPartnerStatus(BaseModel):
+    user_id: int
+    is_partner: bool
+
+
+@app.post("/api/admin/partner/status")
+async def api_admin_partner_status(body: AdminPartnerStatus, admin: User = Depends(require_admin)):
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            u = await s.get(User, body.user_id, with_for_update=True)
+            if not u:
+                raise HTTPException(404, "user_not_found")
+            u.is_partner = bool(body.is_partner)
+    return {"ok": True, "user_id": body.user_id, "is_partner": bool(body.is_partner)}
+
+
+class AdminPartnerAdjust(BaseModel):
+    user_id: int
+    amount_usd: float  # може бути від'ємним
+
+
+@app.post("/api/admin/partner/adjust")
+async def api_admin_partner_adjust(body: AdminPartnerAdjust, admin: User = Depends(require_admin)):
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            u = await s.get(User, body.user_id, with_for_update=True)
+            if not u:
+                raise HTTPException(404, "user_not_found")
+            new_bal = (u.partner_balance_usd or Decimal("0")) + Decimal(str(round(body.amount_usd, 4)))
+            if new_bal < 0:
+                new_bal = Decimal("0")
+            u.partner_balance_usd = new_bal
+    return {"ok": True, "balance_usd": round(float(new_bal), 2)}
+
+
+@app.post("/api/admin/partner/payout/{payout_id}/paid")
+async def api_admin_partner_payout_paid(payout_id: int, admin: User = Depends(require_admin)):
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            po = await s.get(PartnerPayout, payout_id, with_for_update=True)
+            if not po or po.status != "requested":
+                raise HTTPException(404, "payout_not_found")
+            po.status = "paid"
+            po.processed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            u = await s.get(User, po.partner_id, with_for_update=True)
+            if u:
+                u.partner_paid_usd = (u.partner_paid_usd or Decimal("0")) + po.amount_usd
+            partner_id, amount = po.partner_id, po.amount_usd
+    if _bot:
+        try:
+            await _bot.send_message(
+                partner_id,
+                f"✅ <b>Вывод выполнен!</b>\n\n💰 ${float(amount):.2f} отправлено.",
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+    return {"ok": True}
+
+
+@app.post("/api/admin/partner/payout/{payout_id}/reject")
+async def api_admin_partner_payout_reject(payout_id: int, admin: User = Depends(require_admin)):
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            po = await s.get(PartnerPayout, payout_id, with_for_update=True)
+            if not po or po.status != "requested":
+                raise HTTPException(404, "payout_not_found")
+            po.status = "rejected"
+            po.processed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            u = await s.get(User, po.partner_id, with_for_update=True)
+            if u:  # повертаємо суму на баланс
+                u.partner_balance_usd = (u.partner_balance_usd or Decimal("0")) + po.amount_usd
+    return {"ok": True}
 
 
 # ─── CryptoBot ────────────────────────────────────────────────────────────────
@@ -1512,6 +1820,15 @@ async def api_admin_stats(
         cost_today      = await s.scalar(select(func.sum(Order.cost_usd)).where(Order.status == "delivered", Order.created_at >= today_start)) or 0
         topups_today    = await s.scalar(select(func.sum(TopUp.amount_usd)).where(TopUp.created_at >= today_start)) or 0
 
+        # Партнёрські комісії (зменшують чистий прибуток)
+        pe_filters = []
+        if range_start:
+            pe_filters.append(PartnerEarning.created_at >= range_start)
+        if range_end:
+            pe_filters.append(PartnerEarning.created_at < range_end)
+        partner_cost_range = await s.scalar(select(func.coalesce(func.sum(PartnerEarning.amount_usd), 0)).where(*pe_filters)) or 0
+        partner_cost_today = await s.scalar(select(func.coalesce(func.sum(PartnerEarning.amount_usd), 0)).where(PartnerEarning.created_at >= today_start)) or 0
+
         cat_rows = (await s.execute(
             select(
                 Order.category,
@@ -1550,8 +1867,8 @@ async def api_admin_stats(
 
     conversion_pct = round(unique_buyers / total_users * 100, 1) if total_users else 0.0
     avg_order_usd  = float(total_rev_usd) / total_orders if total_orders else 0.0
-    total_profit   = float(total_rev_usd) - float(total_cost_usd)
-    profit_today   = float(revenue_today) - float(cost_today)
+    total_profit   = float(total_rev_usd) - float(total_cost_usd) - float(partner_cost_range)
+    profit_today   = float(revenue_today) - float(cost_today) - float(partner_cost_today)
 
     return {
         "total_users":         total_users,
@@ -1562,6 +1879,7 @@ async def api_admin_stats(
         "avg_order_usd":       round(avg_order_usd, 2),
         "total_revenue_usd":   float(total_rev_usd),
         "total_cost_usd":      float(total_cost_usd),
+        "partner_cost_usd":    round(float(partner_cost_range), 2),
         "total_profit_usd":    round(total_profit, 2),
         "total_topups_usd":    float(total_topups),
         "total_stars_balance": total_stars_balance,
