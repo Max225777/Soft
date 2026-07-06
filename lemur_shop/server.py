@@ -1063,10 +1063,13 @@ async def api_referral(user: User = Depends(get_current_user)):
         ref_count = await s.scalar(
             select(func.count()).where(User.referred_by_id == user.id)
         ) or 0
+        # «Покупець» = купив TG-АКАУНТ (за накрутку реф-бонусу немає, тож і не рахуємо)
+        _acc_cats = list(CATEGORIES.keys())
         buyers_count = await s.scalar(
             select(func.count(func.distinct(Order.user_id)))
             .join(User, User.id == Order.user_id)
-            .where(User.referred_by_id == user.id, Order.status == "delivered")
+            .where(User.referred_by_id == user.id, Order.status == "delivered",
+                   Order.category.in_(_acc_cats))
         ) or 0
         earned_stars = await s.scalar(
             select(func.coalesce(func.sum(ReferralPayout.amount_stars), 0))
@@ -1085,7 +1088,8 @@ async def api_referral(user: User = Depends(get_current_user)):
         if refs:
             rows = await s.execute(
                 select(func.distinct(Order.user_id))
-                .where(Order.user_id.in_([r.id for r in refs]), Order.status == "delivered")
+                .where(Order.user_id.in_([r.id for r in refs]), Order.status == "delivered",
+                       Order.category.in_(_acc_cats))
             )
             buyer_ids = {row[0] for row in rows}
 
@@ -2369,7 +2373,8 @@ async def api_admin_referral_invited(referrer_id: int, admin: User = Depends(req
         invited_ids = [r.id for r in rows]
         buyer_rows = (await s.execute(
             select(Order.user_id).distinct()
-            .where(Order.user_id.in_(invited_ids), Order.status == "delivered")
+            .where(Order.user_id.in_(invited_ids), Order.status == "delivered",
+                   Order.category.in_(list(CATEGORIES.keys())))
         )).all()
         buyer_ids = {r.user_id for r in buyer_rows}
 
