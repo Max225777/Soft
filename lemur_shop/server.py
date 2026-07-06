@@ -1919,6 +1919,55 @@ async def api_admin_stats(
     }
 
 
+@app.get("/api/admin/recent-purchases")
+async def api_admin_recent_purchases(admin: User = Depends(require_admin), limit: int = 25):
+    """Останні покупки TG-акаунтів з чистим прибутком (після собівартості та
+    реф/партнёрських виплат по кожному замовленню)."""
+    limit = max(1, min(limit, 100))
+    acc_cats = list(CATEGORIES.keys())
+    async with AsyncSessionLocal() as s:
+        rows = (await s.execute(
+            select(Order.id, Order.user_id, Order.category, Order.price_usd, Order.cost_usd,
+                   Order.created_at, User.username, User.full_name)
+            .join(User, User.id == Order.user_id)
+            .where(Order.status == "delivered", Order.category.in_(acc_cats))
+            .order_by(Order.created_at.desc()).limit(limit)
+        )).all()
+        oids = [r.id for r in rows]
+        ref_map: dict[int, float] = {}
+        part_map: dict[int, float] = {}
+        if oids:
+            for oid, amt in (await s.execute(
+                select(ReferralPayout.order_id, ReferralPayout.bonus_usd).where(ReferralPayout.order_id.in_(oids))
+            )).all():
+                ref_map[oid] = float(amt or 0)
+            for oid, amt in (await s.execute(
+                select(PartnerEarning.order_id, PartnerEarning.amount_usd).where(PartnerEarning.order_id.in_(oids))
+            )).all():
+                part_map[oid] = float(amt or 0)
+    from lemur_shop.services.lolz_shop import CATEGORIES as _CATS
+    out = []
+    for r in rows:
+        price = float(r.price_usd or 0)
+        cost = float(r.cost_usd or 0)
+        ref = ref_map.get(r.id, 0.0)
+        part = part_map.get(r.id, 0.0)
+        cat_info = _CATS.get(r.category, {})
+        out.append({
+            "id": r.id,
+            "user": ("@" + r.username) if r.username else (r.full_name or str(r.user_id)),
+            "category": r.category,
+            "flag": cat_info.get("flag", ""),
+            "price_usd": round(price, 2),
+            "cost_usd": round(cost, 2),
+            "ref_usd": round(ref, 2),
+            "partner_usd": round(part, 2),
+            "net_usd": round(price - cost - ref - part, 2),
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        })
+    return out
+
+
 @app.get("/api/admin/earnings-chart")
 async def api_admin_earnings_chart(
     admin: User = Depends(require_admin),
