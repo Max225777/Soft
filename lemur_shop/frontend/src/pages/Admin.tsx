@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminReferralInvitedUser, type AdminPromoCode, type AdminPromoActivation, type EarningsChart, type EarningsDay, type AdminNftItem, type AdminNftRental, type FortunePoolInfo, type AdminPartnersData } from '../api'
+import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminReferralInvitedUser, type AdminPromoCode, type AdminPromoActivation, type EarningsChart, type EarningsDay, type AdminNftItem, type AdminNftRental, type FortunePoolInfo, type AdminPartnersData, type AdminRecentPurchase } from '../api'
 
 type DateMode = 'today' | 'all' | 'custom'
 
@@ -309,7 +309,39 @@ function Overview() {
           </div>
         )}
 
+        <RecentPurchases />
+
       </>)}
+    </div>
+  )
+}
+
+function RecentPurchases() {
+  const [rows, setRows] = useState<AdminRecentPurchase[] | null>(null)
+  useEffect(() => { adminApi.recentPurchases().then(setRows).catch(() => setRows([])) }, [])
+  if (!rows || rows.length === 0) return null
+  return (
+    <div style={{ marginTop: 4 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: .6, marginBottom: 8 }}>
+        🧾 ОСТАННІ ПОКУПКИ (чистий прибуток)
+      </div>
+      {rows.map(r => (
+        <div key={r.id} style={{
+          background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12,
+          padding: '9px 12px', marginBottom: 6,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+            <span style={{ fontWeight: 700, fontSize: 13 }}>{r.flag} {r.category.toUpperCase()} <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· {r.user}</span></span>
+            <span style={{ fontWeight: 800, fontSize: 14, color: r.net_usd >= 0 ? '#4CAF72' : '#ff5555' }}>${r.net_usd.toFixed(2)}</span>
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+            ціна ${r.price_usd.toFixed(2)} − себес ${r.cost_usd.toFixed(2)}
+            {r.ref_usd > 0 ? ` − реф $${r.ref_usd.toFixed(2)}` : ''}
+            {r.partner_usd > 0 ? ` − партнёр $${r.partner_usd.toFixed(2)}` : ''}
+            {r.created_at ? ` · ${new Date(r.created_at).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}` : ''}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
