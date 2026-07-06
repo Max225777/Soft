@@ -98,6 +98,11 @@ _MIGRATIONS = [
     """INSERT INTO fortune_pool
         (id, balance_stars, total_spins, total_admin_profit_stars, total_prizes_count, total_prizes_stars)
         VALUES (1, 0, 0, 0, 0, 0) ON CONFLICT (id) DO NOTHING""",
+    # Партнёрська програма — нові поля юзера (нові таблиці створює metadata.create_all)
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_partner BOOLEAN DEFAULT FALSE",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS partner_balance_usd NUMERIC(12,4) DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS partner_paid_usd NUMERIC(12,4) DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS partner_link_id INT",
 ]
 
 

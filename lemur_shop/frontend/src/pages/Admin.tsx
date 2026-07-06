@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminReferralInvitedUser, type AdminPromoCode, type AdminPromoActivation, type EarningsChart, type EarningsDay, type AdminNftItem, type AdminNftRental, type FortunePoolInfo } from '../api'
+import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminReferralInvitedUser, type AdminPromoCode, type AdminPromoActivation, type EarningsChart, type EarningsDay, type AdminNftItem, type AdminNftRental, type FortunePoolInfo, type AdminPartnersData } from '../api'
 
 type DateMode = 'today' | 'all' | 'custom'
 
@@ -14,7 +14,7 @@ function useOverviewStats(dateFrom: string, dateTo: string) {
   return { stats, loading, reload }
 }
 
-type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'earnings' | 'broadcast' | 'promo' | 'referrals' | 'codes' | 'nft' | 'fortune'
+type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'earnings' | 'broadcast' | 'promo' | 'referrals' | 'codes' | 'nft' | 'fortune' | 'partners'
 
 const CATEGORY_FLAGS: Record<string, string> = { us: '🇺🇸', ua: '🇺🇦', kz: '🇰🇿' }
 
@@ -1589,6 +1589,102 @@ function FortuneAdminTab() {
 }
 
 // ── Main Admin page ───────────────────────────────────────────────────────────
+// ── Partners admin tab ────────────────────────────────────────────────────────
+function PartnersAdminTab() {
+  const [data, setData] = useState<AdminPartnersData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [addId, setAddId] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+
+  const load = useCallback(() => {
+    adminApi.partners().then(setData).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  async function addPartner() {
+    const id = parseInt(addId.trim(), 10)
+    if (!id) return
+    setBusy(true); setMsg(null)
+    try { await adminApi.partnerSetStatus(id, true); setAddId(''); setMsg('Партнёр добавлен ✅'); load() }
+    catch { setMsg('Ошибка') } finally { setBusy(false) }
+  }
+  async function removePartner(id: number) {
+    if (!confirm('Убрать статус партнёра?')) return
+    await adminApi.partnerSetStatus(id, false).catch(() => {}); load()
+  }
+  async function adjust(id: number) {
+    const v = prompt('Изменить баланс на (USD, можно минус):', '')
+    if (v === null) return
+    const amt = parseFloat(v)
+    if (isNaN(amt)) return
+    await adminApi.partnerAdjust(id, amt).catch(() => {}); load()
+  }
+  async function payoutPaid(id: number) {
+    if (!confirm('Отметить как выплачено?')) return
+    await adminApi.partnerPayoutPaid(id).catch(() => {}); load()
+  }
+  async function payoutReject(id: number) {
+    if (!confirm('Отклонить заявку (вернуть сумму на баланс)?')) return
+    await adminApi.partnerPayoutReject(id).catch(() => {}); load()
+  }
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 32, color: 'var(--muted)' }}>⏳</div>
+  if (!data) return <div style={{ textAlign: 'center', padding: 32, color: 'var(--muted)' }}>Немає даних</div>
+
+  return (
+    <div>
+      <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 12 }}>🤝 Партнёри</div>
+
+      {/* Add partner */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+        <input value={addId} onChange={e => setAddId(e.target.value)} placeholder="user_id"
+          style={{ flex: 1, padding: '9px 12px', borderRadius: 10, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 14 }} />
+        <button onClick={addPartner} disabled={busy} className="btn btn-primary" style={{ width: 'auto', padding: '9px 16px', fontSize: 13, fontWeight: 700 }}>+ Партнёр</button>
+      </div>
+      {msg && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>{msg}</div>}
+
+      {/* Payout requests */}
+      {data.payouts.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 8 }}>ЗАЯВКИ НА ВЫВОД</div>
+          {data.payouts.map(p => (
+            <div key={p.id} style={{ background: 'rgba(255,180,40,.08)', border: '1px solid rgba(255,180,40,.25)', borderRadius: 12, padding: '10px 12px', marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontWeight: 700, fontSize: 13 }}>{p.username ? '@' + p.username : p.name} <span style={{ color: 'var(--muted)', fontWeight: 400 }}>#{p.partner_id}</span></span>
+                <span style={{ fontWeight: 800, color: '#FFD166' }}>${p.amount_usd.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => payoutPaid(p.id)} className="btn" style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 700, background: 'rgba(74,222,128,.15)', color: '#4ade80', border: '1px solid rgba(74,222,128,.35)' }}>✅ Выплачено</button>
+                <button onClick={() => payoutReject(p.id)} className="btn" style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 700, background: 'rgba(239,68,68,.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,.3)' }}>✖ Отклонить</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Partners list */}
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 8 }}>ПАРТНЁРЫ ({data.partners.length})</div>
+      {data.partners.length === 0 && <div style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '10px 0' }}>Пока нет партнёров</div>}
+      {data.partners.map(p => (
+        <div key={p.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 12px', marginBottom: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <span style={{ fontWeight: 700, fontSize: 13 }}>{p.username ? '@' + p.username : p.name} <span style={{ color: 'var(--muted)', fontWeight: 400 }}>#{p.id}</span>{p.has_pending ? ' ⏳' : ''}</span>
+            <span style={{ fontWeight: 800, color: '#4ade80' }}>${p.balance_usd.toFixed(2)}</span>
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>
+            приглашено {p.invited} · заработано ${p.earned_usd.toFixed(2)} · выплачено ${p.paid_usd.toFixed(2)}
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={() => adjust(p.id)} className="btn btn-secondary" style={{ flex: 1, padding: '6px', fontSize: 12 }}>± Баланс</button>
+            <button onClick={() => removePartner(p.id)} className="btn btn-secondary" style={{ flex: 1, padding: '6px', fontSize: 12, color: '#ef4444' }}>Убрать</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 const TABS: { id: AdminTab; label: string }[] = [
   { id: 'overview',  label: '📊 Огляд' },
   { id: 'users',     label: '👥 Юзери' },
@@ -1601,6 +1697,7 @@ const TABS: { id: AdminTab; label: string }[] = [
   { id: 'codes',     label: '🎟 Промокоди' },
   { id: 'nft',       label: '🔤 NFT Юзи' },
   { id: 'fortune',   label: '🎲 Рандом акк' },
+  { id: 'partners',  label: '🤝 Партнёри' },
 ]
 
 export default function Admin() {
@@ -1642,6 +1739,7 @@ export default function Admin() {
       {tab === 'codes'     && <PromoCodesTab />}
       {tab === 'nft'       && <NftAdminTab />}
       {tab === 'fortune'   && <FortuneAdminTab />}
+      {tab === 'partners'  && <PartnersAdminTab />}
     </div>
   )
 }

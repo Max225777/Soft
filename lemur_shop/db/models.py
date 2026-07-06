@@ -32,6 +32,13 @@ class User(Base):
     is_banned: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
+    # Партнёрська програма (видається вручну адміном)
+    is_partner: Mapped[bool] = mapped_column(Boolean, default=False)
+    partner_balance_usd: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=Decimal("0"))
+    partner_paid_usd: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=Decimal("0"))
+    # через яку партнёрську лінку зайшов цей юзер (для статистики по лінках)
+    partner_link_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     orders: Mapped[list["Order"]] = relationship(back_populates="user")
     referrals: Mapped[list["User"]] = relationship(foreign_keys=[referred_by_id])
 
@@ -108,6 +115,42 @@ class ReferralPayout(Base):
     bonus_usd: Mapped[Decimal] = mapped_column(Numeric(10, 4), nullable=False)
     amount_stars: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class PartnerLink(Base):
+    __tablename__ = "partner_links"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    partner_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    code: Mapped[str] = mapped_column(String(16), unique=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(64), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class PartnerEarning(Base):
+    __tablename__ = "partner_earnings"
+    __table_args__ = (UniqueConstraint("order_id", name="uq_partner_order"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    partner_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    link_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    referred_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    order_id: Mapped[int] = mapped_column(Integer, ForeignKey("orders.id"), nullable=False)
+    amount_usd: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=Decimal("0"))
+    net_usd: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=Decimal("0"))
+    is_first: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+
+class PartnerPayout(Base):
+    __tablename__ = "partner_payouts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    partner_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    amount_usd: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=Decimal("0"))
+    status: Mapped[str] = mapped_column(String(16), default="requested")  # requested|paid|rejected
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class GamePlay(Base):

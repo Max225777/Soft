@@ -59,6 +59,9 @@ export const api = {
   starsInvoice: (stars: number) => req<{ invoice_url: string; stars: number; amount_usd: number }>('/stars/invoice', { method: 'POST', body: JSON.stringify({ stars }) }),
   starsBuy:     (stars: number, amount_usd: number) => req<{ ok: boolean }>('/stars/buy', { method: 'POST', body: JSON.stringify({ stars, amount_usd }) }),
   referral:     () => req<Referral>('/referral'),
+  partner:        () => req<PartnerData>('/partner'),
+  partnerCreateLink: (title: string) => req<{ ok: boolean; id: number; code: string; url: string }>('/partner/link/create', { method: 'POST', body: JSON.stringify({ title }) }),
+  partnerWithdraw: () => req<{ ok: boolean; amount_usd: number }>('/partner/withdraw', { method: 'POST' }),
   leaderboard:        (period: 'all' | 'today') => req<LeaderRow[]>(`/leaderboard?period=${period}`),
   leaderboardRefs:    (period: 'all' | 'today') => req<RefLeaderRow[]>(`/leaderboard/referrals?period=${period}`),
   promoRedeem:  (code: string) => req<{ ok: boolean; stars: number }>('/promo/redeem', { method: 'POST', body: JSON.stringify({ code }) }),
@@ -178,6 +181,11 @@ export const adminApi = {
   bioPromoList:    (page: number, limit = 30) => req<BioPromoParticipantsPage>(`/admin/bio-promo?page=${page}&limit=${limit}`),
   referralStats:   () => req<AdminReferralStats>('/admin/referrals'),
   referralInvited: (referrerId: number) => req<AdminReferralInvitedUser[]>(`/admin/referrals/${referrerId}/invited`),
+  partners:        () => req<AdminPartnersData>('/admin/partners'),
+  partnerSetStatus:(user_id: number, is_partner: boolean) => req<{ ok: boolean }>('/admin/partner/status', { method: 'POST', body: JSON.stringify({ user_id, is_partner }) }),
+  partnerAdjust:   (user_id: number, amount_usd: number) => req<{ ok: boolean; balance_usd: number }>('/admin/partner/adjust', { method: 'POST', body: JSON.stringify({ user_id, amount_usd }) }),
+  partnerPayoutPaid:   (id: number) => req<{ ok: boolean }>(`/admin/partner/payout/${id}/paid`, { method: 'POST' }),
+  partnerPayoutReject: (id: number) => req<{ ok: boolean }>(`/admin/partner/payout/${id}/reject`, { method: 'POST' }),
   promoList:       () => req<AdminPromoCode[]>('/admin/promo/list'),
   promoCreate:     (code: string, reward_stars: number, max_activations: number) =>
                      req<{ ok: boolean }>('/admin/promo/create', { method: 'POST', body: JSON.stringify({ code, reward_stars, max_activations }) }),
@@ -198,8 +206,25 @@ export interface Me {
   balance_usd: number; balance_uah: number; balance_rub: number
   rate_uah: number; rate_rub: number
   orders_count: number; is_admin: boolean; preview_mode: boolean
+  is_partner?: boolean
   bot_username: string
 }
+
+export interface PartnerLinkRow { id: number; title: string; code: string; url: string; invited: number; earned_usd: number }
+export interface PartnerEarningRow { amount_usd: number; is_first: boolean; created_at: string | null }
+export interface PartnerData {
+  is_partner: boolean
+  balance_usd: number; paid_usd: number; total_earned_usd: number; total_invited: number
+  min_withdraw_usd: number; first_pct: number; next_pct: number; has_pending_payout: boolean
+  links: PartnerLinkRow[]; recent: PartnerEarningRow[]
+}
+export interface AdminPartnerRow {
+  id: number; name: string; username: string | null
+  balance_usd: number; paid_usd: number; earned_usd: number; invited: number; has_pending: boolean
+}
+export interface AdminPartnerPayout { id: number; partner_id: number; name: string; username: string | null; amount_usd: number; created_at: string | null }
+export interface AdminPartnersData { partners: AdminPartnerRow[]; payouts: AdminPartnerPayout[] }
+
 export interface SmmService {
   key: string; service_id: number | string; title: string; flag: string; description: string
   price_per_100_stars: number; min: number; max: number; step: number; unit_size: number

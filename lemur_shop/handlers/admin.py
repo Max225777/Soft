@@ -313,3 +313,72 @@ async def cmd_topups(message: Message) -> None:
 @router.message(Command("myid"), IsAdmin())
 async def cmd_myid(message: Message) -> None:
     await message.answer(f"Ваш ID: <code>{message.from_user.id}</code>", parse_mode="HTML")
+
+
+# ─── Партнёрська програма ───────────────────────────────────────────────────────
+
+@router.message(Command("partner_add"), IsAdmin())
+async def cmd_partner_add(message: Message) -> None:
+    parts = (message.text or "").split()
+    if len(parts) < 2:
+        await message.answer("Використання: /partner_add «user_id або @username»", parse_mode=None)
+        return
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            user = await _find_user(s, parts[1])
+            if not user:
+                await message.answer(f"❌ Користувача «{parts[1]}» не знайдено.")
+                return
+            user.is_partner = True
+            name = user.username or user.full_name or str(user.id)
+            uid = user.id
+    await message.answer(f"🤝 @{name} (<code>{uid}</code>) тепер ПАРТНЁР.\nУ нього замість «Реферали» з'явиться «Партнёрка».", parse_mode="HTML")
+    try:
+        await message.bot.send_message(uid, "🤝 <b>Вам выдан статус партнёра!</b>\n\nОткройте вкладку «Партнёрка» в приложении — создавайте ссылки и зарабатывайте с покупок ваших рефералов.", parse_mode="HTML")
+    except Exception:
+        pass
+
+
+@router.message(Command("partner_remove"), IsAdmin())
+async def cmd_partner_remove(message: Message) -> None:
+    parts = (message.text or "").split()
+    if len(parts) < 2:
+        await message.answer("Використання: /partner_remove «user_id або @username»", parse_mode=None)
+        return
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            user = await _find_user(s, parts[1])
+            if not user:
+                await message.answer(f"❌ Користувача «{parts[1]}» не знайдено.")
+                return
+            user.is_partner = False
+            name = user.username or user.full_name or str(user.id)
+            uid = user.id
+    await message.answer(f"➖ @{name} (<code>{uid}</code>) більше не партнёр.", parse_mode="HTML")
+
+
+@router.message(Command("partner"), IsAdmin())
+async def cmd_partner_info(message: Message) -> None:
+    from lemur_shop.db.models import PartnerEarning
+    parts = (message.text or "").split()
+    if len(parts) < 2:
+        await message.answer("Використання: /partner «user_id або @username»", parse_mode=None)
+        return
+    async with AsyncSessionLocal() as s:
+        user = await _find_user(s, parts[1])
+        if not user:
+            await message.answer(f"❌ Користувача «{parts[1]}» не знайдено.")
+            return
+        invited = await s.scalar(select(func.count()).where(User.referred_by_id == user.id)) or 0
+        earned = await s.scalar(select(func.coalesce(func.sum(PartnerEarning.amount_usd), 0)).where(PartnerEarning.partner_id == user.id)) or 0
+        name = user.username or user.full_name or str(user.id)
+    status = "✅ партнёр" if user.is_partner else "— не партнёр"
+    await message.answer(
+        f"🤝 <b>Партнёр @{name}</b> (<code>{user.id}</code>)\n\n"
+        f"Статус: {status}\n"
+        f"Запрошено: <b>{invited}</b>\n"
+        f"Зароблено всього: <b>${float(earned):.2f}</b>\n"
+        f"Баланс: <b>${float(user.partner_balance_usd or 0):.2f}</b>\n"
+        f"Виплачено: <b>${float(user.partner_paid_usd or 0):.2f}</b>",
+        parse_mode="HTML",
+    )
