@@ -616,23 +616,26 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
                      user.id, body.category, lolz_item_id, shop_price_stars, bal_before, u.balance_stars)
 
     # Партнёр (пріоритет) або звичайний 25⭐ реф-бонус
-    partner_cut = await credit_partner_or_referral(user, order_id, shop_price_usd, lolz_cost, body.category)
+    partner_cut, ref_bonus_stars = await credit_partner_or_referral(user, order_id, shop_price_usd, lolz_cost, body.category)
+    ref_bonus_usd = Decimal(str(round(ref_bonus_stars * settings.STAR_DISPLAY_USD, 4)))
 
-    # Нотифікація адміну
+    # Нотифікація адміну (об'єднана: покупка + реф/партнёр + чистий прибуток)
     if _bot and settings.ADMIN_IDS:
         from lemur_shop.services.lolz_shop import CATEGORIES as _CATS
         cat_info = _CATS.get(body.category, {})
         profit = shop_price_usd - lolz_cost
-        net_after_partner = profit - partner_cut
+        net_after = profit - partner_cut - ref_bonus_usd
         uname = f"@{user.username}" if user.username else f"ID:{user.id}"
         flag = cat_info.get("flag", "")
         title = cat_info.get("title", body.category.upper())
         stars_usd_val = shop_price_stars * settings.STAR_DISPLAY_USD
-        partner_line = (
-            f"🤝 Партнёру: <b>-${float(partner_cut):.2f}</b>\n"
-            f"💰 Чистий (після партнёра): <b>${float(net_after_partner):.2f}</b>\n\n"
-            if partner_cut > 0 else ""
-        )
+        deduction_line = ""
+        if partner_cut > 0:
+            deduction_line += f"🤝 Партнёру: <b>-${float(partner_cut):.2f}</b>\n"
+        if ref_bonus_stars > 0:
+            deduction_line += f"🎁 Реф-бонус: <b>-⭐{ref_bonus_stars}</b> (-${float(ref_bonus_usd):.2f})\n"
+        if deduction_line:
+            deduction_line += f"💰 Чистий (після виплат): <b>${float(net_after):.2f}</b>\n"
         txt = (
             f"🛒 <b>Нова покупка!</b>\n\n"
             f"👤 {uname} (<code>{user.id}</code>)\n"
@@ -640,7 +643,7 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
             f"💫 Ціна: <b>⭐{shop_price_stars}</b> (~${stars_usd_val:.2f})\n"
             f"💸 Витрати: ${float(lolz_cost):.2f}\n"
             f"💰 Прибуток: <b>${float(profit):.2f}</b>\n"
-            f"{partner_line}"
+            f"{deduction_line}\n"
             f"📱 Номер: <code>{phone}</code>\n"
             f"🆔 ID: <code>{lolz_item_id}</code>"
         )
@@ -890,19 +893,21 @@ PARTNER_NEXT_PCT = 0.10    # з усіх наступних
 
 async def credit_partner_or_referral(
     user: User, order_id: int, price_usd, cost_usd, category_label: str
-) -> Decimal:
-    """Якщо реферер — партнёр: нараховуємо % з чистого прибутку на його
-    партнёрський баланс (50% з першої покупки TG-акка реферала, 10% з наступних)
-    і повертаємо суму комісії. Інакше — звичайний 25⭐ реф-бонус, повертаємо 0.
+) -> tuple[Decimal, int]:
+    """Повертає (партнёрська_комісія_usd, реф_бонус_зірок).
+
+    Якщо реферер — партнёр: нараховуємо % з чистого прибутку (50% з першої
+    покупки TG-акка реферала, 10% з наступних) → (commission, 0).
+    Інакше — звичайний 25⭐ реф-бонус → (0, bonus_stars).
     Викликається лише з покупки TG-акаунтів (накрутка партнёрку не годує)."""
     if not user.referred_by_id:
-        return Decimal("0")
+        return Decimal("0"), 0
     async with AsyncSessionLocal() as s:
         referrer = await s.get(User, user.referred_by_id)
     is_partner = bool(referrer and referrer.is_partner and not referrer.is_banned)
     if not is_partner:
-        await credit_referral_bonus(user, order_id, category_label)
-        return Decimal("0")
+        ref_stars = await credit_referral_bonus(user, order_id, category_label)
+        return Decimal("0"), ref_stars
 
     net = Decimal(str(price_usd)) - Decimal(str(cost_usd))
     if net < 0:
@@ -912,7 +917,7 @@ async def credit_partner_or_referral(
         async with AsyncSessionLocal() as s:
             async with s.begin():
                 if await s.scalar(select(func.count()).where(PartnerEarning.order_id == order_id)):
-                    return Decimal("0")
+                    return Decimal("0"), 0
                 prev = await s.scalar(select(func.count()).where(
                     PartnerEarning.partner_id == user.referred_by_id,
                     PartnerEarning.referred_id == user.id,
@@ -930,7 +935,7 @@ async def credit_partner_or_referral(
                 log.info("PARTNER EARN: partner=%s referred=%s order=%s +$%s (first=%s)",
                          partner.id, user.id, order_id, commission, is_first)
     except IntegrityError:
-        return Decimal("0")
+        return Decimal("0"), 0
 
     if _bot and commission > 0:
         try:
@@ -943,15 +948,16 @@ async def credit_partner_or_referral(
             )
         except Exception:
             pass
-    return commission
+    return commission, 0
 
 
-async def credit_referral_bonus(user: User, order_id: int, category_label: str) -> None:
+async def credit_referral_bonus(user: User, order_id: int, category_label: str) -> int:
     """Реферальна виплата — 25⭐ рефереру за ПЕРШУ покупку рефералу (одноразово).
-    Викликається з будь-якого ендпоінту покупки (акаунт, накрутка тощо), щоб бонус
-    нараховувався незалежно від типу замовлення, яке зробив реферал."""
+    Повертає кількість нарахованих зірок (0, якщо не платили). Сповіщення адміну
+    НЕ надсилає — його формує викликач (об'єднане повідомлення з покупкою)."""
     if not user.referred_by_id:
-        return
+        return 0
+    paid_stars = 0
     try:
         async with AsyncSessionLocal() as s:
             async with s.begin():
@@ -960,10 +966,10 @@ async def credit_referral_bonus(user: User, order_id: int, category_label: str) 
                     select(func.count()).where(ReferralPayout.referred_id == user.id)
                 )
                 if already_paid:
-                    return
+                    return 0
                 referrer = await s.get(User, user.referred_by_id, with_for_update=True)
                 if not referrer or referrer.is_banned:
-                    return
+                    return 0
                 bonus_stars = REFERRAL_BONUS_STARS
                 bonus_usd   = Decimal(str(round(bonus_stars * settings.STAR_DISPLAY_USD, 4)))
                 referrer.balance_stars += bonus_stars
@@ -977,6 +983,7 @@ async def credit_referral_bonus(user: User, order_id: int, category_label: str) 
                 ))
                 log.info("REF PAYOUT: referrer=%s referred=%s order=%s +⭐%s",
                          referrer.id, user.id, order_id, bonus_stars)
+                paid_stars = bonus_stars
                 if _bot:
                     try:
                         ref_lang = referrer.lang or "ru"
@@ -992,22 +999,6 @@ async def credit_referral_bonus(user: User, order_id: int, category_label: str) 
                         )
                     except Exception:
                         pass
-
-                    if settings.ADMIN_IDS:
-                        ref_uname  = f"@{referrer.username}" if referrer.username else f"ID:{referrer.id}"
-                        inv_uname  = f"@{user.username}" if user.username else f"ID:{user.id}"
-                        admin_txt = (
-                            f"🤝 <b>Реферальна виплата!</b>\n\n"
-                            f"👤 Реферер: {ref_uname} (<code>{referrer.id}</code>)\n"
-                            f"🆕 Запрошений: {inv_uname} (<code>{user.id}</code>)\n"
-                            f"⭐ Нараховано: <b>+{bonus_stars}</b>\n"
-                            f"📦 За покупку: {category_label}"
-                        )
-                        for admin_id in settings.ADMIN_IDS:
-                            try:
-                                await _bot.send_message(admin_id, admin_txt, parse_mode="HTML")
-                            except Exception:
-                                pass
     except IntegrityError:
         pass  # race: два ордери одночасно — другий програє
     except Exception as e:
@@ -1025,6 +1016,7 @@ async def credit_referral_bonus(user: User, order_id: int, category_label: str) 
                     )
                 except Exception:
                     pass
+    return paid_stars
 
 
 async def _backfill_referral_payouts() -> None:
@@ -1833,6 +1825,15 @@ async def api_admin_stats(
         partner_cost_range = await s.scalar(select(func.coalesce(func.sum(PartnerEarning.amount_usd), 0)).where(*pe_filters)) or 0
         partner_cost_today = await s.scalar(select(func.coalesce(func.sum(PartnerEarning.amount_usd), 0)).where(PartnerEarning.created_at >= today_start)) or 0
 
+        # Реферальні виплати (25⭐ бонуси) також зменшують чистий прибуток
+        rp_filters = []
+        if range_start:
+            rp_filters.append(ReferralPayout.created_at >= range_start)
+        if range_end:
+            rp_filters.append(ReferralPayout.created_at < range_end)
+        ref_cost_range = await s.scalar(select(func.coalesce(func.sum(ReferralPayout.bonus_usd), 0)).where(*rp_filters)) or 0
+        ref_cost_today = await s.scalar(select(func.coalesce(func.sum(ReferralPayout.bonus_usd), 0)).where(ReferralPayout.created_at >= today_start)) or 0
+
         cat_rows = (await s.execute(
             select(
                 Order.category,
@@ -1871,8 +1872,8 @@ async def api_admin_stats(
 
     conversion_pct = round(unique_buyers / total_users * 100, 1) if total_users else 0.0
     avg_order_usd  = float(total_rev_usd) / total_orders if total_orders else 0.0
-    total_profit   = float(total_rev_usd) - float(total_cost_usd) - float(partner_cost_range)
-    profit_today   = float(revenue_today) - float(cost_today) - float(partner_cost_today)
+    total_profit   = float(total_rev_usd) - float(total_cost_usd) - float(partner_cost_range) - float(ref_cost_range)
+    profit_today   = float(revenue_today) - float(cost_today) - float(partner_cost_today) - float(ref_cost_today)
 
     return {
         "total_users":         total_users,
@@ -1884,6 +1885,7 @@ async def api_admin_stats(
         "total_revenue_usd":   float(total_rev_usd),
         "total_cost_usd":      float(total_cost_usd),
         "partner_cost_usd":    round(float(partner_cost_range), 2),
+        "referral_cost_usd":   round(float(ref_cost_range), 2),
         "total_profit_usd":    round(total_profit, 2),
         "total_topups_usd":    float(total_topups),
         "total_stars_balance": total_stars_balance,
