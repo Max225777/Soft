@@ -212,12 +212,13 @@ export interface Me {
 }
 
 export interface PartnerLinkRow { id: number; title: string; code: string; url: string; invited: number; earned_usd: number }
-export interface PartnerEarningRow { amount_usd: number; is_first: boolean; created_at: string | null }
+export interface PartnerEarningRow { amount_usd: number; created_at: string | null }
+export interface PartnerReferralRow { name: string; earned_usd: number; days_left: number; active: boolean }
 export interface PartnerData {
   is_partner: boolean
   balance_usd: number; paid_usd: number; total_earned_usd: number; total_invited: number
-  min_withdraw_usd: number; first_pct: number; next_pct: number; has_pending_payout: boolean
-  links: PartnerLinkRow[]; recent: PartnerEarningRow[]
+  min_withdraw_usd: number; pct: number; window_days: number; has_pending_payout: boolean
+  links: PartnerLinkRow[]; referrals: PartnerReferralRow[]; recent: PartnerEarningRow[]
 }
 export interface AdminPartnerRow {
   id: number; name: string; username: string | null

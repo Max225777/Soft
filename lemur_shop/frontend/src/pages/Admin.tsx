@@ -1695,17 +1695,20 @@ function PartnersAdminTab() {
         </div>
       )}
 
-      {/* Partners list */}
-      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 8 }}>ПАРТНЁРЫ ({data.partners.length})</div>
+      {/* Partners leaderboard (sorted by earned) */}
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 8 }}>🏆 ЛИДЕРЫ ПО ЗАРАБОТКУ ({data.partners.length})</div>
       {data.partners.length === 0 && <div style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '10px 0' }}>Пока нет партнёров</div>}
-      {data.partners.map(p => (
+      {data.partners.map((p, i) => (
         <div key={p.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 12px', marginBottom: 6 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontWeight: 700, fontSize: 13 }}>{p.username ? '@' + p.username : p.name} <span style={{ color: 'var(--muted)', fontWeight: 400 }}>#{p.id}</span>{p.has_pending ? ' ⏳' : ''}</span>
-            <span style={{ fontWeight: 800, color: '#4ade80' }}>${p.balance_usd.toFixed(2)}</span>
+            <span style={{ fontWeight: 700, fontSize: 13 }}>
+              <span style={{ color: 'var(--muted)', marginRight: 5 }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}</span>
+              {p.username ? '@' + p.username : p.name} <span style={{ color: 'var(--muted)', fontWeight: 400 }}>#{p.id}</span>{p.has_pending ? ' ⏳' : ''}
+            </span>
+            <span style={{ fontWeight: 800, color: '#4ade80' }}>${p.earned_usd.toFixed(2)}</span>
           </div>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>
-            приглашено {p.invited} · заработано ${p.earned_usd.toFixed(2)} · выплачено ${p.paid_usd.toFixed(2)}
+            баланс ${p.balance_usd.toFixed(2)} · приглашено {p.invited} · выплачено ${p.paid_usd.toFixed(2)}
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={() => adjust(p.id)} className="btn btn-secondary" style={{ flex: 1, padding: '6px', fontSize: 12 }}>± Баланс</button>
