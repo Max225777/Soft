@@ -631,9 +631,22 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
         stars_usd_val = shop_price_stars * settings.STAR_DISPLAY_USD
         deduction_line = ""
         if partner_cut > 0:
-            deduction_line += f"🤝 Партнёру: <b>-${float(partner_cut):.2f}</b>\n"
+            # хто пригласив + скільки днів таймера лишилось у реферала
+            async with AsyncSessionLocal() as _s:
+                _ref = await _s.get(User, user.referred_by_id)
+            p_name = (f"@{_ref.username}" if _ref and _ref.username else f"ID:{user.referred_by_id}")
+            days_left = _partner_days_left(user.created_at)
+            deduction_line += (
+                f"🤝 <b>Партнёрская система</b>\n"
+                f"   Пригласил: {p_name}\n"
+                f"   Партнёру ({int(PARTNER_PCT*100)}%): <b>-${float(partner_cut):.2f}</b>\n"
+                f"   ⏳ Таймер реферала: осталось {days_left} дн.\n"
+            )
         if ref_bonus_stars > 0:
-            deduction_line += f"🎁 Реф-бонус: <b>-⭐{ref_bonus_stars}</b> (-${float(ref_bonus_usd):.2f})\n"
+            deduction_line += (
+                f"🎁 <b>Реферальная система</b>\n"
+                f"   Реф-бонус: <b>-⭐{ref_bonus_stars}</b> (-${float(ref_bonus_usd):.2f})\n"
+            )
         if deduction_line:
             deduction_line += f"💰 Чистий (після виплат): <b>${float(net_after):.2f}</b>\n"
         txt = (
@@ -886,9 +899,19 @@ async def api_admin_promo_toggle(promo_id: int, admin: User = Depends(require_ad
 
 REFERRAL_BONUS_STARS = 25  # зірок за кожну покупку рефералу
 
-# Партнёрська програма: % з ЧИСТОГО прибутку (ціна − собівартість) покупки TG-акка
-PARTNER_FIRST_PCT = 0.50   # з першої покупки реферала
-PARTNER_NEXT_PCT = 0.10    # з усіх наступних
+# Партнёрська програма: таймер на реферала + % з ЧИСТОГО прибутку (ціна − собівартість)
+# усіх його покупок TG-акаунтів у межах вікна.
+PARTNER_WINDOW_DAYS = 30   # скільки днів після приєднання реферал «годує» партнёра
+PARTNER_PCT = 0.40         # 40% чистого прибутку з кожної покупки TG-акка у вікні
+
+
+def _partner_days_left(referred_created_at) -> int:
+    """Скільки днів таймера лишилось у реферала (0 = вікно закрите)."""
+    if not referred_created_at:
+        return 0
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    elapsed = (now - referred_created_at).days
+    return max(0, PARTNER_WINDOW_DAYS - elapsed)
 
 
 async def credit_partner_or_referral(
@@ -896,9 +919,9 @@ async def credit_partner_or_referral(
 ) -> tuple[Decimal, int]:
     """Повертає (партнёрська_комісія_usd, реф_бонус_зірок).
 
-    Якщо реферер — партнёр: нараховуємо % з чистого прибутку (50% з першої
-    покупки TG-акка реферала, 10% з наступних) → (commission, 0).
-    Інакше — звичайний 25⭐ реф-бонус → (0, bonus_stars).
+    Якщо реферер — партнёр і таймер реферала ще активний: нараховуємо
+    PARTNER_PCT (40%) чистого прибутку з кожної покупки TG-акка → (commission, 0).
+    Партнёр з простроченим таймером → (0, 0). Звичайний реферер → (0, 25).
     Викликається лише з покупки TG-акаунтів (накрутка партнёрку не годує)."""
     if not user.referred_by_id:
         return Decimal("0"), 0
@@ -909,6 +932,10 @@ async def credit_partner_or_referral(
         ref_stars = await credit_referral_bonus(user, order_id, category_label)
         return Decimal("0"), ref_stars
 
+    # Таймер реферала (від дати приєднання). Прострочено — партнёру нічого.
+    if _partner_days_left(user.created_at) <= 0:
+        return Decimal("0"), 0
+
     net = Decimal(str(price_usd)) - Decimal(str(cost_usd))
     if net < 0:
         net = Decimal("0")
@@ -918,32 +945,28 @@ async def credit_partner_or_referral(
             async with s.begin():
                 if await s.scalar(select(func.count()).where(PartnerEarning.order_id == order_id)):
                     return Decimal("0"), 0
-                prev = await s.scalar(select(func.count()).where(
-                    PartnerEarning.partner_id == user.referred_by_id,
-                    PartnerEarning.referred_id == user.id,
-                ))
-                is_first = (prev == 0)
-                rate = Decimal(str(PARTNER_FIRST_PCT if is_first else PARTNER_NEXT_PCT))
-                commission = (net * rate).quantize(Decimal("0.0001"))
+                commission = (net * Decimal(str(PARTNER_PCT))).quantize(Decimal("0.0001"))
                 partner = await s.get(User, user.referred_by_id, with_for_update=True)
                 partner.partner_balance_usd = (partner.partner_balance_usd or Decimal("0")) + commission
                 s.add(PartnerEarning(
                     partner_id=partner.id, link_id=user.partner_link_id,
                     referred_id=user.id, order_id=order_id,
-                    amount_usd=commission, net_usd=net, is_first=is_first,
+                    amount_usd=commission, net_usd=net, is_first=False,
                 ))
-                log.info("PARTNER EARN: partner=%s referred=%s order=%s +$%s (first=%s)",
-                         partner.id, user.id, order_id, commission, is_first)
+                log.info("PARTNER EARN: partner=%s referred=%s order=%s +$%s",
+                         partner.id, user.id, order_id, commission)
     except IntegrityError:
         return Decimal("0"), 0
 
     if _bot and commission > 0:
         try:
+            days = _partner_days_left(user.created_at)
             await _bot.send_message(
                 user.referred_by_id,
                 f"🤝 <b>Партнёрская комиссия!</b>\n\n"
                 f"💰 +${float(commission):.2f} на партнёрский баланс\n"
-                f"🛍 Покупка вашего реферала",
+                f"🛍 Покупка вашего реферала\n"
+                f"⏳ Таймер реферала: осталось {days} дн.",
                 parse_mode="HTML",
             )
         except Exception:
@@ -1150,10 +1173,33 @@ async def api_partner(user: User = Depends(get_current_user)):
         )).scalars().first()
 
         recent = (await s.execute(
-            select(PartnerEarning.amount_usd, PartnerEarning.is_first, PartnerEarning.created_at)
+            select(PartnerEarning.amount_usd, PartnerEarning.created_at)
             .where(PartnerEarning.partner_id == user.id)
             .order_by(PartnerEarning.created_at.desc()).limit(20)
         )).all()
+
+        # Список рефералів з заробітком і залишком таймера
+        ref_users = (await s.execute(
+            select(User.id, User.username, User.full_name, User.created_at)
+            .where(User.referred_by_id == user.id)
+        )).all()
+        earned_by_ref: dict[int, float] = {}
+        if ref_users:
+            for rid, amt in (await s.execute(
+                select(PartnerEarning.referred_id, func.sum(PartnerEarning.amount_usd))
+                .where(PartnerEarning.partner_id == user.id)
+                .group_by(PartnerEarning.referred_id)
+            )).all():
+                earned_by_ref[rid] = float(amt or 0)
+        referrals = []
+        for rid, uname, fname, created in ref_users:
+            days_left = _partner_days_left(created)
+            referrals.append({
+                "name": (f"@{uname}" if uname else (fname or str(rid))),
+                "earned_usd": round(earned_by_ref.get(rid, 0.0), 2),
+                "days_left": days_left,
+                "active": days_left > 0,
+            })
 
     return {
         "is_partner": True,
@@ -1162,14 +1208,14 @@ async def api_partner(user: User = Depends(get_current_user)):
         "total_earned_usd": round(float(total_earned), 2),
         "total_invited": int(total_invited),
         "min_withdraw_usd": PARTNER_MIN_WITHDRAW_USD,
-        "first_pct": int(PARTNER_FIRST_PCT * 100),
-        "next_pct": int(PARTNER_NEXT_PCT * 100),
+        "pct": int(PARTNER_PCT * 100),
+        "window_days": PARTNER_WINDOW_DAYS,
         "has_pending_payout": pending is not None,
         "links": link_rows,
+        "referrals": referrals,
         "recent": [
-            {"amount_usd": round(float(a), 2), "is_first": bool(f),
-             "created_at": c.isoformat() if c else None}
-            for a, f, c in recent
+            {"amount_usd": round(float(a), 2), "created_at": c.isoformat() if c else None}
+            for a, c in recent
         ],
     }
 
@@ -1263,6 +1309,8 @@ async def api_admin_partners(admin: User = Depends(require_admin)):
             "amount_usd": round(float(po.amount_usd), 2),
             "created_at": po.created_at.isoformat() if po.created_at else None,
         } for po, u in payouts]
+    # Лідерборд: сортуємо партнёрів за загальним заробітком
+    rows.sort(key=lambda r: r["earned_usd"], reverse=True)
     return {"partners": rows, "payouts": payout_rows}
 
 

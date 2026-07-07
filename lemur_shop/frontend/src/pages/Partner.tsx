@@ -12,6 +12,7 @@ export default function Partner({ lang }: Props) {
   const [withdrawing, setWithdrawing] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
+  const [refSort, setRefSort] = useState<'earned' | 'time'>('earned')
 
   function load() {
     api.partner().then(setData).catch(() => {}).finally(() => setLoading(false))
@@ -103,7 +104,7 @@ export default function Partner({ lang }: Props) {
         borderRadius: 14, padding: '12px 14px', marginBottom: 16, fontSize: 13, color: 'var(--text2)', lineHeight: 1.55,
       }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, marginBottom: 6 }}>{L.how}</div>
-        Приглашай людей по своей ссылке. С первой покупки TG-аккаунта реферала ты получаешь <b>{data.first_pct}%</b> чистой прибыли, со всех следующих — <b>{data.next_pct}%</b>. Начисления идут на партнёрский баланс, вывод — по кнопке выше.
+        Приглашай людей по своей ссылке. На каждого приглашённого включается таймер <b>{data.window_days} дней</b>: всё это время ты получаешь <b>{data.pct}%</b> чистой прибыли со <b>всех</b> его покупок TG-аккаунтов (не только с первой). После окончания таймера начисления по этому рефералу прекращаются. Вывод — по кнопке выше.
       </div>
 
       {/* Links */}
@@ -146,6 +147,43 @@ export default function Partner({ lang }: Props) {
         </div>
       ))}
 
+      {/* Referrals list with filter */}
+      {data.referrals.length > 0 && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 0 8px' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8 }}>МОИ РЕФЕРАЛЫ ({data.referrals.length})</div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {(['earned', 'time'] as const).map(m => (
+                <button key={m} onClick={() => setRefSort(m)} style={{
+                  padding: '4px 9px', fontSize: 11, borderRadius: 8, cursor: 'pointer',
+                  background: refSort === m ? 'rgba(74,222,128,.15)' : 'transparent',
+                  color: refSort === m ? '#4ade80' : 'var(--muted)',
+                  border: refSort === m ? '1px solid rgba(74,222,128,.35)' : '1px solid var(--border)',
+                }}>{m === 'earned' ? '💰 по доходу' : '⏳ по времени'}</button>
+              ))}
+            </div>
+          </div>
+          {[...data.referrals].sort((a, b) => refSort === 'earned'
+            ? b.earned_usd - a.earned_usd
+            : b.days_left - a.days_left).map((r, i) => (
+            <div key={i} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '9px 12px', borderRadius: 11, marginBottom: 5,
+              background: r.active ? 'rgba(74,222,128,.05)' : 'rgba(255,255,255,.03)',
+              border: `1px solid ${r.active ? 'rgba(74,222,128,.12)' : 'var(--border)'}`,
+            }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{r.name}</div>
+                <div style={{ fontSize: 11, color: r.active ? '#4ade80' : 'var(--muted)' }}>
+                  {r.active ? `⏳ осталось ${r.days_left} дн.` : '⛔ таймер истёк'}
+                </div>
+              </div>
+              <div style={{ fontWeight: 800, color: '#4ade80', fontSize: 13, flexShrink: 0 }}>${r.earned_usd.toFixed(2)}</div>
+            </div>
+          ))}
+        </>
+      )}
+
       {/* Recent earnings */}
       {data.recent.length > 0 && (
         <>
@@ -157,7 +195,7 @@ export default function Partner({ lang }: Props) {
               background: 'rgba(74,222,128,.05)', border: '1px solid rgba(74,222,128,.12)',
             }}>
               <div style={{ fontSize: 12, color: 'var(--text2)' }}>
-                {r.is_first ? `🥇 ${L.first}` : `🛍 ${L.next}`}
+                🛍 покупка реферала
                 {r.created_at && <span style={{ color: 'var(--muted)', marginLeft: 8 }}>{new Date(r.created_at).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>}
               </div>
               <div style={{ fontWeight: 800, color: '#4ade80', fontSize: 13 }}>+${r.amount_usd.toFixed(2)}</div>
