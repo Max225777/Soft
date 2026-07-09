@@ -574,6 +574,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
   const buyingRef = useRef(false)
   // Інструкція під час покупки акаунта (перекриває час завантаження)
   const [instrAck, setInstrAck] = useState(false)
+  const [instrReady, setInstrReady] = useState(false)  // показуємо інструкцію лише коли покупка точно пішла (не миттєва помилка балансу)
   const [pendingBuy, setPendingBuy] = useState<BuyResult | null>(null)
   const [dontShowInstr, setDontShowInstr] = useState(false)
   const [smmServices, setSmmServices] = useState<SmmService[]>([])
@@ -636,8 +637,13 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
     setInstrAck(optedOut)
     setDontShowInstr(false)
     setPendingBuy(null)
+    setInstrReady(false)
     setView('buying')
     setCode('')
+    // Інструкцію показуємо тільки якщо через ~0.5с покупка ще триває (тобто це
+    // не миттєва помилка недостатнього балансу). Якщо view вже не 'buying' —
+    // умова рендера сама її не покаже.
+    setTimeout(() => setInstrReady(true), 500)
     try {
       const res = await api.buy(cat.category)
       setPendingBuy(res)
@@ -1610,7 +1616,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
   }
 
   // ─── Купую ─────────────────────────────────────────────────────────────────
-  if (view === 'buying' && !instrAck) return (
+  if (view === 'buying' && !instrAck && instrReady) return (
     <div className="page">
       <div style={{
         background: 'linear-gradient(135deg, #0d1520 0%, #111a2e 100%)',
