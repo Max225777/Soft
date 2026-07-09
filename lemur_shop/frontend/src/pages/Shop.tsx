@@ -559,6 +559,8 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
   )
 }
 
+const ACC_INSTR_KEY = 'lemur_hide_acc_instruction'
+
 export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: Props) {
   const T = getT(lang)
   const [view, setView]       = useState<View>('menu')
@@ -570,6 +572,10 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
   const [copied, setCopied]   = useState<'phone' | 'code' | ''>('')
   const [confirmCat, setConfirmCat] = useState<Category | null>(null)
   const buyingRef = useRef(false)
+  // Інструкція під час покупки акаунта (перекриває час завантаження)
+  const [instrAck, setInstrAck] = useState(false)
+  const [pendingBuy, setPendingBuy] = useState<BuyResult | null>(null)
+  const [dontShowInstr, setDontShowInstr] = useState(false)
   const [smmServices, setSmmServices] = useState<SmmService[]>([])
   const [selectedSmmKey, setSelectedSmmKey] = useState('tg_subscribers')
   const [smmLink, setSmmLink] = useState('')
@@ -625,12 +631,16 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
     if (buyingRef.current) return
     buyingRef.current = true
     setConfirmCat(null)
+    // Якщо юзер не відключив інструкцію — показуємо її поверх завантаження
+    const optedOut = localStorage.getItem(ACC_INSTR_KEY) === '1'
+    setInstrAck(optedOut)
+    setDontShowInstr(false)
+    setPendingBuy(null)
     setView('buying')
     setCode('')
     try {
       const res = await api.buy(cat.category)
-      setResult(res)
-      setView('success')
+      setPendingBuy(res)
       onBuy?.()
     } catch (e: any) {
       if (e.message === 'insufficient_balance') {
@@ -651,6 +661,23 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
     } finally {
       buyingRef.current = false
     }
+  }
+
+  // Показуємо результат покупки лише після того, як юзер ознайомився з інструкцією
+  // (і акаунт уже куплений). Інструкція йде паралельно із завантаженням.
+  useEffect(() => {
+    if (view === 'buying' && instrAck && pendingBuy) {
+      setResult(pendingBuy)
+      setPendingBuy(null)
+      setView('success')
+    }
+  }, [view, instrAck, pendingBuy])
+
+  function ackInstruction() {
+    if (dontShowInstr) {
+      try { localStorage.setItem(ACC_INSTR_KEY, '1') } catch { /* ignore */ }
+    }
+    setInstrAck(true)
   }
 
   async function getCode() {
@@ -1583,6 +1610,50 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
   }
 
   // ─── Купую ─────────────────────────────────────────────────────────────────
+  if (view === 'buying' && !instrAck) return (
+    <div className="page">
+      <div style={{
+        background: 'linear-gradient(135deg, #0d1520 0%, #111a2e 100%)',
+        border: '1px solid rgba(42,171,238,.25)', borderRadius: 20, padding: '20px 18px', marginTop: 8,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <div style={{ fontSize: 30 }}>📘</div>
+          <div style={{ fontWeight: 800, fontSize: 17 }}>Инструкция по использованию</div>
+        </div>
+        <div style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text2)' }}>
+          Здравствуйте! Это инструкция по использованию TG-аккаунтов.
+          <div style={{ marginTop: 12, fontWeight: 700, color: '#4ade80' }}>✅ В первые 24 часа после входа можно:</div>
+          <div style={{ marginTop: 4 }}>1. Ставить 2FA (двухфакторную защиту)</div>
+          <div>2. Привязывать почту для входа</div>
+          <div style={{ marginTop: 12, fontWeight: 700, color: '#ef4444' }}>⛔ Нельзя:</div>
+          <div style={{ marginTop: 4 }}>1. Ставить аватарки, юзернеймы, имена — вообще менять данные аккаунта</div>
+          <div>2. Писать кому-то первым или вести подозрительную активность</div>
+          <div style={{
+            marginTop: 14, padding: '10px 12px', borderRadius: 10,
+            background: 'rgba(255,180,40,.1)', border: '1px solid rgba(255,180,40,.3)',
+            fontWeight: 700, color: '#FFD166',
+          }}>
+            🌐 Вход на аккаунт — только через VPN/прокси страны аккаунта!
+          </div>
+        </div>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, cursor: 'pointer', fontSize: 13, color: 'var(--muted)' }}>
+          <input type="checkbox" checked={dontShowInstr} onChange={e => setDontShowInstr(e.target.checked)} style={{ width: 16, height: 16 }} />
+          Больше не показывать инструкцию
+        </label>
+
+        <button className="btn btn-primary" onClick={ackInstruction} style={{ width: '100%', marginTop: 14, fontSize: 15, fontWeight: 800 }}>
+          Ознакомлен ✓
+        </button>
+        {!pendingBuy && (
+          <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--muted)', marginTop: 10 }}>
+            ⏳ Аккаунт готовится, пока читаете…
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
   if (view === 'buying') return (
     <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16 }}>
       <div style={{ fontSize: 48 }}>🦎</div>
