@@ -2,14 +2,20 @@ import { useState, useEffect, useRef } from 'react'
 import { api, smmApi, type Category, type BuyResult, type Me, type SmmService, type NftItem } from '../api'
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
-import BioPromoButton from '../components/BioPromoButton'
 
 const REVIEWS_CHANNEL = 'LEMUR_SHOP_REP'
 const REVIEWS_URL = `https://t.me/${REVIEWS_CHANNEL}`
+const SELL_CHANNEL = 'LEMUR_SHOP_SELL'
+const SELL_URL = `https://t.me/${SELL_CHANNEL}`
 const REVIEWS_T: Record<Lang, { title: string; sub: string }> = {
-  ru: { title: 'Витрина с отзывами', sub: 'реальные отзывы покупателей' },
-  ua: { title: 'Вітрина з відгуками', sub: 'реальні відгуки покупців' },
-  en: { title: 'Reviews showcase', sub: 'real customer reviews' },
+  ru: { title: 'Отзывы', sub: 'отзывы покупателей' },
+  ua: { title: 'Відгуки', sub: 'відгуки покупців' },
+  en: { title: 'Reviews', sub: 'customer reviews' },
+}
+const SELL_T: Record<Lang, { title: string; sub: string }> = {
+  ru: { title: 'Лента покупок', sub: 'покупки в реальном времени' },
+  ua: { title: 'Стрічка покупок', sub: 'покупки в реальному часі' },
+  en: { title: 'Purchase feed', sub: 'live purchases' },
 }
 
 interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void; onGoToProfile?: () => void; onBuy?: () => void }
@@ -321,8 +327,8 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
 
     return (
       <div className="page">
-        {/* Top bar: маленький баланс у кутку + денний бонус */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 }}>
+        {/* Top bar: маленький баланс у кутку */}
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
           <div className="balance-glow" style={{
             display: 'inline-flex', alignItems: 'baseline', gap: 5,
             background: 'var(--card)', border: '1px solid var(--border)',
@@ -331,7 +337,6 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
             <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--orange2)' }}>⭐{starsBalance}</span>
             <span style={{ fontWeight: 400, fontSize: 11, color: 'var(--muted)' }}>${usdDisplay}</span>
           </div>
-          <BioPromoButton lang={lang} />
         </div>
 
         {/* Hero */}
@@ -390,78 +395,99 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
 
         <div style={{ height: 14 }} />
 
-        {/* Канал-вітрина з відгуками */}
-        <a href={REVIEWS_URL} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            background: 'linear-gradient(135deg, rgba(42,171,238,.1), rgba(46,124,246,.04))',
-            border: '1px solid rgba(42,171,238,.28)',
-            borderRadius: 16, padding: '12px 14px', marginBottom: 14,
-          }}>
+        {/* Дві плашки поруч: чат з відгуками (ліва) і чат зі стрічкою покупок (права) */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+          {/* Відгуки */}
+          <a href={REVIEWS_URL} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
             <div style={{
-              width: 40, height: 40, borderRadius: 12, flexShrink: 0,
-              background: 'linear-gradient(135deg, #2AABEE, #1178B8)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
-            }}>⭐</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{REVIEWS_T[lang].title}</div>
-              <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2 }}>@{REVIEWS_CHANNEL} · {REVIEWS_T[lang].sub}</div>
+              background: 'linear-gradient(135deg, rgba(42,171,238,.1), rgba(46,124,246,.03))',
+              border: '1px solid rgba(42,171,238,.28)',
+              borderRadius: 18, padding: '14px 14px', height: '100%',
+              display: 'flex', flexDirection: 'column', gap: 4,
+            }}>
+              <div style={{
+                width: 42, height: 42, borderRadius: 13, flexShrink: 0, marginBottom: 6,
+                background: 'linear-gradient(135deg, #2AABEE, #1178B8)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21,
+              }}>⭐</div>
+              <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>{REVIEWS_T[lang].title}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.3 }}>{REVIEWS_T[lang].sub}</div>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: '#7DB4FF', marginTop: 'auto', paddingTop: 8 }}>@{REVIEWS_CHANNEL} ›</div>
             </div>
-            <div style={{ color: '#7DB4FF', fontSize: 18, flexShrink: 0 }}>›</div>
-          </div>
-        </a>
+          </a>
+
+          {/* Стрічка покупок */}
+          <a href={SELL_URL} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(51,208,122,.1), rgba(51,208,122,.03))',
+              border: '1px solid rgba(51,208,122,.28)',
+              borderRadius: 18, padding: '14px 14px', height: '100%',
+              display: 'flex', flexDirection: 'column', gap: 4,
+            }}>
+              <div style={{
+                width: 42, height: 42, borderRadius: 13, flexShrink: 0, marginBottom: 6,
+                background: 'linear-gradient(135deg, #33D07A, #1FA85E)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21,
+              }}>🛒</div>
+              <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>{SELL_T[lang].title}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.3 }}>{SELL_T[lang].sub}</div>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: '#33D07A', marginTop: 'auto', paddingTop: 8 }}>@{SELL_CHANNEL} ›</div>
+            </div>
+          </a>
+        </div>
 
         <h1 style={{ marginBottom: 12 }}>{H.catalog}</h1>
 
-        {/* Дві картки в один горизонтальний ряд — ліва (акаунти) і права (накрутка) */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-
-          {/* TG Accounts card */}
-          <div style={{
-            background: 'radial-gradient(130% 100% at 15% 0%, rgba(46,124,246,.18) 0%, transparent 55%), var(--card)',
-            border: '1px solid rgba(46,124,246,.28)',
-            borderRadius: 20, padding: '16px 14px',
-            boxShadow: '0 8px 30px rgba(20,60,150,.18)',
-            position: 'relative', overflow: 'hidden',
-            display: 'flex', flexDirection: 'column',
-          }}>
+        {/* TG Accounts card */}
+        <div style={{
+          background: 'radial-gradient(130% 100% at 15% 0%, rgba(46,124,246,.18) 0%, transparent 55%), var(--card)',
+          border: '1px solid rgba(46,124,246,.28)',
+          borderRadius: 20, padding: '18px 16px', marginBottom: 10,
+          boxShadow: '0 8px 30px rgba(20,60,150,.18)',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
             <div style={{
-              width: 48, height: 48, borderRadius: 15, flexShrink: 0, marginBottom: 12,
+              width: 52, height: 52, borderRadius: 16, flexShrink: 0,
               background: 'linear-gradient(135deg, #2AABEE, #2E7CF6)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 4px 14px rgba(46,124,246,.35)', color: '#fff',
             }}>{TG_ICON}</div>
-            <div style={{ fontWeight: 800, fontSize: 15.5, lineHeight: 1.2 }}>{T.tg_accounts}</div>
-            <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4, flex: 1, lineHeight: 1.35 }}>{T.tg_accounts_desc}</div>
-            <button className="btn btn-primary" onClick={() => setView('list')} style={{
-              width: '100%', padding: '11px', fontSize: 13.5, marginTop: 12,
-            }}>
-              {T.buy} →
-            </button>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_accounts}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>{T.tg_accounts_desc}</div>
+            </div>
           </div>
-
-          {/* SMM Boost card */}
-          <div className="smm-card" style={{
-            borderRadius: 20, padding: '16px 14px',
-            position: 'relative', overflow: 'hidden',
-            display: 'flex', flexDirection: 'column',
+          <button className="btn btn-primary" onClick={() => setView('list')} style={{
+            width: '100%', padding: '12px', fontSize: 14,
           }}>
+            {T.buy} →
+          </button>
+        </div>
+
+        {/* SMM Boost card */}
+        <div className="smm-card" style={{
+          borderRadius: 20, padding: '18px 16px',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
             <div style={{
-              width: 48, height: 48, borderRadius: 15, flexShrink: 0, marginBottom: 12,
+              width: 52, height: 52, borderRadius: 16, flexShrink: 0,
               background: 'linear-gradient(135deg, #17C0C9, #0E8FA8)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 4px 14px rgba(23,192,201,.35)',
               border: '1px solid rgba(255,255,255,.14)',
             }}>{BOOST_ICON}</div>
-            <div style={{ fontWeight: 800, fontSize: 15.5, lineHeight: 1.2 }}>{T.tg_boost}</div>
-            <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4, flex: 1, lineHeight: 1.35 }}>{T.tg_boost_desc}</div>
-            <button className="btn btn-primary" onClick={() => setView('smm_list')} style={{
-              width: '100%', padding: '11px', fontSize: 13, marginTop: 12,
-            }}>
-              {T.boost_order_btn} →
-            </button>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_boost}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>{T.tg_boost_desc}</div>
+            </div>
           </div>
-
+          <button className="btn btn-primary" onClick={() => setView('smm_list')} style={{
+            width: '100%', padding: '12px', fontSize: 14,
+          }}>
+            {T.boost_order_btn} →
+          </button>
         </div>
 
 
