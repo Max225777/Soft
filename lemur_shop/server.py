@@ -991,7 +991,11 @@ async def credit_referral_bonus(user: User, order_id: int, category_label: str) 
                 if already_paid:
                     return 0
                 referrer = await s.get(User, user.referred_by_id, with_for_update=True)
-                if not referrer or referrer.is_banned:
+                # Партнёр ніколи не отримує реферальний бонус 25⭐ — його покупці
+                # годують партнёрську комісію (PartnerEarning), а не referral_payouts.
+                # Без цієї перевірки стартовий backfill дораховував партнёрам бонуси
+                # за кожного їхнього покупця при кожному рестарті сервера.
+                if not referrer or referrer.is_banned or referrer.is_partner:
                     return 0
                 bonus_stars = REFERRAL_BONUS_STARS
                 bonus_usd   = Decimal(str(round(bonus_stars * settings.STAR_DISPLAY_USD, 4)))
