@@ -198,9 +198,9 @@ async def _bio_promo_midnight_rewarder() -> None:
                 log.info("bio_promo daily reward: %d active participants (date=%s)", len(promos), today)
 
                 _DAILY_REWARD_MSG = {
-                    "ru": "⭐ <b>+{stars} звёзды!</b>\n\nЕжедневная награда за фразу в профиле.",
-                    "ua": "⭐ <b>+{stars} зірки!</b>\n\nДобова нагорода за фразу в профілі.",
-                    "en": "⭐ <b>+{stars} stars!</b>\n\nDaily reward for the phrase in your profile.",
+                    "ru": "⭐ <b>+{stars}⭐!</b>\n\nЕжедневная награда за фразу в профиле.",
+                    "ua": "⭐ <b>+{stars}⭐!</b>\n\nДобова нагорода за фразу в профілі.",
+                    "en": "⭐ <b>+{stars}⭐!</b>\n\nDaily reward for the phrase in your profile.",
                 }
 
                 for promo in promos:
@@ -219,14 +219,14 @@ async def _bio_promo_midnight_rewarder() -> None:
                                 user = await s.get(User, p.user_id)
                                 if not user or user.is_banned:
                                     continue
-                                stars = max(2, p.reward_tier)  # always ≥ 2 (tier 1 removed from UI)
+                                stars = 1  # фіксована добова нагорода — 1⭐/день
                                 user.balance_stars += stars
                                 user.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD)) * stars
                                 p.last_rewarded_at = now
                                 p.total_rewarded += stars
                                 user_lang = user.lang or "ru"
                         if _bot:
-                            stars_given = max(2, promo.reward_tier)
+                            stars_given = 1
                             txt = _DAILY_REWARD_MSG.get(user_lang, _DAILY_REWARD_MSG["ua"]).format(stars=stars_given)
                             try:
                                 await _bot.send_message(promo.user_id, txt, parse_mode="HTML")

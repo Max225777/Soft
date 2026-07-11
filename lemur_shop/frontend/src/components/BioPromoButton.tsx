@@ -132,7 +132,7 @@ export default function BioPromoButton({ lang }: Props) {
         <span style={{
           fontSize: 26, fontWeight: 900, lineHeight: 1, color: '#FFB347',
           textShadow: '0 0 12px rgba(255,179,71,.7)',
-        }}>+2⭐</span>
+        }}>+1⭐</span>
         <span style={{ fontSize: 11, color: '#ffd080', fontWeight: 700, whiteSpace: 'nowrap' }}>
           {T.bio_promo_daily}
         </span>
