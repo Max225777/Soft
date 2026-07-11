@@ -327,8 +327,8 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
 
     return (
       <div className="page">
-        {/* Top bar: маленький баланс у кутку */}
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+        {/* Top bar: маленький баланс у правому кутку */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 4 }}>
           <div className="balance-glow" style={{
             display: 'inline-flex', alignItems: 'baseline', gap: 5,
             background: 'var(--card)', border: '1px solid var(--border)',
@@ -428,7 +428,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
                 width: 42, height: 42, borderRadius: 13, flexShrink: 0, marginBottom: 6,
                 background: 'linear-gradient(135deg, #33D07A, #1FA85E)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21,
-              }}>🛒</div>
+              }}>📡</div>
               <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>{SELL_T[lang].title}</div>
               <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.3 }}>{SELL_T[lang].sub}</div>
               <div style={{ fontSize: 11.5, fontWeight: 700, color: '#33D07A', marginTop: 'auto', paddingTop: 8 }}>@{SELL_CHANNEL} ›</div>
@@ -436,13 +436,11 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           </a>
         </div>
 
-        <h1 style={{ marginBottom: 12 }}>{H.catalog}</h1>
-
         {/* TG Accounts card */}
         <div style={{
           background: 'radial-gradient(130% 100% at 15% 0%, rgba(46,124,246,.18) 0%, transparent 55%), var(--card)',
           border: '1px solid rgba(46,124,246,.28)',
-          borderRadius: 20, padding: '18px 16px', marginBottom: 10,
+          borderRadius: 20, padding: '16px 16px', marginBottom: 10,
           boxShadow: '0 8px 30px rgba(20,60,150,.18)',
           position: 'relative', overflow: 'hidden',
         }}>
