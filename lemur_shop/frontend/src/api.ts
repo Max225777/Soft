@@ -67,6 +67,16 @@ export const api = {
   promoRedeem:  (code: string) => req<{ ok: boolean; stars: number }>('/promo/redeem', { method: 'POST', body: JSON.stringify({ code }) }),
   nftList:      (search?: string) => req<NftItem[]>(`/nft/list${search ? '?search=' + encodeURIComponent(search) : ''}`),
   nftBuy:       (nft_id: number) => req<{ order_id: number; stars_spent: number; expires_at: string }>('/nft/buy', { method: 'POST', body: JSON.stringify({ nft_id }) }),
+  liveFeed:     () => req<LiveFeedItem[]>('/live-feed'),
+}
+
+export interface LiveFeedItem {
+  user_display: string
+  has_username: boolean
+  flag: string
+  amount_stars: number
+  phone_masked: string
+  created_at: string | null
 }
 
 export interface FortuneCat {

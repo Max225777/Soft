@@ -729,6 +729,54 @@ async def api_orders(user: User = Depends(get_current_user)):
     ]
 
 
+def _mask_phone(raw: str | None) -> str:
+    """Залишає видимими перші 3 цифри номера, решту ховає під ***.
+    '+959123456789' → '+959·····'. Плюс/код країни зберігаємо для впізнаваності."""
+    if not raw:
+        return "•••"
+    plus = raw.strip().startswith("+")
+    digits = "".join(ch for ch in raw if ch.isdigit())
+    if not digits:
+        return "•••"
+    head = digits[:3]
+    return ("+" if plus else "") + head + "···"
+
+
+@app.get("/api/live-feed")
+async def api_live_feed(user: User = Depends(get_current_user)):
+    """Жива стрічка останніх покупок TG-акаунтів для соц-докзу на головній.
+    Показує ім'я/юзернейм покупця, суму в зірках і замаскований номер."""
+    acc_cats = list(CATEGORIES.keys())
+    async with AsyncSessionLocal() as s:
+        rows = (await s.execute(
+            select(
+                Order.category, Order.price_usd, Order.delivered_data, Order.created_at,
+                User.full_name, User.username,
+            )
+            .join(User, User.id == Order.user_id)
+            .where(Order.status == "delivered", Order.category.in_(acc_cats))
+            .order_by(Order.created_at.desc())
+            .limit(20)
+        )).all()
+    from lemur_shop.services.lolz_shop import CATEGORIES as _CATS
+    feed = []
+    for category, price_usd, delivered, created_at, full_name, username in rows:
+        info = _CATS.get(category or "", {})
+        name = username or full_name or "User"
+        # трохи вкорочуємо надто довгі імена
+        if len(name) > 14:
+            name = name[:13] + "…"
+        feed.append({
+            "user_display": name,
+            "has_username": bool(username),
+            "flag":         info.get("flag", "📱"),
+            "amount_stars": round(float(price_usd or 0) / settings.STAR_DISPLAY_USD),
+            "phone_masked": _mask_phone(delivered),
+            "created_at":   created_at.isoformat() if created_at else None,
+        })
+    return feed
+
+
 @app.get("/api/leaderboard")
 async def api_leaderboard(user: User = Depends(get_current_user), period: str = "all"):
     async with AsyncSessionLocal() as s:

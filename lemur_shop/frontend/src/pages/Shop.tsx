@@ -3,6 +3,15 @@ import { api, smmApi, type Category, type BuyResult, type Me, type SmmService, t
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
 import BioPromoButton from '../components/BioPromoButton'
+import LiveFeed from '../components/LiveFeed'
+
+const REVIEWS_CHANNEL = 'LEMUR_SHOP_REP'
+const REVIEWS_URL = `https://t.me/${REVIEWS_CHANNEL}`
+const REVIEWS_T: Record<Lang, { title: string; sub: string }> = {
+  ru: { title: 'Витрина с отзывами', sub: 'реальные отзывы покупателей' },
+  ua: { title: 'Вітрина з відгуками', sub: 'реальні відгуки покупців' },
+  en: { title: 'Reviews showcase', sub: 'real customer reviews' },
+}
 
 interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void; onGoToProfile?: () => void; onBuy?: () => void }
 
@@ -30,12 +39,13 @@ const EYE_ICON = (
   </svg>
 )
 
-// Рупор-«boost» — чіткий білий контур, не зливається з фоновою іконкою
+// Ракета-«boost» — чіткий білий контур, читається як зростання, не як звук
 const BOOST_ICON = (
   <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="26" height="26">
-    <path d="M3 11v2a1 1 0 0 0 1 1h2l3.5 3.5a1 1 0 0 0 1.7-.7V7.2a1 1 0 0 0-1.7-.7L6 10H4a1 1 0 0 0-1 1z"/>
-    <path d="M15.5 8.5a5 5 0 0 1 0 7"/>
-    <path d="M18.5 5.5a9 9 0 0 1 0 13"/>
+    <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+    <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+    <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
+    <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
   </svg>
 )
 
@@ -312,8 +322,21 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
 
     return (
       <div className="page">
+        {/* Top bar: маленький баланс у кутку + денний бонус */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 }}>
+          <div className="balance-glow" style={{
+            display: 'inline-flex', alignItems: 'baseline', gap: 5,
+            background: 'var(--card)', border: '1px solid var(--border)',
+            borderRadius: 999, padding: '7px 13px',
+          }}>
+            <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--orange2)' }}>⭐{starsBalance}</span>
+            <span style={{ fontWeight: 400, fontSize: 11, color: 'var(--muted)' }}>${usdDisplay}</span>
+          </div>
+          <BioPromoButton lang={lang} />
+        </div>
+
         {/* Hero */}
-        <div style={{ padding: '18px 0 20px', textAlign: 'center' }}>
+        <div style={{ padding: '8px 0 18px', textAlign: 'center' }}>
           <div className="display" style={{ fontSize: 26, color: 'var(--text)' }}>
             {H.t1}
             <br />
@@ -366,23 +389,31 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           ))}
         </div>
 
-        {/* Balance strip */}
-        <div style={{
-          background: 'var(--card)', border: '1px solid var(--border)',
-          borderRadius: 16, padding: '9px 14px', margin: '10px 0 14px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-        }}>
-          <div>
-            <div style={{ fontSize: 9.5, color: 'var(--muted)', letterSpacing: 1, marginBottom: 2 }}>
-              {T.balance.toUpperCase()}
-            </div>
-            <div className="balance-glow" style={{ color: 'var(--orange2)', lineHeight: 1 }}>
-              <span style={{ fontWeight: 800, fontSize: 21 }}>⭐{starsBalance}</span>
-              <span style={{ fontWeight: 400, fontSize: 11, marginLeft: 6, color: 'var(--muted)' }}>(${usdDisplay})</span>
-            </div>
-          </div>
-          <BioPromoButton lang={lang} />
+        {/* Жива стрічка покупок */}
+        <div style={{ marginTop: 14 }}>
+          <LiveFeed lang={lang} />
         </div>
+
+        {/* Канал-вітрина з відгуками */}
+        <a href={REVIEWS_URL} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            background: 'linear-gradient(135deg, rgba(42,171,238,.1), rgba(46,124,246,.04))',
+            border: '1px solid rgba(42,171,238,.28)',
+            borderRadius: 16, padding: '12px 14px', marginBottom: 14,
+          }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+              background: 'linear-gradient(135deg, #2AABEE, #1178B8)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+            }}>⭐</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{REVIEWS_T[lang].title}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2 }}>@{REVIEWS_CHANNEL} · {REVIEWS_T[lang].sub}</div>
+            </div>
+            <div style={{ color: '#7DB4FF', fontSize: 18, flexShrink: 0 }}>›</div>
+          </div>
+        </a>
 
         <h1 style={{ marginBottom: 12 }}>{H.catalog}</h1>
 
