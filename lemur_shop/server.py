@@ -341,6 +341,10 @@ async def lifespan(app: FastAPI):
 
     await _run_bio_promo_migration()
     try:
+        await _revert_partner_referral_payouts()
+    except Exception as e:
+        log.warning("partner ref-payout revert failed: %s", e)
+    try:
         await _backfill_referral_payouts()
     except Exception as e:
         log.warning("referral backfill failed: %s", e)
@@ -1044,6 +1048,49 @@ async def credit_referral_bonus(user: User, order_id: int, category_label: str) 
                 except Exception:
                     pass
     return paid_stars
+
+
+async def _revert_partner_referral_payouts() -> None:
+    """Одноразовий відкат: до фікса стартовий backfill помилково нараховував
+    партнёрам реферальні бонуси 25⭐ за кожного їхнього покупця. Тут знаходимо
+    всі referral_payouts, де реферер — партнёр, знімаємо ці зірки з балансу і
+    видаляємо записи. Ідемпотентно: після першого запуску рядків не лишається,
+    нові не з'являються (credit_referral_bonus виключає партнёрів)."""
+    reverted: list[tuple[int, int]] = []
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            rows = (await s.execute(
+                select(ReferralPayout)
+                .join(User, User.id == ReferralPayout.referrer_id)
+                .where(User.is_partner.is_(True))
+            )).scalars().all()
+            if not rows:
+                return
+            by_referrer: dict[int, list[ReferralPayout]] = {}
+            for rp in rows:
+                by_referrer.setdefault(rp.referrer_id, []).append(rp)
+            for referrer_id, payouts in by_referrer.items():
+                partner = await s.get(User, referrer_id, with_for_update=True)
+                if not partner:
+                    continue
+                stars = sum(p.amount_stars or 0 for p in payouts)
+                usd = sum((p.bonus_usd for p in payouts), Decimal("0"))
+                partner.balance_stars = max(0, (partner.balance_stars or 0) - stars)
+                partner.balance_usd = max(Decimal("0"), (partner.balance_usd or Decimal("0")) - usd)
+                for p in payouts:
+                    await s.delete(p)
+                reverted.append((referrer_id, stars))
+                log.info("PARTNER REF-PAYOUT REVERT: partner=%s -⭐%s (%s payouts)",
+                         referrer_id, stars, len(payouts))
+    if _bot and settings.ADMIN_IDS and reverted:
+        text = "🧹 <b>Откат ошибочных реф-бонусов партнёрам</b>\n\n" + "\n".join(
+            f"👤 Партнёр <code>{pid}</code>: <b>-⭐{stars}</b>" for pid, stars in reverted
+        ) + "\n\nЭти бонусы были начислены по ошибке при рестартах сервера. Больше не повторится."
+        for admin_id in settings.ADMIN_IDS:
+            try:
+                await _bot.send_message(admin_id, text, parse_mode="HTML")
+            except Exception:
+                pass
 
 
 async def _backfill_referral_payouts() -> None:
