@@ -413,57 +413,55 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
 
         <h1 style={{ marginBottom: 12 }}>{H.catalog}</h1>
 
-        {/* TG Accounts card */}
-        <div style={{
-          background: 'radial-gradient(130% 100% at 15% 0%, rgba(46,124,246,.18) 0%, transparent 55%), var(--card)',
-          border: '1px solid rgba(46,124,246,.28)',
-          borderRadius: 20, padding: '18px 16px', marginBottom: 10,
-          boxShadow: '0 8px 30px rgba(20,60,150,.18)',
-          position: 'relative', overflow: 'hidden',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+        {/* Дві картки в один горизонтальний ряд — ліва (акаунти) і права (накрутка) */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+
+          {/* TG Accounts card */}
+          <div style={{
+            background: 'radial-gradient(130% 100% at 15% 0%, rgba(46,124,246,.18) 0%, transparent 55%), var(--card)',
+            border: '1px solid rgba(46,124,246,.28)',
+            borderRadius: 20, padding: '16px 14px',
+            boxShadow: '0 8px 30px rgba(20,60,150,.18)',
+            position: 'relative', overflow: 'hidden',
+            display: 'flex', flexDirection: 'column',
+          }}>
             <div style={{
-              width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+              width: 48, height: 48, borderRadius: 15, flexShrink: 0, marginBottom: 12,
               background: 'linear-gradient(135deg, #2AABEE, #2E7CF6)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 14px rgba(46,124,246,.35)',
-              color: '#fff',
+              boxShadow: '0 4px 14px rgba(46,124,246,.35)', color: '#fff',
             }}>{TG_ICON}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_accounts}</div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>{T.tg_accounts_desc}</div>
-            </div>
+            <div style={{ fontWeight: 800, fontSize: 15.5, lineHeight: 1.2 }}>{T.tg_accounts}</div>
+            <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4, flex: 1, lineHeight: 1.35 }}>{T.tg_accounts_desc}</div>
+            <button className="btn btn-primary" onClick={() => setView('list')} style={{
+              width: '100%', padding: '11px', fontSize: 13.5, marginTop: 12,
+            }}>
+              {T.buy} →
+            </button>
           </div>
-          <button className="btn btn-primary" onClick={() => setView('list')} style={{
-            width: '100%', padding: '12px', fontSize: 14,
-          }}>
-            {T.buy} →
-          </button>
-        </div>
 
-        {/* SMM Boost card */}
-        <div className="smm-card" style={{
-          borderRadius: 20, padding: '18px 16px',
-          position: 'relative', overflow: 'hidden',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+          {/* SMM Boost card */}
+          <div className="smm-card" style={{
+            borderRadius: 20, padding: '16px 14px',
+            position: 'relative', overflow: 'hidden',
+            display: 'flex', flexDirection: 'column',
+          }}>
             <div style={{
-              width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+              width: 48, height: 48, borderRadius: 15, flexShrink: 0, marginBottom: 12,
               background: 'linear-gradient(135deg, #17C0C9, #0E8FA8)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 4px 14px rgba(23,192,201,.35)',
               border: '1px solid rgba(255,255,255,.14)',
             }}>{BOOST_ICON}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_boost}</div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>{T.tg_boost_desc}</div>
-            </div>
+            <div style={{ fontWeight: 800, fontSize: 15.5, lineHeight: 1.2 }}>{T.tg_boost}</div>
+            <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4, flex: 1, lineHeight: 1.35 }}>{T.tg_boost_desc}</div>
+            <button className="btn btn-primary" onClick={() => setView('smm_list')} style={{
+              width: '100%', padding: '11px', fontSize: 13, marginTop: 12,
+            }}>
+              {T.boost_order_btn} →
+            </button>
           </div>
-          <button className="btn btn-primary" onClick={() => setView('smm_list')} style={{
-            width: '100%', padding: '12px', fontSize: 14,
-          }}>
-            {T.boost_order_btn} →
-          </button>
+
         </div>
 
 
