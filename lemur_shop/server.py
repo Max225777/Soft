@@ -3140,6 +3140,24 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
             except Exception:
                 pass
 
+    # ── Публічний пост у канал-вітрину (без посилання на канал клієнта) ──────
+    if _bot and settings.SELL_CHANNEL_USERNAME:
+        try:
+            _buyer = f"@{user.username}" if user.username else (user.full_name or "Покупатель")
+            _svc_flag = svc.get("flag", "🚀")
+            _svc_name = svc.get("title", body.service_key)
+            sell_txt = (
+                f"🚀 <b>Новая накрутка!</b>\n\n"
+                f"👤 {_buyer}\n"
+                f"{_svc_flag} <b>{_svc_name}</b>\n"
+                f"🔢 Количество: <b>{body.quantity}</b>\n"
+                f"💫 Сумма: <b>⭐{price_stars}</b>\n\n"
+                f"🦎 @{settings.CHANNEL_USERNAME.lstrip('@')}"
+            )
+            await _bot.send_message(settings.SELL_CHANNEL_USERNAME, sell_txt, parse_mode="HTML")
+        except Exception as e:
+            log.warning("Sell-channel SMM post failed: %s", e)
+
     # ── User notification ───────────────────────────────────────────────────
     if _bot:
         lang = getattr(user, "lang", "ru")
