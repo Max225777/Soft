@@ -670,6 +670,27 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
             except Exception as e:
                 log.warning("Admin notify failed for %s: %s", admin_id, e)
 
+    # Публічний пост у канал-вітрину (соц-докз). Без прибутку/витрат — лише
+    # хто, що і за скільки. Номер замаскований до перших 3 цифр.
+    if _bot and settings.SELL_CHANNEL_USERNAME:
+        try:
+            from lemur_shop.services.lolz_shop import CATEGORIES as _CATS
+            _info = _CATS.get(body.category, {})
+            _flag = _info.get("flag", "📱")
+            _title = _info.get("title_ru") or _info.get("title") or (body.category or "").upper()
+            _buyer = f"@{user.username}" if user.username else (user.full_name or "Покупатель")
+            sell_txt = (
+                f"🛒 <b>Новая покупка!</b>\n\n"
+                f"👤 {_buyer}\n"
+                f"{_flag} <b>{_title}</b>\n"
+                f"📱 <code>{_mask_phone(phone)}</code>\n"
+                f"💫 Сумма: <b>⭐{shop_price_stars}</b>\n\n"
+                f"🦎 @{settings.CHANNEL_USERNAME.lstrip('@')}"
+            )
+            await _bot.send_message(settings.SELL_CHANNEL_USERNAME, sell_txt, parse_mode="HTML")
+        except Exception as e:
+            log.warning("Sell-channel post failed: %s", e)
+
     return {"order_id": order_id, "phone": phone, "created_at": created_at.isoformat()}
 
 
@@ -740,41 +761,6 @@ def _mask_phone(raw: str | None) -> str:
         return "•••"
     head = digits[:3]
     return ("+" if plus else "") + head + "···"
-
-
-@app.get("/api/live-feed")
-async def api_live_feed(user: User = Depends(get_current_user)):
-    """Жива стрічка останніх покупок TG-акаунтів для соц-докзу на головній.
-    Показує ім'я/юзернейм покупця, суму в зірках і замаскований номер."""
-    acc_cats = list(CATEGORIES.keys())
-    async with AsyncSessionLocal() as s:
-        rows = (await s.execute(
-            select(
-                Order.category, Order.price_usd, Order.delivered_data, Order.created_at,
-                User.full_name, User.username,
-            )
-            .join(User, User.id == Order.user_id)
-            .where(Order.status == "delivered", Order.category.in_(acc_cats))
-            .order_by(Order.created_at.desc())
-            .limit(20)
-        )).all()
-    from lemur_shop.services.lolz_shop import CATEGORIES as _CATS
-    feed = []
-    for category, price_usd, delivered, created_at, full_name, username in rows:
-        info = _CATS.get(category or "", {})
-        name = username or full_name or "User"
-        # трохи вкорочуємо надто довгі імена
-        if len(name) > 14:
-            name = name[:13] + "…"
-        feed.append({
-            "user_display": name,
-            "has_username": bool(username),
-            "flag":         info.get("flag", "📱"),
-            "amount_stars": round(float(price_usd or 0) / settings.STAR_DISPLAY_USD),
-            "phone_masked": _mask_phone(delivered),
-            "created_at":   created_at.isoformat() if created_at else None,
-        })
-    return feed
 
 
 @app.get("/api/leaderboard")

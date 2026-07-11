@@ -3,7 +3,6 @@ import { api, smmApi, type Category, type BuyResult, type Me, type SmmService, t
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
 import BioPromoButton from '../components/BioPromoButton'
-import LiveFeed from '../components/LiveFeed'
 
 const REVIEWS_CHANNEL = 'LEMUR_SHOP_REP'
 const REVIEWS_URL = `https://t.me/${REVIEWS_CHANNEL}`
@@ -389,10 +388,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           ))}
         </div>
 
-        {/* Жива стрічка покупок */}
-        <div style={{ marginTop: 14 }}>
-          <LiveFeed lang={lang} />
-        </div>
+        <div style={{ height: 14 }} />
 
         {/* Канал-вітрина з відгуками */}
         <a href={REVIEWS_URL} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>

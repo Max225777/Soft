@@ -20,6 +20,8 @@ class Settings(BaseSettings):
 
     CHANNEL_USERNAME: str = "@LEMUR_SHOP"
     SUPPORT_USERNAME: str = "@LEMUR_MANEGER"
+    # Канал-вітрина, куди бот постить кожну покупку (соц-докз для покупців)
+    SELL_CHANNEL_USERNAME: str = "@LEMUR_SHOP_SELL"
     # Keywords for tier-2 detection — any match (normalized) alongside lemurshop = tier 2
     # "накрутка" covers UA+RU phrase, "cheap" covers EN phrase
     BIO_PROMO_PHRASE_KEYWORDS: list[str] = ["накрутка", "cheap"]
