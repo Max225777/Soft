@@ -79,6 +79,7 @@ export default function App() {
 
   return (
     <>
+      <Backdrop />
       <div style={{ flex: 1 }}>
         {tab === 'shop'     && <Shop     key="shop"     lang={lang} me={me} onGoToBalance={() => setTab('balance')} onGoToProfile={() => setTab('profile')} onBuy={refreshMe} />}
         {tab === 'profile'  && <Profile  key="profile"  me={me} lang={lang} onChangeLang={l => { setLang(l); localStorage.setItem(LANG_KEY, l); refreshMe() }} />}
@@ -93,6 +94,20 @@ export default function App() {
   )
 }
 
+function Backdrop() {
+  return (
+    <div className="backdrop" aria-hidden="true">
+      <div className="bd-glow bd-glow-1" />
+      <div className="bd-glow bd-glow-2" />
+      <div className="bd-cube bd-cube-1" />
+      <div className="bd-cube bd-cube-2" />
+      <svg className="bd-plane" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71l-4.14-3.05-1.99 1.93c-.23.23-.42.42-.83.42z"/>
+      </svg>
+    </div>
+  )
+}
+
 function SubGate({ lang, onCheck, checking }: { lang: Lang; onCheck(): void; checking: boolean }) {
   const sub = {
     ua: { title: 'Підпишіться на канал', desc: 'Щоб користуватись магазином, підпишіться на наш офіційний канал', btn: '📢 Підписатись', check: '✅ Перевірити підписку' },
@@ -104,10 +119,10 @@ function SubGate({ lang, onCheck, checking }: { lang: Lang; onCheck(): void; che
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', minHeight: '100dvh', gap: 0, padding: 28,
-      background: 'linear-gradient(160deg, #1E1428 0%, #0C0C10 100%)',
+      background: 'radial-gradient(ellipse at 50% -10%, rgba(46,124,246,.18) 0%, transparent 55%), #030304',
     }}>
       <div style={{ fontSize: 64, marginBottom: 12 }}>🦎</div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', marginBottom: 8, textAlign: 'center' }}>
+      <div className="display" style={{ fontSize: 24, color: 'var(--text)', marginBottom: 8, textAlign: 'center' }}>
         Лемур
       </div>
       <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 6, textAlign: 'center' }}>
@@ -119,7 +134,7 @@ function SubGate({ lang, onCheck, checking }: { lang: Lang; onCheck(): void; che
 
       <div style={{
         width: '100%', maxWidth: 320,
-        background: 'rgba(255,107,43,.08)', border: '1px solid rgba(255,107,43,.25)',
+        background: 'rgba(46,124,246,.08)', border: '1px solid rgba(46,124,246,.25)',
         borderRadius: 16, padding: '16px 20px', marginBottom: 20,
         display: 'flex', alignItems: 'center', gap: 14,
       }}>

@@ -107,7 +107,7 @@ export default function Orders({ lang }: Props) {
             <div key={o.id} style={{
               marginBottom: 10, borderRadius: 16, overflow: 'hidden',
               background: 'var(--bg2)',
-              border: isAccount ? '1px solid rgba(255,107,43,.2)' : '1px solid rgba(42,171,238,.15)',
+              border: isAccount ? '1px solid rgba(46,124,246,.2)' : '1px solid rgba(42,171,238,.15)',
               boxShadow: '0 2px 12px rgba(0,0,0,.18)',
             }}>
               <div
@@ -117,8 +117,8 @@ export default function Orders({ lang }: Props) {
                 {/* Icon */}
                 <div style={{
                   width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-                  background: isAccount ? 'linear-gradient(135deg, rgba(255,107,43,.2), rgba(255,107,43,.08))' : 'linear-gradient(135deg, rgba(42,171,238,.2), rgba(42,171,238,.08))',
-                  border: isAccount ? '1.5px solid rgba(255,107,43,.3)' : '1.5px solid rgba(42,171,238,.3)',
+                  background: isAccount ? 'linear-gradient(135deg, rgba(46,124,246,.2), rgba(46,124,246,.08))' : 'linear-gradient(135deg, rgba(42,171,238,.2), rgba(42,171,238,.08))',
+                  border: isAccount ? '1.5px solid rgba(46,124,246,.3)' : '1.5px solid rgba(42,171,238,.3)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 22,
                 }}>{icon}</div>
@@ -137,18 +137,18 @@ export default function Orders({ lang }: Props) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{
                     fontSize: 11, fontWeight: 700, padding: '4px 9px', borderRadius: 8,
-                    background: o.status === 'delivered' ? 'rgba(76,175,114,.15)' : o.status === 'pending' ? 'rgba(255,184,48,.12)' : 'rgba(255,107,43,.12)',
-                    color: o.status === 'delivered' ? '#4CAF72' : o.status === 'pending' ? '#FFB830' : 'var(--orange)',
+                    background: o.status === 'delivered' ? 'rgba(76,175,114,.15)' : o.status === 'pending' ? 'rgba(255,184,48,.12)' : 'rgba(46,124,246,.12)',
+                    color: o.status === 'delivered' ? '#4CAF72' : o.status === 'pending' ? '#FFB830' : '#7DB4FF',
                   }}>
                     {o.status === 'delivered' ? '✓ Виконано' : o.status === 'pending' ? '⏳' : o.status}
                   </div>
                   {isAccount && (
                     <div style={{
                       width: 28, height: 28, borderRadius: 8,
-                      background: isOpen ? 'rgba(255,107,43,.2)' : 'rgba(255,255,255,.06)',
-                      border: isOpen ? '1px solid rgba(255,107,43,.4)' : '1px solid var(--border)',
+                      background: isOpen ? 'rgba(46,124,246,.2)' : 'rgba(255,255,255,.06)',
+                      border: isOpen ? '1px solid rgba(46,124,246,.4)' : '1px solid var(--border)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 13, color: isOpen ? 'var(--orange)' : 'var(--muted)',
+                      fontSize: 13, color: isOpen ? '#7DB4FF' : 'var(--muted)',
                       transition: 'all .2s', transform: isOpen ? 'rotate(180deg)' : '',
                       flexShrink: 0,
                     }}>▼</div>
@@ -157,7 +157,7 @@ export default function Orders({ lang }: Props) {
               </div>
 
               {isOpen && isAccount && (
-                <div style={{ borderTop: '1px solid rgba(255,107,43,.15)', padding: '16px', background: 'rgba(255,107,43,.03)' }}>
+                <div style={{ borderTop: '1px solid rgba(46,124,246,.15)', padding: '16px', background: 'rgba(46,124,246,.03)' }}>
                   <div style={{ marginBottom: 12 }}>
                     <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>📱 {T.your_phone}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -169,7 +169,7 @@ export default function Orders({ lang }: Props) {
                     </div>
                   </div>
 
-                  <div style={{ background: 'rgba(255,107,43,.06)', border: '1px solid rgba(255,107,43,.12)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 13 }}>
+                  <div style={{ background: 'rgba(46,124,246,.06)', border: '1px solid rgba(46,124,246,.12)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 13 }}>
                     <ol style={{ paddingLeft: 16, lineHeight: 1.9, margin: 0, color: 'var(--text2)' }}>
                       <li>{T.step1}</li>
                       <li>{T.step2}: <code>{phone}</code></li>

@@ -101,11 +101,11 @@ function RefRow({ r }: { r: ReferralUser }) {
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '8px 10px', borderRadius: 10,
-      background: r.is_buyer ? 'rgba(255,107,43,.12)' : 'rgba(255,255,255,.04)',
-      border: `1px solid ${r.is_buyer ? 'rgba(255,107,43,.35)' : 'var(--border)'}`,
+      background: r.is_buyer ? 'rgba(46,124,246,.12)' : 'rgba(255,255,255,.04)',
+      border: `1px solid ${r.is_buyer ? 'rgba(46,124,246,.35)' : 'var(--border)'}`,
     }}>
       <div>
-        <span style={{ fontWeight: 600, fontSize: 14, color: r.is_buyer ? 'var(--orange)' : 'var(--text)' }}>
+        <span style={{ fontWeight: 600, fontSize: 14, color: r.is_buyer ? '#7DB4FF' : 'var(--text)' }}>
           {r.name}
         </span>
         {r.username && (

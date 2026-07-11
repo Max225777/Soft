@@ -55,8 +55,8 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
         onClick={e => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 480,
-          background: 'linear-gradient(160deg, #1E1428 0%, #141018 100%)',
-          border: '1px solid rgba(255,107,43,.25)',
+          background: 'linear-gradient(160deg, #0C1220 0%, #08090F 100%)',
+          border: '1px solid rgba(46,124,246,.3)',
           borderRadius: '24px 24px 0 0',
           padding: '20px 20px 32px',
         }}
@@ -89,7 +89,7 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontSize: 16 }}>⭐{cat.price_stars}</span>
               <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                <span style={{ fontWeight: 800, fontSize: 24, color: '#ff6b2b', lineHeight: 1 }}>⭐{cat.discount_stars}</span>
+                <span style={{ fontWeight: 800, fontSize: 24, color: 'var(--orange2)', lineHeight: 1 }}>⭐{cat.discount_stars}</span>
                 <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--muted)' }}>(${(cat.discount_stars * 0.013).toFixed(2)})</span>
               </span>
             </span>
@@ -112,6 +112,42 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
 
 const ACC_INSTR_KEY = 'lemur_hide_acc_instruction'
 
+const HERO_TEXT: Record<Lang, { t1: string; t2: string; steps: [string, string, string]; buyPill: string; catalog: string }> = {
+  ru: { t1: 'Аккаунт Telegram', t2: 'за 2 минуты', steps: ['Выбери страну', 'Получи код', 'Пользуйся'], buyPill: 'Купить аккаунт', catalog: 'Каталог' },
+  ua: { t1: 'Акаунт Telegram', t2: 'за 2 хвилини', steps: ['Вибери країну', 'Отримай код', 'Користуйся'], buyPill: 'Купити акаунт', catalog: 'Каталог' },
+  en: { t1: 'Telegram account', t2: 'in 2 minutes', steps: ['Pick a country', 'Get the code', 'Enjoy'], buyPill: 'Buy account', catalog: 'Catalog' },
+}
+
+type CatSort = 'pop' | 'exp' | 'cheap' | 'az' | 'za'
+
+const SORT_CHIPS: Record<Lang, { key: CatSort; label: string }[]> = {
+  ru: [
+    { key: 'pop', label: 'Популярные' }, { key: 'exp', label: 'Дороже' },
+    { key: 'cheap', label: 'Дешевле' }, { key: 'az', label: 'От А' }, { key: 'za', label: 'От Я' },
+  ],
+  ua: [
+    { key: 'pop', label: 'Популярні' }, { key: 'exp', label: 'Дорожче' },
+    { key: 'cheap', label: 'Дешевше' }, { key: 'az', label: 'Від А' }, { key: 'za', label: 'Від Я' },
+  ],
+  en: [
+    { key: 'pop', label: 'Popular' }, { key: 'exp', label: 'Price ↓' },
+    { key: 'cheap', label: 'Price ↑' }, { key: 'az', label: 'A–Z' }, { key: 'za', label: 'Z–A' },
+  ],
+}
+
+const SEARCH_PH: Record<Lang, string> = {
+  ru: 'Найти страну',
+  ua: 'Знайти країну',
+  en: 'Search country',
+}
+
+const SEARCH_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <circle cx="11" cy="11" r="7"/>
+    <path d="M21 21l-4.35-4.35"/>
+  </svg>
+)
+
 export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: Props) {
   const T = getT(lang)
   const [view, setView]       = useState<View>('menu')
@@ -122,6 +158,8 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
   const [gettingCode, setGettingCode] = useState(false)
   const [copied, setCopied]   = useState<'phone' | 'code' | ''>('')
   const [confirmCat, setConfirmCat] = useState<Category | null>(null)
+  const [catSearch, setCatSearch] = useState('')
+  const [catSort, setCatSort] = useState<CatSort>('pop')
   const buyingRef = useRef(false)
   // Інструкція під час покупки акаунта (перекриває час завантаження)
   const [instrAck, setInstrAck] = useState(false)
@@ -261,55 +299,98 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
   if (view === 'menu') {
     const starsBalance = me?.balance_stars ?? 0
     const usdDisplay = (starsBalance * 0.013).toFixed(2)
+    const H = HERO_TEXT[lang]
 
     return (
       <div className="page">
-        {/* Hero balance card */}
-        <div style={{
-          background: 'linear-gradient(135deg, #1E1428 0%, #1A1020 50%, #141018 100%)',
-          border: '1px solid rgba(244,169,0,.22)',
-          borderRadius: 20, padding: '20px 18px', marginBottom: 18,
-          position: 'relative', overflow: 'hidden',
-        }}>
-          <div style={{
-            position: 'absolute', top: -30, right: -30, width: 150, height: 150, borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(244,169,0,.12) 0%, transparent 70%)',
-            pointerEvents: 'none',
-          }} />
-          <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 4 }}>
-            {T.balance.toUpperCase()}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1 }}>
-              <span style={{ fontWeight: 800, fontSize: 30 }}>⭐{starsBalance}</span>
-              <span style={{ fontWeight: 400, fontSize: 13, marginLeft: 7, color: 'var(--muted)' }}>(${usdDisplay})</span>
-            </div>
-            <BioPromoButton lang={lang} />
+        {/* Hero */}
+        <div style={{ padding: '18px 0 20px', textAlign: 'center' }}>
+          <div className="display" style={{ fontSize: 26, color: 'var(--text)' }}>
+            {H.t1}
+            <br />
+            <span style={{
+              background: 'linear-gradient(120deg, #7DB4FF, #2AABEE)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+            }}>{H.t2}</span>
           </div>
         </div>
 
-        <h1 style={{ marginBottom: 14, fontSize: 19 }}>{T.shop}</h1>
+        {/* Кроки 1-2-3 */}
+        <div className="steps-row">
+          {[0, 1, 2].map(i => (
+            <div key={i} style={{ flex: 1, minWidth: 0 }}>
+              <div className="step-card">
+                <div className="step-num">{i + 1}</div>
+                {i === 0 && (
+                  <div style={{
+                    background: 'rgba(255,255,255,.92)', color: '#0A0A0F',
+                    borderRadius: 999, padding: '7px 10px',
+                    fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap',
+                    boxShadow: '0 4px 14px rgba(0,0,0,.35)',
+                  }}>{H.buyPill}</div>
+                )}
+                {i === 1 && (
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {['4', '•', '•', '1'].map((d, j) => (
+                      <div key={j} style={{
+                        width: 20, height: 26, borderRadius: 6,
+                        background: 'rgba(255,255,255,.92)', color: '#0A0A0F',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 13, fontWeight: 800,
+                        boxShadow: '0 4px 14px rgba(0,0,0,.35)',
+                      }}>{d}</div>
+                    ))}
+                  </div>
+                )}
+                {i === 2 && (
+                  <div style={{
+                    width: 42, height: 42, borderRadius: '50%',
+                    background: 'rgba(255,255,255,.92)', color: '#0A0A0F',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 15, fontWeight: 900, letterSpacing: 1,
+                    boxShadow: '0 4px 14px rgba(0,0,0,.35)',
+                  }}>···</div>
+                )}
+              </div>
+              <div className="step-caption">{H.steps[i]}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Balance strip */}
+        <div style={{
+          background: 'var(--card)', border: '1px solid var(--border)',
+          borderRadius: 18, padding: '14px 16px', margin: '16px 0 18px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 4 }}>
+              {T.balance.toUpperCase()}
+            </div>
+            <div className="balance-glow" style={{ color: 'var(--orange2)', lineHeight: 1 }}>
+              <span style={{ fontWeight: 800, fontSize: 24 }}>⭐{starsBalance}</span>
+              <span style={{ fontWeight: 400, fontSize: 12, marginLeft: 7, color: 'var(--muted)' }}>(${usdDisplay})</span>
+            </div>
+          </div>
+          <BioPromoButton lang={lang} />
+        </div>
+
+        <h1 style={{ marginBottom: 12 }}>{H.catalog}</h1>
 
         {/* TG Accounts card */}
         <div style={{
-          background: 'linear-gradient(135deg, #0d1520 0%, #111a2e 100%)',
-          border: '1px solid rgba(42,171,238,.25)',
+          background: 'radial-gradient(130% 100% at 15% 0%, rgba(46,124,246,.18) 0%, transparent 55%), var(--card)',
+          border: '1px solid rgba(46,124,246,.28)',
           borderRadius: 20, padding: '18px 16px', marginBottom: 10,
-          boxShadow: '0 6px 28px rgba(42,171,238,.1)',
+          boxShadow: '0 8px 30px rgba(20,60,150,.18)',
           position: 'relative', overflow: 'hidden',
         }}>
-          <div style={{
-            position: 'absolute', top: -20, right: -20, width: 120, height: 120,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(42,171,238,.1) 0%, transparent 70%)',
-            pointerEvents: 'none',
-          }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
             <div style={{
               width: 52, height: 52, borderRadius: 16, flexShrink: 0,
-              background: 'linear-gradient(135deg, #2AABEE, #1178B8)',
+              background: 'linear-gradient(135deg, #2AABEE, #2E7CF6)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 14px rgba(42,171,238,.35)',
+              boxShadow: '0 4px 14px rgba(46,124,246,.35)',
               color: '#fff',
             }}>{TG_ICON}</div>
             <div style={{ flex: 1 }}>
@@ -317,11 +398,8 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>{T.tg_accounts_desc}</div>
             </div>
           </div>
-          <button className="btn" onClick={() => setView('list')} style={{
-            width: '100%', padding: '11px',
-            background: 'linear-gradient(135deg, #2AABEE, #1178B8)',
-            color: '#fff', fontSize: 14, fontWeight: 700,
-            boxShadow: '0 3px 14px rgba(42,171,238,.35)',
+          <button className="btn btn-primary" onClick={() => setView('list')} style={{
+            width: '100%', padding: '12px', fontSize: 14,
           }}>
             {T.buy} →
           </button>
@@ -335,17 +413,17 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
             <div style={{
               width: 52, height: 52, borderRadius: 16, flexShrink: 0,
-              background: 'linear-gradient(135deg, #5FBA47, #2d7a1c)',
+              background: 'linear-gradient(135deg, #1E8FD0, #2563D0)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
-              boxShadow: '0 4px 14px rgba(95,186,71,.35)',
+              boxShadow: '0 4px 14px rgba(46,124,246,.3)',
             }}>👥</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_boost}</div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>{T.tg_boost_desc}</div>
             </div>
           </div>
-          <button className="btn btn-green" onClick={() => setView('smm_list')} style={{
-            width: '100%', padding: '11px', fontSize: 14, fontWeight: 700,
+          <button className="btn btn-secondary" onClick={() => setView('smm_list')} style={{
+            width: '100%', padding: '12px', fontSize: 14, fontWeight: 700,
           }}>
             {T.boost_order_btn} →
           </button>
@@ -394,7 +472,23 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
   }
 
   // ─── Список ───────────────────────────────────────────────────────────────
-  if (view === 'list') return (
+  if (view === 'list') {
+    const catTitle = (c: Category) => (lang === 'ru' ? c.title_ru : lang === 'ua' ? c.title_ua : c.title) || c.title
+    const effPrice = (c: Category) => c.discount_stars || c.price_stars
+    const q = catSearch.trim().toLowerCase()
+    const shown = cats
+      .filter(c => !q || catTitle(c).toLowerCase().includes(q) || (c.phone_prefix ?? '').includes(q))
+      .sort((a, b) => {
+        switch (catSort) {
+          case 'exp':   return effPrice(b) - effPrice(a)
+          case 'cheap': return effPrice(a) - effPrice(b)
+          case 'az':    return catTitle(a).localeCompare(catTitle(b), lang === 'en' ? 'en' : 'ru')
+          case 'za':    return catTitle(b).localeCompare(catTitle(a), lang === 'en' ? 'en' : 'ru')
+          default:      return 0
+        }
+      })
+
+    return (
     <>
       {confirmCat && (
         <ConfirmModal
@@ -404,99 +498,94 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
         />
       )}
       <div className="page">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <button
-            onClick={() => setView('menu')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--orange)', fontSize: 26, lineHeight: 1 }}
-          >‹</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <button onClick={() => setView('menu')} style={{
+            width: 36, height: 36, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--card2)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: 20, color: 'var(--text2)', flexShrink: 0,
+          }}>‹</button>
           <h1 style={{ margin: 0 }}>{T.tg_accounts}</h1>
         </div>
 
-        {/* How-it-works banner */}
-        <div style={{
-          background: 'linear-gradient(135deg, #1E1428 0%, #141018 100%)',
-          border: '1px solid rgba(255,107,43,.2)',
-          borderRadius: 16,
-          padding: '14px 16px',
-          marginBottom: 14,
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: 1, marginBottom: 12 }}>
-            {T.how_it_works.toUpperCase()}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
-            {T.how_steps.map((step, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                  <div style={{
-                    width: 38, height: 38, borderRadius: 12,
-                    background: i === T.how_steps.length - 1
-                      ? 'linear-gradient(135deg, rgba(255,107,43,.3), rgba(255,107,43,.1))'
-                      : 'rgba(255,255,255,.06)',
-                    border: i === T.how_steps.length - 1
-                      ? '1px solid rgba(255,107,43,.4)'
-                      : '1px solid rgba(255,255,255,.08)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 18, marginBottom: 6, flexShrink: 0,
-                  }}>
-                    {step.icon}
-                  </div>
-                  <div style={{ fontSize: 10, color: 'var(--text2)', lineHeight: 1.35, fontWeight: 500 }}>
-                    {step.text}
-                  </div>
-                </div>
-                {i < T.how_steps.length - 1 && (
-                  <div style={{ color: 'var(--orange)', fontSize: 16, fontWeight: 300, marginTop: 10, flexShrink: 0, padding: '0 2px' }}>›</div>
-                )}
-              </div>
-            ))}
-          </div>
+        {/* Search */}
+        <div className="search-wrap">
+          {SEARCH_ICON}
+          <input
+            className="search-input"
+            type="text"
+            placeholder={SEARCH_PH[lang]}
+            value={catSearch}
+            onChange={e => setCatSearch(e.target.value)}
+          />
+        </div>
+
+        {/* Sort chips */}
+        <div className="chips-row">
+          {SORT_CHIPS[lang].map(c => (
+            <button
+              key={c.key}
+              className={'chip' + (catSort === c.key ? ' active' : '')}
+              onClick={() => setCatSort(c.key)}
+            >{c.label}</button>
+          ))}
         </div>
 
         {cats.length === 0 ? (
           <>
-            <div className="card"><div className="skeleton" style={{ height: 72 }} /></div>
-            <div className="card"><div className="skeleton" style={{ height: 72 }} /></div>
+            <div className="card"><div className="skeleton" style={{ height: 60 }} /></div>
+            <div className="card"><div className="skeleton" style={{ height: 60 }} /></div>
           </>
         ) : (
           <>
             {cats.some(c => c.discount_stars) && (
               <div style={{
-                fontSize: 12, fontWeight: 700, color: '#ff6b2b',
-                background: 'rgba(255,107,43,.1)', border: '1px solid rgba(255,107,43,.25)',
-                borderRadius: 10, padding: '8px 14px', textAlign: 'center', marginBottom: 4,
+                fontSize: 12, fontWeight: 700, color: '#7DB4FF',
+                background: 'rgba(46,124,246,.1)', border: '1px solid rgba(46,124,246,.28)',
+                borderRadius: 12, padding: '9px 14px', textAlign: 'center', marginBottom: 10,
               }}>
                 🎉 Акция открытия магазина — скидки на все аккаунты
               </div>
             )}
-            {cats.map(cat => (
-              <div key={cat.category} className="card" style={{ padding: '12px 14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                  <div style={{ fontSize: 36, flexShrink: 0, lineHeight: 1 }}>{cat.flag}</div>
-                  <div>
-                    <div style={{ fontWeight: 800, fontSize: 16 }}>
-                      {lang === 'ru' ? cat.title_ru : lang === 'ua' ? cat.title_ua : cat.title}
+            {shown.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '36px 20px', color: 'var(--muted)' }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>🔍</div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>
+                  {lang === 'ru' ? 'Ничего не найдено' : lang === 'ua' ? 'Нічого не знайдено' : 'Nothing found'}
+                </div>
+              </div>
+            )}
+            {shown.map(cat => (
+              <div key={cat.category} className="card" style={{ padding: '14px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+                    background: 'var(--card2)', border: '1px solid var(--border)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 28, lineHeight: 1,
+                  }}>{cat.flag}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 800, fontSize: 15 }}>
+                      {catTitle(cat)}
                       {cat.phone_prefix && (
                         <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--muted)', marginLeft: 6 }}>
                           ({cat.phone_prefix})
                         </span>
                       )}
                     </div>
-                    <div className="muted" style={{ fontSize: 11, marginTop: 1 }}>Telegram account</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div className="price-pill" style={{ flex: 1, justifyContent: 'center', padding: '8px 10px' }}>
-                    {cat.discount_stars ? (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontSize: 12 }}>⭐{cat.price_stars}</span>
-                        <span style={{ fontWeight: 800, color: '#ff6b2b', fontSize: 15 }}>⭐{cat.discount_stars}</span>
-                        <span style={{ color: 'var(--muted)', fontSize: 11 }}>(${(cat.discount_stars * 0.013).toFixed(2)})</span>
-                      </span>
-                    ) : localPrice(cat.price_stars, cat.price_usd)}
+                    <div style={{ marginTop: 4, fontSize: 13 }}>
+                      {cat.discount_stars ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontSize: 11 }}>⭐{cat.price_stars}</span>
+                          <span style={{ fontWeight: 800, color: 'var(--orange2)', fontSize: 14 }}>⭐{cat.discount_stars}</span>
+                          <span style={{ color: 'var(--muted)', fontSize: 11 }}>(${(cat.discount_stars * 0.013).toFixed(2)})</span>
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--orange2)' }}>{localPrice(cat.price_stars, cat.price_usd)}</span>
+                      )}
+                    </div>
                   </div>
                   <button
                     className="btn btn-primary"
-                    style={{ width: 'auto', padding: '9px 20px', fontSize: 14, flexShrink: 0 }}
+                    style={{ width: 'auto', padding: '10px 20px', fontSize: 13.5, flexShrink: 0 }}
                     onClick={() => setConfirmCat(cat)}
                   >{T.buy}</button>
                 </div>
@@ -507,7 +596,8 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
 
       </div>
     </>
-  )
+    )
+  }
 
   // ─── SMM список послуг ────────────────────────────────────────────────────
   if (view === 'smm_list') return (
@@ -560,11 +650,11 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{
                 width: 52, height: 52, borderRadius: 16, flexShrink: 0,
-                background: isReactCard ? 'linear-gradient(135deg, #2d2200, #3a2e00)' : 'linear-gradient(135deg, #5FBA47, #2d7a1c)',
+                background: isReactCard ? 'linear-gradient(135deg, #2d2200, #3a2e00)' : 'linear-gradient(135deg, #2AABEE, #2E7CF6)',
                 border: isReactCard ? '1px solid rgba(244,169,0,.3)' : 'none',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: isReactCard ? 20 : (isViews ? 0 : 25),
-                boxShadow: isReactCard ? '0 4px 14px rgba(244,169,0,.25)' : '0 4px 14px rgba(95,186,71,.4)',
+                boxShadow: isReactCard ? '0 4px 14px rgba(244,169,0,.25)' : '0 4px 14px rgba(46,124,246,.4)',
                 color: '#fff',
               }}>
                 {isReactCard ? '😊' : isViews ? EYE_ICON : '👥'}
@@ -573,7 +663,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 800, fontSize: 15 }}>{cardTitle}</div>
                 {!isReactCard && !isViews && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 5, fontWeight: 700, fontSize: 12, color: '#7FD465' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 5, fontWeight: 700, fontSize: 12, color: '#7DB4FF' }}>
                     <span style={{ fontSize: 14 }}>♻️</span>
                     <span>{T.smm_guarantee}</span>
                   </div>
@@ -584,18 +674,18 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
               {/* Right price badge */}
               <div style={{
                 flexShrink: 0,
-                background: 'linear-gradient(160deg, #F0A800, #C87800)',
+                background: 'var(--card2)',
+                border: '1px solid rgba(245,181,10,.3)',
                 borderRadius: 16, padding: '13px 15px',
                 textAlign: 'center',
-                boxShadow: '0 0 22px rgba(255,180,0,.75), 0 4px 16px rgba(200,120,0,.55)',
               }}>
-                <div style={{ fontWeight: 900, fontSize: 18, color: '#fff', lineHeight: 1, textShadow: '0 0 10px rgba(255,255,255,.5)' }}>{badgeQty}</div>
-                <div style={{ fontWeight: 700, fontSize: 11, color: 'rgba(255,255,255,.85)', whiteSpace: 'nowrap', marginTop: 2 }}>{badgeWord}</div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.45)', margin: '4px 0' }}>——</div>
-                <div style={{ fontWeight: 900, fontSize: 22, color: '#fff', lineHeight: 1, textShadow: '0 0 12px rgba(255,255,255,.5)' }}>⭐{badgeStars}</div>
+                <div style={{ fontWeight: 900, fontSize: 18, color: 'var(--text)', lineHeight: 1 }}>{badgeQty}</div>
+                <div style={{ fontWeight: 700, fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap', marginTop: 2 }}>{badgeWord}</div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.2)', margin: '4px 0' }}>——</div>
+                <div style={{ fontWeight: 900, fontSize: 22, color: 'var(--orange2)', lineHeight: 1 }}>⭐{badgeStars}</div>
               </div>
 
-              <div style={{ color: '#5FBA47', fontSize: 18, fontWeight: 300, flexShrink: 0 }}>›</div>
+              <div style={{ color: '#7DB4FF', fontSize: 18, fontWeight: 300, flexShrink: 0 }}>›</div>
             </div>
           </div>
         )
@@ -663,12 +753,12 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           <div style={{ fontWeight: 800, fontSize: 19 }}>{T.smm_accepted}</div>
         </div>
         <div className="smm-card" style={{ borderRadius: 24, padding: '40px 28px', textAlign: 'center', width: '100%' }}>
-          <div style={{ fontSize: 60, marginBottom: 16, filter: 'drop-shadow(0 0 20px rgba(95,186,71,.5))' }}>✅</div>
+          <div style={{ fontSize: 60, marginBottom: 16, filter: 'drop-shadow(0 0 20px rgba(46,124,246,.5))' }}>✅</div>
           <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 6 }}>{T.smm_accepted}</div>
           <div style={{
             display: 'inline-flex', gap: 10, alignItems: 'center',
-            background: 'rgba(95,186,71,.12)', borderRadius: 20, padding: '5px 14px',
-            fontSize: 13, color: '#7FD465', marginBottom: 18,
+            background: 'rgba(46,124,246,.12)', borderRadius: 20, padding: '5px 14px',
+            fontSize: 13, color: '#7DB4FF', marginBottom: 18,
           }}>
             <span>#{smmDone.order_id}</span><span>·</span><span>⭐{smmDone.stars_spent}</span>
           </div>
@@ -709,11 +799,11 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
                   <button key={btn.key} onClick={() => { setSelectedSmmKey(btn.key); setSmmQty(15); setSmmCustom('') }}
                     style={{
                       flex: 1, padding: '12px 4px', borderRadius: 14, cursor: 'pointer',
-                      border: active ? '2px solid rgba(244,169,0,.7)' : '2px solid var(--border)',
-                      background: active ? 'linear-gradient(135deg, rgba(244,169,0,.15), rgba(200,120,0,.08))' : 'var(--card2)',
+                      border: active ? '2px solid rgba(46,124,246,.7)' : '2px solid var(--border)',
+                      background: active ? 'linear-gradient(135deg, rgba(46,124,246,.16), rgba(42,171,238,.08))' : 'var(--card2)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       transition: 'all .15s',
-                      boxShadow: active ? '0 0 16px rgba(244,169,0,.2)' : 'none',
+                      boxShadow: active ? '0 0 16px rgba(46,124,246,.25)' : 'none',
                     }}>
                     <span style={{ fontSize: 22 }}>{btn.emoji}</span>
                   </button>
@@ -729,13 +819,13 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
                 <button key={btn.key} onClick={() => { setSelectedSmmKey(btn.key); setSmmQty(15); setSmmCustom('') }}
                   style={{
                     flex: 1, padding: '10px 10px', borderRadius: 14, cursor: 'pointer',
-                    border: active ? '2px solid rgba(244,169,0,.8)' : '2px solid rgba(255,255,255,.12)',
+                    border: active ? '2px solid rgba(46,124,246,.8)' : '2px solid rgba(255,255,255,.12)',
                     background: active
-                      ? 'linear-gradient(135deg, rgba(244,169,0,.18), rgba(200,120,0,.10))'
+                      ? 'linear-gradient(135deg, rgba(46,124,246,.18), rgba(42,171,238,.10))'
                       : 'linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.02))',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     transition: 'all .15s',
-                    boxShadow: active ? '0 0 18px rgba(244,169,0,.25)' : '0 0 0 rgba(0,0,0,0)',
+                    boxShadow: active ? '0 0 18px rgba(46,124,246,.3)' : '0 0 0 rgba(0,0,0,0)',
                   }}>
                   <span style={{ fontSize: 18, letterSpacing: 1 }}>{btn.emoji}</span>
                 </button>
@@ -745,7 +835,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
         </div>
 
         {/* Form card */}
-        <div style={{ background: 'var(--card)', border: '1px solid rgba(244,169,0,.22)', borderRadius: 20, padding: '18px 16px', boxShadow: '0 0 28px rgba(244,169,0,.06)' }}>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 20, padding: '18px 16px' }}>
 
           {/* Post link input */}
           <div style={{ marginBottom: 20 }}>
@@ -762,7 +852,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
                 style={{
                   width: '100%', boxSizing: 'border-box',
                   background: 'var(--card2)',
-                  border: '1.5px solid ' + (smmLink ? 'rgba(95,186,71,.45)' : 'var(--border)'),
+                  border: '1.5px solid ' + (smmLink ? 'rgba(46,124,246,.45)' : 'var(--border)'),
                   borderRadius: 14, padding: '13px 14px 13px 40px',
                   color: 'var(--text)', fontSize: 14,
                   transition: 'border-color .2s', outline: 'none',
@@ -798,7 +888,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
               style={{
                 width: '100%', boxSizing: 'border-box',
                 background: 'var(--card2)',
-                border: '1.5px solid ' + (smmCustom ? 'rgba(95,186,71,.4)' : 'var(--border)'),
+                border: '1.5px solid ' + (smmCustom ? 'rgba(46,124,246,.4)' : 'var(--border)'),
                 borderRadius: 12, padding: '11px 14px', color: 'var(--text)', fontSize: 14,
                 outline: 'none', transition: 'border-color .2s',
               }}
@@ -900,12 +990,12 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           <div style={{ fontWeight: 800, fontSize: 19 }}>{T.smm_accepted}</div>
         </div>
         <div className="smm-card" style={{ borderRadius: 24, padding: '40px 28px', textAlign: 'center', width: '100%' }}>
-          <div style={{ fontSize: 60, marginBottom: 16, filter: 'drop-shadow(0 0 20px rgba(95,186,71,.5))' }}>✅</div>
+          <div style={{ fontSize: 60, marginBottom: 16, filter: 'drop-shadow(0 0 20px rgba(46,124,246,.5))' }}>✅</div>
           <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 6 }}>{T.smm_accepted}</div>
           <div style={{
             display: 'inline-flex', gap: 10, alignItems: 'center',
-            background: 'rgba(95,186,71,.12)', borderRadius: 20, padding: '5px 14px',
-            fontSize: 13, color: '#7FD465', marginBottom: 18,
+            background: 'rgba(46,124,246,.12)', borderRadius: 20, padding: '5px 14px',
+            fontSize: 13, color: '#7DB4FF', marginBottom: 18,
           }}>
             <span>#{smmDone.order_id}</span><span>·</span><span>⭐{smmDone.stars_spent}</span>
           </div>
@@ -948,9 +1038,9 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           <div className="smm-card" style={{ borderRadius: 20, padding: '16px 18px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{
               width: 54, height: 54, borderRadius: 16, flexShrink: 0,
-              background: 'linear-gradient(135deg, #5FBA47 0%, #2d7a1c 100%)',
+              background: 'linear-gradient(135deg, #2AABEE 0%, #2E7CF6 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
-              boxShadow: '0 4px 14px rgba(95,186,71,.35)',
+              boxShadow: '0 4px 14px rgba(46,124,246,.35)',
             }}>{isReactions ? '👎💩' : isViews ? '👁️' : '👥'}</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 5 }}>
@@ -958,8 +1048,8 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
               </div>
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
-                background: 'rgba(95,186,71,.15)', border: '1px solid rgba(95,186,71,.3)',
-                borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 700, color: '#7FD465',
+                background: 'rgba(46,124,246,.15)', border: '1px solid rgba(46,124,246,.3)',
+                borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 700, color: '#7DB4FF',
               }}>✅ {T.smm_guarantee}</span>
             </div>
             <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -994,7 +1084,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
         )}
 
         {/* Form card */}
-        <div style={{ background: 'var(--card)', border: '1px solid rgba(244,169,0,.22)', borderRadius: 20, padding: '18px 16px', boxShadow: '0 0 28px rgba(244,169,0,.06)' }}>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 20, padding: '18px 16px' }}>
 
 
           {/* Link input */}
@@ -1012,7 +1102,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
                 style={{
                   width: '100%', boxSizing: 'border-box',
                   background: 'var(--card2)',
-                  border: '1.5px solid ' + (smmLink ? 'rgba(95,186,71,.45)' : 'var(--border)'),
+                  border: '1.5px solid ' + (smmLink ? 'rgba(46,124,246,.45)' : 'var(--border)'),
                   borderRadius: 14, padding: '13px 14px 13px 40px',
                   color: 'var(--text)', fontSize: 14,
                   transition: 'border-color .2s',
@@ -1054,7 +1144,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
               style={{
                 width: '100%', boxSizing: 'border-box',
                 background: 'var(--card2)',
-                border: '1.5px solid ' + (smmCustom ? 'rgba(95,186,71,.4)' : 'var(--border)'),
+                border: '1.5px solid ' + (smmCustom ? 'rgba(46,124,246,.4)' : 'var(--border)'),
                 borderRadius: 12, padding: '11px 14px', color: 'var(--text)', fontSize: 14,
                 outline: 'none', transition: 'border-color .2s',
               }}

@@ -109,14 +109,14 @@ export default function BottomNav({ active, onChange, lang, isAdmin, isPartner }
             width: 68, height: 68,
             borderRadius: '50%',
             background: active === 'shop'
-              ? 'linear-gradient(135deg, #B15CFF, #FF6FB0)'
-              : 'linear-gradient(135deg, #9B4BE8, #E85D9E)',
+              ? 'linear-gradient(135deg, #2AABEE, #2E7CF6)'
+              : 'linear-gradient(135deg, #1E8FD0, #2563D0)',
             border: active === 'shop'
               ? '2.5px solid rgba(255,255,255,.4)'
-              : '2.5px solid rgba(178,95,255,.25)',
+              : '2.5px solid rgba(46,124,246,.3)',
             boxShadow: active === 'shop'
-              ? '0 5px 22px rgba(178,95,255,.8)'
-              : '0 3px 16px rgba(178,95,255,.5)',
+              ? '0 5px 22px rgba(46,124,246,.75)'
+              : '0 3px 16px rgba(46,124,246,.45)',
             cursor: 'pointer',
             display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',

@@ -47,8 +47,8 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
 
       {/* ── Hero card ── */}
       <div style={{
-        background: 'linear-gradient(135deg, #1E1428 0%, #1A1020 50%, #141018 100%)',
-        border: '1px solid rgba(255,107,43,.22)',
+        background: 'radial-gradient(130% 100% at 15% 0%, rgba(46,124,246,.14) 0%, transparent 55%), var(--card)',
+        border: '1px solid rgba(46,124,246,.25)',
         borderRadius: 20,
         padding: '22px 18px 20px',
         marginBottom: 10,
@@ -58,15 +58,15 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
         <div style={{
           position: 'absolute', top: -40, right: -40,
           width: 180, height: 180, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(255,107,43,.15) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(46,124,246,.14) 0%, transparent 70%)',
           pointerEvents: 'none',
         }} />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
           <div style={{
             width: 52, height: 52, borderRadius: 16,
-            background: 'rgba(255,107,43,.2)',
-            border: '1.5px solid rgba(255,107,43,.4)',
+            background: 'rgba(46,124,246,.18)',
+            border: '1.5px solid rgba(46,124,246,.45)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 22, fontWeight: 800, color: '#fff', flexShrink: 0,
           }}>
@@ -154,8 +154,8 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
           return (
             <button key={t} onClick={() => setLbType(t)} style={{
               flex: 1, padding: '9px 6px', fontSize: 12, fontWeight: lbType === t ? 700 : 500,
-              background: lbType === t ? 'rgba(255,107,43,.18)' : 'transparent',
-              color: lbType === t ? 'var(--orange)' : 'var(--muted)',
+              background: lbType === t ? 'rgba(46,124,246,.16)' : 'transparent',
+              color: lbType === t ? '#7DB4FF' : 'var(--muted)',
               border: 'none', cursor: 'pointer',
               borderRight: i === 0 ? '1px solid var(--border)' : 'none',
             }}>{label}</button>
@@ -195,13 +195,13 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
               <div key={row.rank} style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
                 borderBottom: i < leaders.length - 1 ? '1px solid var(--border)' : 'none',
-                background: row.is_me ? 'rgba(255,107,43,.07)' : 'transparent',
+                background: row.is_me ? 'rgba(46,124,246,.08)' : 'transparent',
               }}>
                 <div style={{ width: 28, textAlign: 'center', fontSize: i < 3 ? 18 : 13, fontWeight: 700, color: i < 3 ? undefined : 'var(--muted)', flexShrink: 0 }}>
                   {i < 3 ? MEDALS[i] : `#${i + 1}`}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: row.is_me ? 800 : 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: row.is_me ? 'var(--orange)' : 'var(--text)' }}>
+                  <div style={{ fontWeight: row.is_me ? 800 : 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: row.is_me ? '#7DB4FF' : 'var(--text)' }}>
                     {row.name}{row.is_me ? ' 👈' : ''}
                   </div>
                   {row.username && <div className="muted" style={{ fontSize: 11, marginTop: 1 }}>@{row.username}</div>}
@@ -228,13 +228,13 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
               <div key={row.rank} style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
                 borderBottom: i < refLeaders.length - 1 ? '1px solid var(--border)' : 'none',
-                background: row.is_me ? 'rgba(255,107,43,.07)' : 'transparent',
+                background: row.is_me ? 'rgba(46,124,246,.08)' : 'transparent',
               }}>
                 <div style={{ width: 28, textAlign: 'center', fontSize: i < 3 ? 18 : 13, fontWeight: 700, color: i < 3 ? undefined : 'var(--muted)', flexShrink: 0 }}>
                   {i < 3 ? MEDALS[i] : `#${i + 1}`}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: row.is_me ? 800 : 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: row.is_me ? 'var(--orange)' : 'var(--text)' }}>
+                  <div style={{ fontWeight: row.is_me ? 800 : 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: row.is_me ? '#7DB4FF' : 'var(--text)' }}>
                     {row.name}{row.is_me ? ' 👈' : ''}
                   </div>
                   {row.username && <div className="muted" style={{ fontSize: 11, marginTop: 1 }}>@{row.username}</div>}

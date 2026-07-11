@@ -164,11 +164,11 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
   }
 
   const presetBtn = (active: boolean): React.CSSProperties => ({
-    background: active ? 'rgba(255,107,43,.15)' : 'var(--card2)',
-    border: `1px solid ${active ? 'rgba(255,107,43,.4)' : 'var(--border)'}`,
+    background: active ? 'rgba(46,124,246,.14)' : 'var(--card2)',
+    border: `1px solid ${active ? 'rgba(46,124,246,.45)' : 'var(--border)'}`,
     borderRadius: 12, padding: '11px 4px', cursor: 'pointer',
     fontWeight: 800, fontSize: 15,
-    color: active ? 'var(--orange)' : 'var(--text)',
+    color: active ? '#7DB4FF' : 'var(--text)',
     width: '100%',
   })
 
@@ -205,14 +205,14 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
 
       {/* Balance hero — Stars primary */}
       <div style={{
-        background: 'linear-gradient(135deg, #1E1428 0%, #1A1020 50%, #141018 100%)',
-        border: '1px solid rgba(255,107,43,.22)',
+        background: 'radial-gradient(130% 100% at 15% 0%, rgba(46,124,246,.14) 0%, transparent 55%), var(--card)',
+        border: '1px solid rgba(46,124,246,.25)',
         borderRadius: 20, padding: '20px 18px', marginBottom: 14,
         position: 'relative', overflow: 'hidden',
       }}>
         <div style={{
           position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(255,107,43,.12) 0%, transparent 70%)', pointerEvents: 'none',
+          background: 'radial-gradient(circle, rgba(46,124,246,.12) 0%, transparent 70%)', pointerEvents: 'none',
         }} />
         <div style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6 }}>
           {T.balance.toUpperCase()}
@@ -422,8 +422,8 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
         {lang === 'ru' ? 'ПРОМОКОД' : lang === 'ua' ? 'ПРОМОКОД' : 'PROMO CODE'}
       </div>
       <div style={{
-        background: 'linear-gradient(135deg, rgba(255,107,43,.06), rgba(255,107,43,.02))',
-        border: '1px solid rgba(255,107,43,.2)',
+        background: 'linear-gradient(135deg, rgba(46,124,246,.07), rgba(46,124,246,.02))',
+        border: '1px solid rgba(46,124,246,.22)',
         borderRadius: 14, padding: '14px 16px',
       }}>
         <input
