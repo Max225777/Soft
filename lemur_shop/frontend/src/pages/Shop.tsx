@@ -30,6 +30,15 @@ const EYE_ICON = (
   </svg>
 )
 
+// Рупор-«boost» — чіткий білий контур, не зливається з фоновою іконкою
+const BOOST_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="26" height="26">
+    <path d="M3 11v2a1 1 0 0 0 1 1h2l3.5 3.5a1 1 0 0 0 1.7-.7V7.2a1 1 0 0 0-1.7-.7L6 10H4a1 1 0 0 0-1 1z"/>
+    <path d="M15.5 8.5a5 5 0 0 1 0 7"/>
+    <path d="M18.5 5.5a9 9 0 0 1 0 13"/>
+  </svg>
+)
+
 interface ConfirmProps {
   cat: Category; me: Me | null; lang: Lang
   onConfirm(): void; onCancel(): void
@@ -360,16 +369,16 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
         {/* Balance strip */}
         <div style={{
           background: 'var(--card)', border: '1px solid var(--border)',
-          borderRadius: 18, padding: '14px 16px', margin: '16px 0 18px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          borderRadius: 16, padding: '9px 14px', margin: '10px 0 14px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
         }}>
           <div>
-            <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 4 }}>
+            <div style={{ fontSize: 9.5, color: 'var(--muted)', letterSpacing: 1, marginBottom: 2 }}>
               {T.balance.toUpperCase()}
             </div>
             <div className="balance-glow" style={{ color: 'var(--orange2)', lineHeight: 1 }}>
-              <span style={{ fontWeight: 800, fontSize: 24 }}>⭐{starsBalance}</span>
-              <span style={{ fontWeight: 400, fontSize: 12, marginLeft: 7, color: 'var(--muted)' }}>(${usdDisplay})</span>
+              <span style={{ fontWeight: 800, fontSize: 21 }}>⭐{starsBalance}</span>
+              <span style={{ fontWeight: 400, fontSize: 11, marginLeft: 6, color: 'var(--muted)' }}>(${usdDisplay})</span>
             </div>
           </div>
           <BioPromoButton lang={lang} />
@@ -413,17 +422,18 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
             <div style={{
               width: 52, height: 52, borderRadius: 16, flexShrink: 0,
-              background: 'linear-gradient(135deg, #1E8FD0, #2563D0)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
-              boxShadow: '0 4px 14px rgba(46,124,246,.3)',
-            }}>👥</div>
+              background: 'linear-gradient(135deg, #17C0C9, #0E8FA8)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 14px rgba(23,192,201,.35)',
+              border: '1px solid rgba(255,255,255,.14)',
+            }}>{BOOST_ICON}</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: 17 }}>{T.tg_boost}</div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>{T.tg_boost_desc}</div>
             </div>
           </div>
-          <button className="btn btn-secondary" onClick={() => setView('smm_list')} style={{
-            width: '100%', padding: '12px', fontSize: 14, fontWeight: 700,
+          <button className="btn btn-primary" onClick={() => setView('smm_list')} style={{
+            width: '100%', padding: '12px', fontSize: 14,
           }}>
             {T.boost_order_btn} →
           </button>
