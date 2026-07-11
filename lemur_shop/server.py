@@ -685,7 +685,7 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
                 f"{_flag} <b>{_title}</b>\n"
                 f"📱 <code>{_mask_phone(phone)}</code>\n"
                 f"💫 Сумма: <b>⭐{shop_price_stars}</b>\n\n"
-                f"🦎 @{settings.CHANNEL_USERNAME.lstrip('@')}"
+                f"@{_BOT_USERNAME}"
             )
             await _bot.send_message(settings.SELL_CHANNEL_USERNAME, sell_txt, parse_mode="HTML")
         except Exception as e:
@@ -751,16 +751,17 @@ async def api_orders(user: User = Depends(get_current_user)):
 
 
 def _mask_phone(raw: str | None) -> str:
-    """Залишає видимими перші 3 цифри номера, решту ховає під ***.
-    '+959123456789' → '+959·····'. Плюс/код країни зберігаємо для впізнаваності."""
+    """Залишає видимими перші 3 цифри номера, решту ховає під зірочками.
+    '+959123456789' → '+959*********'. Плюс/код країни зберігаємо."""
     if not raw:
-        return "•••"
+        return "***"
     plus = raw.strip().startswith("+")
     digits = "".join(ch for ch in raw if ch.isdigit())
     if not digits:
-        return "•••"
+        return "***"
     head = digits[:3]
-    return ("+" if plus else "") + head + "···"
+    stars = "*" * max(3, len(digits) - 3)
+    return ("+" if plus else "") + head + stars
 
 
 @app.get("/api/leaderboard")
@@ -3152,7 +3153,7 @@ async def api_smm_order(body: SmmOrderRequest, user: User = Depends(get_current_
                 f"{_svc_flag} <b>{_svc_name}</b>\n"
                 f"🔢 Количество: <b>{body.quantity}</b>\n"
                 f"💫 Сумма: <b>⭐{price_stars}</b>\n\n"
-                f"🦎 @{settings.CHANNEL_USERNAME.lstrip('@')}"
+                f"@{_BOT_USERNAME}"
             )
             await _bot.send_message(settings.SELL_CHANNEL_USERNAME, sell_txt, parse_mode="HTML")
         except Exception as e:
