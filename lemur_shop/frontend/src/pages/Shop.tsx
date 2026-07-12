@@ -44,6 +44,16 @@ const EYE_ICON = (
   </svg>
 )
 
+// Підписники — білий контур, не зливається з синьою плиткою
+const USERS_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="26" height="26">
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+    <circle cx="9" cy="7" r="4"/>
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+  </svg>
+)
+
 // Ракета-«boost» — чіткий білий контур, читається як зростання, не як звук
 const BOOST_ICON = (
   <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="26" height="26">
@@ -716,7 +726,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
                 boxShadow: isReactCard ? '0 4px 14px rgba(244,169,0,.25)' : '0 4px 14px rgba(46,124,246,.4)',
                 color: '#fff',
               }}>
-                {isReactCard ? '😊' : isViews ? EYE_ICON : '👥'}
+                {isReactCard ? '😊' : isViews ? EYE_ICON : USERS_ICON}
               </div>
 
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -1100,7 +1110,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
               background: 'linear-gradient(135deg, #2AABEE 0%, #2E7CF6 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
               boxShadow: '0 4px 14px rgba(46,124,246,.35)',
-            }}>{isReactions ? '👎💩' : isViews ? '👁️' : '👥'}</div>
+            }}>{isReactions ? '👎💩' : isViews ? '👁️' : USERS_ICON}</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 5 }}>
                 {isReactions ? '👎💩😱😢 ' + T.smm_reactions_title : isViews ? T.smm_views_title : T.smm_subs_title}

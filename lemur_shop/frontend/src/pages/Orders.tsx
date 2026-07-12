@@ -23,24 +23,25 @@ const COUNTRY_NAMES: Record<string, Record<string, string>> = {
   br: { ru: 'Бразилия',  ua: 'Бразилія',  en: 'Brazil' },
   in: { ru: 'Индия',     ua: 'Індія',     en: 'India' },
 }
-const SMM_LABELS: Record<string, string> = {
-  tg_subscribers: '👥 Підписники',
-  tg_views:       '👁 Перегляди',
-  tg_reactions:   '⚡ Реакції',
+const SMM_LABELS: Record<string, { icon: string; ru: string; ua: string; en: string }> = {
+  tg_subscribers: { icon: '👥', ru: 'Подписчики', ua: 'Підписники', en: 'Subscribers' },
+  tg_views:       { icon: '👁', ru: 'Просмотры',  ua: 'Перегляди',  en: 'Views' },
+  tg_reactions:   { icon: '⚡', ru: 'Реакции',    ua: 'Реакції',    en: 'Reactions' },
 }
+const ACCOUNT_WORD: Record<string, string>  = { ru: 'TG-аккаунт', ua: 'TG-акаунт', en: 'TG account' }
+const REACTION_WORD: Record<string, string> = { ru: 'Реакция',    ua: 'Реакція',   en: 'Reaction' }
 
 function categoryLabel(o: Order, lang: string): { icon: string; label: string; isAccount: boolean } {
   if (!o.category || o.category in COUNTRY_FLAGS || (!o.category.startsWith('tg_') && COUNTRY_FLAGS[o.category])) {
     const cat = o.category || ''
     const flag = COUNTRY_FLAGS[cat] || '📱'
     const name = COUNTRY_NAMES[cat]?.[lang] || COUNTRY_NAMES[cat]?.['ru'] || cat.toUpperCase()
-    return { icon: flag, label: `TG-акаунт ${name}`, isAccount: true }
+    return { icon: flag, label: `${ACCOUNT_WORD[lang] || ACCOUNT_WORD.ru} ${name}`, isAccount: true }
   }
-  if (o.category.startsWith('tg_react')) return { icon: '⚡', label: 'Реакція', isAccount: false }
+  if (o.category.startsWith('tg_react')) return { icon: '⚡', label: REACTION_WORD[lang] || REACTION_WORD.ru, isAccount: false }
   const smm = SMM_LABELS[o.category]
   if (smm) {
-    const [icon, ...rest] = smm.split(' ')
-    return { icon, label: rest.join(' '), isAccount: false }
+    return { icon: smm.icon, label: (smm as any)[lang] || smm.ru, isAccount: false }
   }
   return { icon: '📱', label: o.category.toUpperCase(), isAccount: true }
 }
