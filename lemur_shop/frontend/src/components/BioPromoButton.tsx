@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { bioPromoApi, type BioPromoStatus } from '../api'
 import { getT, type Lang } from '../i18n'
 
@@ -141,10 +142,11 @@ export default function BioPromoButton({ lang }: Props) {
         </span>
       </button>
 
-      {/* Modal */}
-      {open && (
+      {/* Modal — через портал у body, щоб вийти зі stacking-контексту .page
+          (інакше нижня навігація перекриває низ модалки) */}
+      {open && createPortal(
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 200,
+          position: 'fixed', inset: 0, zIndex: 1000,
           background: 'rgba(0,0,0,.78)',
           display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
           backdropFilter: 'blur(6px)',
@@ -155,7 +157,7 @@ export default function BioPromoButton({ lang }: Props) {
             border: '1px solid rgba(95,186,71,.25)',
             borderRadius: '24px 24px 0 0',
             padding: '16px 20px 36px',
-            maxHeight: '90vh', overflowY: 'auto',
+            maxHeight: '92vh', overflowY: 'auto',
           }}>
             {/* Drag handle + close */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -288,7 +290,8 @@ export default function BioPromoButton({ lang }: Props) {
               {loading ? T.bio_promo_checking : promo?.joined && promo?.is_active ? T.bio_promo_recheck : T.bio_promo_check_btn}
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

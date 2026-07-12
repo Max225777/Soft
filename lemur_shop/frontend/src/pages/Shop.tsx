@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { api, smmApi, type Category, type BuyResult, type Me, type SmmService, type NftItem } from '../api'
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
@@ -78,9 +79,9 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
     onConfirm()
   }
 
-  return (
+  return createPortal(
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 200,
+      position: 'fixed', inset: 0, zIndex: 1000,
       background: 'rgba(0,0,0,.75)',
       display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
       backdropFilter: 'blur(6px)',
@@ -140,7 +141,8 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
           <button className="btn btn-primary" style={{ flex: 2 }} onClick={handleConfirm}>{T.confirm}</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
