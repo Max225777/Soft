@@ -588,8 +588,8 @@ async def lifespan(app: FastAPI):
     from aiogram.types import BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeChat
 
     _public_commands = [
-        BotCommand(command="start", description="🦎 Відкрити магазин"),
-        BotCommand(command="info", description="ℹ️ Інформація, документи, підтримка"),
+        BotCommand(command="start", description="🦎 Открыть магазин"),
+        BotCommand(command="info", description="ℹ️ Информация, документы, поддержка"),
     ]
     _admin_commands = _public_commands + [
         BotCommand(command="balance",  description="💰 Баланс користувача"),
