@@ -56,6 +56,11 @@ CATEGORIES: dict[str, dict] = {
     },
 }
 
+# Тимчасово приховані категорії — не показуються в магазині й недоступні для
+# покупки (UI не рендерить плашку, /buy повертає помилку). Щоб повернути —
+# прибрати код країни з набору.
+DISABLED_CATEGORIES: set[str] = {"ua"}
+
 
 async def _search_with_pmax(country: str, pmax: float, limit: int = 10) -> list[dict]:
     try:

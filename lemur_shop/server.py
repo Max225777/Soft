@@ -32,7 +32,7 @@ from lemur_shop.db.models import BioPromo, FortuneSpin, FortunePool, NftRental, 
 from lemur_shop.db.session import AsyncSessionLocal
 from decimal import Decimal
 
-from lemur_shop.services.lolz_shop import CATEGORIES, auto_buy_category
+from lemur_shop.services.lolz_shop import CATEGORIES, DISABLED_CATEGORIES, auto_buy_category
 from lemur_shop.utils.currency import get_rate
 
 log = logging.getLogger(__name__)
@@ -671,13 +671,14 @@ async def api_categories(user: User = Depends(get_current_user)):
             "discount_stars": info.get("discount_stars"),
         }
         for cat, info in CATEGORIES.items()
+        if cat not in DISABLED_CATEGORIES
     ]
 
 
 @app.post("/api/buy")
 async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
     cat_info = CATEGORIES.get(body.category)
-    if not cat_info:
+    if not cat_info or body.category in DISABLED_CATEGORIES:
         raise HTTPException(status_code=400, detail="Unknown category")
 
     base_price_usd = cat_info["price_usd"]
@@ -897,6 +898,7 @@ async def api_v1_categories(partner: User = Depends(get_api_partner)):
             "price_stars":  info.get("discount_stars") or round(info["price_usd"] / settings.STAR_DISPLAY_USD),
         }
         for cat, info in CATEGORIES.items()
+        if cat not in DISABLED_CATEGORIES
     ]
 
 
@@ -915,7 +917,7 @@ async def api_v1_buy(body: ApiBuyRequest, request: Request, partner: User = Depe
         raise HTTPException(status_code=429, detail="rate_limited")
 
     cat_info = CATEGORIES.get(body.category)
-    if not cat_info:
+    if not cat_info or body.category in DISABLED_CATEGORIES:
         raise HTTPException(status_code=400, detail="unknown_category")
 
     discount_stars = cat_info.get("discount_stars")
