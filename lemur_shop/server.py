@@ -133,7 +133,7 @@ a{color:var(--acc2)}
 <pre><code>Authorization: Bearer lemur_xxxxxxxxxxxxxxxxxxxx
 # или
 X-API-Key: lemur_xxxxxxxxxxxxxxxxxxxx</code></pre>
-<div class="ok-note">ℹ️ Покупки через API списывают звёзды с вашего баланса. <b>Партнёрская комиссия и реферальные бонусы на API-покупки не начисляются.</b></div>
+<div class="ok-note">ℹ️ Покупки через API списывают звёзды с вашего баланса.</div>
 
 <h2>Лимиты (защита от DDoS)</h2>
 <table><tr><th>Область</th><th>Лимит</th></tr>

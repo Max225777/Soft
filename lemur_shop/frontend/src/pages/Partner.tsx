@@ -227,7 +227,7 @@ export default function Partner({ lang }: Props) {
         border: '1px solid rgba(46,124,246,.28)', borderRadius: 16, padding: '14px 16px',
       }}>
         <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5, marginBottom: 12 }}>
-          Покупайте TG-аккаунты программно по API-ключу. Покупки через API <b>не начисляют</b> партнёрскую комиссию и рефбонусы.
+          Покупайте TG-аккаунты программно по API-ключу — для перепродажи или интеграции в свой сервис.
         </div>
 
         {apiKey === undefined ? (
