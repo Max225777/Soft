@@ -20,6 +20,10 @@ class Settings(BaseSettings):
 
     CHANNEL_USERNAME: str = "@LEMUR_SHOP"
     SUPPORT_USERNAME: str = "@LEMUR_MANEGER"
+    # Публічний канал з відгуками покупців (для банку — реальні відгуки)
+    REVIEWS_CHANNEL_USERNAME: str = "@LEMUR_SHOP_REP"
+    # E-mail підтримки (необов'язково; якщо порожньо — показуємо лише юзернейм)
+    SUPPORT_EMAIL: str = ""
     # Канал-вітрина, куди бот постить кожну покупку (соц-докз для покупців)
     SELL_CHANNEL_USERNAME: str = "@LEMUR_SHOP_SELL"
     # Keywords for tier-2 detection — any match (normalized) alongside lemurshop = tier 2

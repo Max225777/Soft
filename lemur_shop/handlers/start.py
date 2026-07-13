@@ -5,7 +5,7 @@ import secrets
 import string
 
 from aiogram import F, Router
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandStart
 from aiogram.types import (
     CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, WebAppInfo,
 )
@@ -107,3 +107,36 @@ async def cmd_start(message: Message) -> None:
         lang = "ru"
 
     await message.answer(WELCOME[lang], reply_markup=_open_keyboard(lang), parse_mode="HTML")
+
+
+@router.message(Command("info", "инфо", "інфо"))
+async def cmd_info(message: Message) -> None:
+    sup = settings.SUPPORT_USERNAME.lstrip("@")
+    rev = settings.REVIEWS_CHANNEL_USERNAME.lstrip("@")
+    ch = settings.CHANNEL_USERNAME.lstrip("@")
+    base = settings.WEBAPP_URL.rstrip("/") if settings.WEBAPP_URL else ""
+
+    text = (
+        "ℹ️ <b>Информация о сервисе</b>\n\n"
+        "🦎 <b>Lemur Shop</b> — магазин цифровых товаров и услуг в Telegram.\n\n"
+        "📄 <b>Документы:</b>\n"
+        "• Пользовательское соглашение\n"
+        "• Политика конфиденциальности\n\n"
+        f"💬 <b>Поддержка:</b> @{sup} (личный менеджер, не группа)\n"
+    )
+    if settings.SUPPORT_EMAIL:
+        text += f"✉️ <b>E-mail:</b> {settings.SUPPORT_EMAIL}\n"
+    text += (
+        f"\n⭐ <b>Отзывы покупателей:</b> @{rev}\n"
+        f"📣 <b>Наш канал:</b> @{ch}"
+    )
+
+    rows: list[list[InlineKeyboardButton]] = []
+    if base.startswith("https://"):
+        rows.append([InlineKeyboardButton(text="📄 Соглашение", url=f"{base}/terms"),
+                     InlineKeyboardButton(text="🔒 Конфиденциальность", url=f"{base}/privacy")])
+        rows.append([InlineKeyboardButton(text="ℹ️ Вся информация", url=f"{base}/info")])
+    rows.append([InlineKeyboardButton(text="💬 Поддержка", url=f"https://t.me/{sup}"),
+                 InlineKeyboardButton(text="⭐ Отзывы", url=f"https://t.me/{rev}")])
+
+    await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows), parse_mode="HTML")

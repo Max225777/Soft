@@ -125,6 +125,30 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
         </a>
       </div>
 
+      {/* ── Информация / документы / поддержка ── */}
+      <a href="/info" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, marginTop: 10,
+          background: 'var(--card)', border: '1px solid var(--border)',
+          borderRadius: 14, padding: '13px 15px',
+        }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+            background: 'rgba(42,171,238,.14)', border: '1px solid rgba(42,171,238,.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+          }}>ℹ️</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>
+              {lang === 'ru' ? 'Информация и поддержка' : lang === 'ua' ? 'Інформація та підтримка' : 'Info & support'}
+            </div>
+            <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2 }}>
+              {lang === 'ru' ? 'документы, контакты, отзывы' : lang === 'ua' ? 'документи, контакти, відгуки' : 'documents, contacts, reviews'}
+            </div>
+          </div>
+          <div style={{ color: '#7DB4FF', fontSize: 18, flexShrink: 0 }}>›</div>
+        </div>
+      </a>
+
       {/* ── Language ── */}
       <div className="card" style={{ marginTop: 10 }}>
         <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>{T.change_lang}</div>
