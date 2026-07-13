@@ -9,6 +9,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.types import (
     CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, WebAppInfo,
 )
+from sqlalchemy import func, select as _select
 
 from lemur_shop.config import settings
 from lemur_shop.db.models import User
@@ -45,6 +46,7 @@ WELCOME = {
 }
 
 BTN_LABEL = {"ru": "🛍 Открыть каталог", "ua": "🛍 Відкрити каталог", "en": "🛍 Open catalogue"}
+INFO_BTN_LABEL = {"ru": "ℹ️ Информация о нас", "ua": "ℹ️ Інформація про нас", "en": "ℹ️ About us"}
 
 
 def _open_keyboard(lang: str) -> InlineKeyboardMarkup:
@@ -54,7 +56,48 @@ def _open_keyboard(lang: str) -> InlineKeyboardMarkup:
         btn = InlineKeyboardButton(text=label, web_app=WebAppInfo(url=url))
     else:
         btn = InlineKeyboardButton(text=label, callback_data="menu:shop")
-    return InlineKeyboardMarkup(inline_keyboard=[[btn]])
+    info_btn = InlineKeyboardButton(text=INFO_BTN_LABEL.get(lang, INFO_BTN_LABEL["ru"]), callback_data="info:about")
+    return InlineKeyboardMarkup(inline_keyboard=[[btn], [info_btn]])
+
+
+async def _build_info() -> tuple[str, InlineKeyboardMarkup]:
+    """Текст «Информация о нас» + клавіатура з документами/контактами."""
+    sup = settings.SUPPORT_USERNAME.lstrip("@")
+    rev = settings.REVIEWS_CHANNEL_USERNAME.lstrip("@")
+    ch = settings.CHANNEL_USERNAME.lstrip("@")
+    base = settings.WEBAPP_URL.rstrip("/") if settings.WEBAPP_URL else ""
+
+    try:
+        async with AsyncSessionLocal() as s:
+            total_users = await s.scalar(_select(func.count()).select_from(User)) or 0
+    except Exception:
+        total_users = 0
+
+    text = (
+        "ℹ️ <b>Информация о нас</b>\n\n"
+        "🦎 <b>Lemur Shop</b> — магазин цифровых товаров и услуг в Telegram: "
+        "продажа TG-аккаунтов и продвижение (подписчики, просмотры, реакции).\n\n"
+        f"👥 <b>Всего пользователей:</b> {total_users:,}\n".replace(",", " ") +
+        "\n📄 <b>Документы:</b>\n"
+        "• Пользовательское соглашение\n"
+        "• Политика конфиденциальности\n\n"
+        f"💬 <b>Поддержка:</b> @{sup} (личный менеджер, не группа)\n"
+    )
+    if settings.SUPPORT_EMAIL:
+        text += f"✉️ <b>E-mail:</b> {settings.SUPPORT_EMAIL}\n"
+    text += (
+        f"\n⭐ <b>Отзывы покупателей:</b> @{rev}\n"
+        f"📣 <b>Наш канал:</b> @{ch}"
+    )
+
+    rows: list[list[InlineKeyboardButton]] = []
+    if base.startswith("https://"):
+        rows.append([InlineKeyboardButton(text="📄 Соглашение", url=f"{base}/terms"),
+                     InlineKeyboardButton(text="🔒 Конфиденциальность", url=f"{base}/privacy")])
+        rows.append([InlineKeyboardButton(text="ℹ️ Вся информация", url=f"{base}/info")])
+    rows.append([InlineKeyboardButton(text="💬 Поддержка", url=f"https://t.me/{sup}"),
+                 InlineKeyboardButton(text="⭐ Отзывы", url=f"https://t.me/{rev}")])
+    return text, InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 async def _make_code(session) -> str:
@@ -111,32 +154,16 @@ async def cmd_start(message: Message) -> None:
 
 @router.message(Command("info", "инфо", "інфо"))
 async def cmd_info(message: Message) -> None:
-    sup = settings.SUPPORT_USERNAME.lstrip("@")
-    rev = settings.REVIEWS_CHANNEL_USERNAME.lstrip("@")
-    ch = settings.CHANNEL_USERNAME.lstrip("@")
-    base = settings.WEBAPP_URL.rstrip("/") if settings.WEBAPP_URL else ""
+    text, kb = await _build_info()
+    await message.answer(text, reply_markup=kb, parse_mode="HTML")
 
-    text = (
-        "ℹ️ <b>Информация о сервисе</b>\n\n"
-        "🦎 <b>Lemur Shop</b> — магазин цифровых товаров и услуг в Telegram.\n\n"
-        "📄 <b>Документы:</b>\n"
-        "• Пользовательское соглашение\n"
-        "• Политика конфиденциальности\n\n"
-        f"💬 <b>Поддержка:</b> @{sup} (личный менеджер, не группа)\n"
-    )
-    if settings.SUPPORT_EMAIL:
-        text += f"✉️ <b>E-mail:</b> {settings.SUPPORT_EMAIL}\n"
-    text += (
-        f"\n⭐ <b>Отзывы покупателей:</b> @{rev}\n"
-        f"📣 <b>Наш канал:</b> @{ch}"
-    )
 
-    rows: list[list[InlineKeyboardButton]] = []
-    if base.startswith("https://"):
-        rows.append([InlineKeyboardButton(text="📄 Соглашение", url=f"{base}/terms"),
-                     InlineKeyboardButton(text="🔒 Конфиденциальность", url=f"{base}/privacy")])
-        rows.append([InlineKeyboardButton(text="ℹ️ Вся информация", url=f"{base}/info")])
-    rows.append([InlineKeyboardButton(text="💬 Поддержка", url=f"https://t.me/{sup}"),
-                 InlineKeyboardButton(text="⭐ Отзывы", url=f"https://t.me/{rev}")])
-
-    await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows), parse_mode="HTML")
+@router.callback_query(F.data == "info:about")
+async def cb_info_about(callback: CallbackQuery) -> None:
+    try:
+        await callback.answer()
+    except Exception:
+        pass
+    text, kb = await _build_info()
+    if callback.message:
+        await callback.message.answer(text, reply_markup=kb, parse_mode="HTML")
