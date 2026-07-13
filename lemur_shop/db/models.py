@@ -32,6 +32,9 @@ class User(Base):
     is_banned: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
+    # Партнёрський API-ключ (для програмних покупок TG-акаунтів)
+    api_key: Mapped[str | None] = mapped_column(String(48), nullable=True, unique=True)
+
     # Партнёрська програма (видається вручну адміном)
     is_partner: Mapped[bool] = mapped_column(Boolean, default=False)
     partner_balance_usd: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=Decimal("0"))
@@ -72,6 +75,7 @@ class Order(Base):
     delivered_data: Mapped[str | None] = mapped_column(Text, nullable=True)
     resend_count: Mapped[int] = mapped_column(Integer, default=0)
     smm_quantity: Mapped[int] = mapped_column(Integer, default=0)
+    via_api: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
     user: Mapped["User"] = relationship(back_populates="orders")

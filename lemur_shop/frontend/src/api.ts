@@ -62,11 +62,26 @@ export const api = {
   partner:        () => req<PartnerData>('/partner'),
   partnerCreateLink: (title: string) => req<{ ok: boolean; id: number; code: string; url: string }>('/partner/link/create', { method: 'POST', body: JSON.stringify({ title }) }),
   partnerWithdraw: () => req<{ ok: boolean; amount_usd: number }>('/partner/withdraw', { method: 'POST' }),
+  partnerApiKey:      () => req<{ api_key: string | null }>('/partner/api-key'),
+  partnerApiKeyRegen: () => req<{ api_key: string }>('/partner/api-key/regenerate', { method: 'POST' }),
+  adminApiStats:      () => req<ApiStats>('/admin/api-stats'),
   leaderboard:        (period: 'all' | 'today') => req<LeaderRow[]>(`/leaderboard?period=${period}`),
   leaderboardRefs:    (period: 'all' | 'today') => req<RefLeaderRow[]>(`/leaderboard/referrals?period=${period}`),
   promoRedeem:  (code: string) => req<{ ok: boolean; stars: number }>('/promo/redeem', { method: 'POST', body: JSON.stringify({ code }) }),
   nftList:      (search?: string) => req<NftItem[]>(`/nft/list${search ? '?search=' + encodeURIComponent(search) : ''}`),
   nftBuy:       (nft_id: number) => req<{ order_id: number; stars_spent: number; expires_at: string }>('/nft/buy', { method: 'POST', body: JSON.stringify({ nft_id }) }),
+}
+
+export interface ApiStats {
+  total_orders: number
+  total_revenue_stars: number
+  total_revenue_usd: number
+  total_cost_usd: number
+  total_profit_usd: number
+  today_orders: number
+  today_revenue_stars: number
+  api_keys_issued: number
+  top_partners: { user_id: number; name: string; orders: number; revenue_stars: number }[]
 }
 
 export interface FortuneCat {

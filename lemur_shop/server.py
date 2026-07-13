@@ -19,7 +19,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import LabeledPrice, Update
 from fastapi import Depends, FastAPI, HTTPException, Header, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import func, select
@@ -56,6 +56,148 @@ def kyiv_date_bounds_utc(d) -> tuple[datetime, datetime]:
     end_utc = (start_kyiv + _td(days=1)).astimezone(timezone.utc).replace(tzinfo=None)
     return start_utc, end_utc
 
+
+
+# ─── Rate limiter (проста in-memory sliding-window, захист від DDoS/абузу API) ──
+import time as _time
+from collections import deque as _deque, defaultdict as _defaultdict
+
+
+class _RateLimiter:
+    def __init__(self) -> None:
+        self._hits: dict[str, _deque] = _defaultdict(_deque)
+
+    def allow(self, key: str, limit: int, window: float) -> bool:
+        now = _time.monotonic()
+        dq = self._hits[key]
+        while dq and dq[0] <= now - window:
+            dq.popleft()
+        if len(dq) >= limit:
+            return False
+        dq.append(now)
+        # Періодичне прибирання, щоб словник не ріс безмежно
+        if len(self._hits) > 5000:
+            for k in [k for k, v in self._hits.items() if not v]:
+                self._hits.pop(k, None)
+        return True
+
+
+_rl = _RateLimiter()
+
+
+def _client_ip(request: Request) -> str:
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "?"
+
+
+_API_DOCS_HTML = """<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lemur Shop — API для партнёров</title>
+<style>
+:root{--bg:#0a0a0f;--card:#14141c;--card2:#1c1c26;--bd:rgba(255,255,255,.09);--tx:#eef;--mut:#8a8fa3;--acc:#2e7cf6;--acc2:#2aabee;--ok:#33d07a;--warn:#f5b50a;--err:#e05656;--gold:#ffd166}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font:15px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:24px 16px 80px}
+.wrap{max-width:820px;margin:0 auto}
+h1{font-size:26px;font-weight:800;margin-bottom:4px}
+h2{font-size:19px;font-weight:800;margin:32px 0 10px;padding-top:14px;border-top:1px solid var(--bd)}
+h3{font-size:15px;font-weight:700;margin:18px 0 8px}
+p{color:var(--tx);margin-bottom:10px}.mut{color:var(--mut)}
+code{background:var(--card2);border:1px solid var(--bd);border-radius:6px;padding:2px 7px;font-family:'SF Mono',Consolas,monospace;font-size:13px;color:var(--gold)}
+pre{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;overflow-x:auto;margin:10px 0}
+pre code{background:none;border:none;padding:0;color:#cfe3ff;font-size:13px;line-height:1.55;white-space:pre}
+.ep{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:11px 14px;margin:12px 0 6px}
+.m{font-weight:800;font-size:12px;padding:3px 9px;border-radius:7px;flex-shrink:0}
+.get{background:rgba(51,208,122,.15);color:var(--ok);border:1px solid rgba(51,208,122,.3)}
+.post{background:rgba(46,124,246,.15);color:#7db4ff;border:1px solid rgba(46,124,246,.3)}
+.path{font-family:'SF Mono',Consolas,monospace;font-size:14px;color:var(--tx)}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--bd)}
+th{color:var(--mut);font-weight:700;font-size:12px;letter-spacing:.5px;text-transform:uppercase}
+td code{font-size:12px}
+.note{background:rgba(245,181,10,.08);border:1px solid rgba(245,181,10,.28);border-radius:12px;padding:12px 16px;margin:14px 0;color:#ffe0a0}
+.ok-note{background:rgba(46,124,246,.08);border:1px solid rgba(46,124,246,.28);border-radius:12px;padding:12px 16px;margin:14px 0;color:#bcd7ff}
+.badge{display:inline-block;background:var(--card2);border:1px solid var(--bd);border-radius:20px;padding:3px 11px;font-size:12px;color:var(--mut);margin-right:6px}
+a{color:var(--acc2)}
+</style></head><body><div class="wrap">
+
+<h1>🦎 Lemur Shop — API для партнёров</h1>
+<p class="mut">Программная покупка Telegram-аккаунтов. Базовый URL: <code>{{BASE}}/api/v1</code></p>
+
+<div class="note">🔑 <b>Как получить ключ:</b> откройте бота → раздел <b>«Партнёрка»</b> → блок <b>«API для разработчиков»</b> → «Сгенерировать ключ». Ключ доступен только партнёрам.</div>
+
+<h2>Авторизация</h2>
+<p>Передавайте ключ в заголовке каждого запроса — любым из двух способов:</p>
+<pre><code>Authorization: Bearer lemur_xxxxxxxxxxxxxxxxxxxx
+# или
+X-API-Key: lemur_xxxxxxxxxxxxxxxxxxxx</code></pre>
+<div class="ok-note">ℹ️ Покупки через API списывают звёзды с вашего баланса. <b>Партнёрская комиссия и реферальные бонусы на API-покупки не начисляются.</b></div>
+
+<h2>Лимиты (защита от DDoS)</h2>
+<table><tr><th>Область</th><th>Лимит</th></tr>
+<tr><td>Все запросы по ключу</td><td>90 / мин</td></tr>
+<tr><td>Покупка аккаунта</td><td>15 / мин</td></tr>
+<tr><td>Получение кода</td><td>40 / мин</td></tr>
+<tr><td>По IP-адресу</td><td>150 / мин</td></tr></table>
+<p class="mut">При превышении — ответ <code>429</code> с <code>{"detail":"rate_limited"}</code>.</p>
+
+<h2>Эндпоинты</h2>
+
+<div class="ep"><span class="m get">GET</span><span class="path">/api/v1/categories</span></div>
+<p>Список доступных стран и цен (в звёздах).</p>
+<pre><code>curl -H "X-API-Key: $KEY" {{BASE}}/api/v1/categories</code></pre>
+
+<div class="ep"><span class="m get">GET</span><span class="path">/api/v1/balance</span></div>
+<p>Текущий баланс.</p>
+<pre><code>{ "balance_stars": 1500, "balance_usd": 19.5 }</code></pre>
+
+<div class="ep"><span class="m post">POST</span><span class="path">/api/v1/accounts/buy</span></div>
+<p>Купить аккаунт выбранной категории. Возвращает <code>item_id</code> и номер — по <code>item_id</code> потом запрашивается код.</p>
+<pre><code>curl -X POST -H "X-API-Key: $KEY" -H "Content-Type: application/json" \\
+  -d '{"category":"us"}' {{BASE}}/api/v1/accounts/buy
+
+# ответ:
+{
+  "ok": true,
+  "order_id": 1234,
+  "item_id": 987654,
+  "phone": "+19412345678",
+  "category": "us",
+  "price_stars": 25,
+  "balance_stars": 1475
+}</code></pre>
+
+<div class="ep"><span class="m post">POST</span><span class="path">/api/v1/accounts/code</span></div>
+<p>Получить код входа для купленного аккаунта. Работает только если <code>item_id</code> принадлежит вашей покупке.</p>
+<pre><code>curl -X POST -H "X-API-Key: $KEY" -H "Content-Type: application/json" \\
+  -d '{"item_id":987654}' {{BASE}}/api/v1/accounts/code
+
+# ответ:
+{ "ok": true, "item_id": 987654, "code": "12345" }</code></pre>
+<div class="note">⚠️ Если код не выдаётся (аккаунт «разлогинен» на стороне поставщика) — вернётся <code>409 session_invalid</code>. Повторите запрос позже или обратитесь в поддержку.</div>
+
+<div class="ep"><span class="m get">GET</span><span class="path">/api/v1/orders</span></div>
+<p>Последние 50 покупок, сделанных через API.</p>
+
+<h2>Коды ошибок</h2>
+<table><tr><th>HTTP</th><th>detail</th><th>Значение</th></tr>
+<tr><td>401</td><td><code>missing_api_key</code></td><td>Не передан ключ</td></tr>
+<tr><td>401</td><td><code>invalid_api_key</code></td><td>Ключ неверный</td></tr>
+<tr><td>403</td><td><code>not_a_partner</code></td><td>Аккаунт не партнёр</td></tr>
+<tr><td>402</td><td><code>insufficient_balance</code></td><td>Не хватает звёзд на балансе</td></tr>
+<tr><td>400</td><td><code>unknown_category</code></td><td>Нет такой категории</td></tr>
+<tr><td>502</td><td><code>no_accounts</code></td><td>Нет аккаунтов в наличии</td></tr>
+<tr><td>502</td><td><code>service_unavailable</code></td><td>Поставщик временно недоступен</td></tr>
+<tr><td>502</td><td><code>timeout</code></td><td>Таймаут поставщика</td></tr>
+<tr><td>502</td><td><code>buy_failed</code></td><td>Покупка не удалась</td></tr>
+<tr><td>404</td><td><code>account_not_found</code></td><td>item_id не принадлежит вам</td></tr>
+<tr><td>409</td><td><code>session_invalid</code></td><td>Код недоступен / сессия аккаунта недействительна</td></tr>
+<tr><td>429</td><td><code>rate_limited</code></td><td>Превышен лимит запросов</td></tr></table>
+
+<p class="mut" style="margin-top:30px">Поддержка: напишите менеджеру в боте. Все суммы — в Telegram Stars (⭐).</p>
+</div></body></html>"""
 
 
 _bot: Bot | None = None
@@ -692,6 +834,270 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
             log.warning("Sell-channel post failed: %s", e)
 
     return {"order_id": order_id, "phone": phone, "created_at": created_at.isoformat()}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ПАРТНЁРСЬКИЙ API  (програмні покупки TG-акаунтів за API-ключем)
+#  – автентифікація за ключем (Authorization: Bearer <key> або X-API-Key)
+#  – rate-limiting per-key і per-IP (захист від DDoS/абузу)
+#  – НЕ нараховує партнёрські комісії й реферальні бонуси
+#  – кожна покупка позначається via_api=True для окремої адмін-статистики
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _gen_api_key() -> str:
+    import secrets
+    return "lemur_" + secrets.token_hex(20)   # 6 + 40 = 46 символів (влазить у VARCHAR(48))
+
+
+async def get_api_partner(request: Request,
+                          authorization: str | None = Header(None),
+                          x_api_key: str | None = Header(None)) -> User:
+    """Автентифікація партнёра за API-ключем + базовий захист від DDoS."""
+    ip = _client_ip(request)
+    # Глобальний throttle по IP — навіть до перевірки ключа (проти брутфорсу/флуду)
+    if not _rl.allow(f"api_ip:{ip}", 150, 60):
+        raise HTTPException(status_code=429, detail="rate_limited")
+
+    key = x_api_key
+    if not key and authorization and authorization.lower().startswith("bearer "):
+        key = authorization[7:].strip()
+    if not key:
+        raise HTTPException(status_code=401, detail="missing_api_key")
+
+    async with AsyncSessionLocal() as s:
+        partner = (await s.execute(select(User).where(User.api_key == key))).scalar_one_or_none()
+        if partner:
+            s.expunge(partner)
+    if not partner:
+        # штраф за неправильний ключ — жорсткіший ліміт на IP
+        _rl.allow(f"api_bad:{ip}", 20, 60)
+        raise HTTPException(status_code=401, detail="invalid_api_key")
+    if partner.is_banned:
+        raise HTTPException(status_code=403, detail="banned")
+    if not partner.is_partner:
+        raise HTTPException(status_code=403, detail="not_a_partner")
+    # Загальний ліміт по ключу
+    if not _rl.allow(f"api_key:{key}", 90, 60):
+        raise HTTPException(status_code=429, detail="rate_limited")
+    return partner
+
+
+class ApiBuyRequest(BaseModel):
+    category: str
+
+
+@app.get("/api/v1/categories")
+async def api_v1_categories(partner: User = Depends(get_api_partner)):
+    return [
+        {
+            "category":     cat,
+            "flag":         info["flag"],
+            "title":        info.get("title_ru", info["title"]),
+            "phone_prefix": info.get("phone_prefix", ""),
+            "price_stars":  info.get("discount_stars") or round(info["price_usd"] / settings.STAR_DISPLAY_USD),
+        }
+        for cat, info in CATEGORIES.items()
+    ]
+
+
+@app.get("/api/v1/balance")
+async def api_v1_balance(partner: User = Depends(get_api_partner)):
+    return {
+        "balance_stars": partner.balance_stars,
+        "balance_usd":   round(partner.balance_stars * settings.STAR_DISPLAY_USD, 2),
+    }
+
+
+@app.post("/api/v1/accounts/buy")
+async def api_v1_buy(body: ApiBuyRequest, request: Request, partner: User = Depends(get_api_partner)):
+    # Окремий, жорсткіший ліміт саме на покупки
+    if not _rl.allow(f"api_buy:{partner.api_key}", 15, 60):
+        raise HTTPException(status_code=429, detail="rate_limited")
+
+    cat_info = CATEGORIES.get(body.category)
+    if not cat_info:
+        raise HTTPException(status_code=400, detail="unknown_category")
+
+    discount_stars = cat_info.get("discount_stars")
+    price_stars = discount_stars or round(cat_info["price_usd"] / settings.STAR_DISPLAY_USD)
+    price_usd = Decimal(str(round(price_stars * settings.STAR_DISPLAY_USD, 4)))
+
+    if partner.balance_stars < price_stars:
+        raise HTTPException(status_code=402, detail="insufficient_balance")
+
+    try:
+        phone, lolz_item_id, lolz_price = await auto_buy_category(body.category)
+    except (LolzApiError, ValueError, httpx.TimeoutException) as e:
+        err = str(e).lower()
+        if "no accounts available" in err or "no purchasable" in err:
+            detail = "no_accounts"
+        elif "margin too low" in err:
+            detail = "service_unavailable"
+        elif any(k in err for k in ("timeout", "timed out", "connection")):
+            detail = "timeout"
+        else:
+            detail = "buy_failed"
+        log.warning("API buy failed partner=%s cat=%s: %s (%s)", partner.id, body.category, type(e).__name__, e)
+        raise HTTPException(status_code=502, detail=detail)
+
+    lolz_cost = Decimal(str(round(lolz_price, 2)))
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            u = await s.get(User, partner.id, with_for_update=True)
+            if u.balance_stars < price_stars:
+                raise HTTPException(status_code=402, detail="insufficient_balance")
+            bal_before = u.balance_stars
+            u.balance_stars -= price_stars
+            u.balance_usd = max(Decimal(0), u.balance_usd - price_usd)
+            order = Order(
+                user_id=partner.id, product_id=0, lolz_item_id=lolz_item_id,
+                price_usd=price_usd, cost_usd=lolz_cost, category=body.category,
+                status="delivered", delivered_data=phone, resend_count=0, via_api=True,
+            )
+            s.add(order)
+            await s.flush()
+            order_id = order.id
+    log.info("API BUY: partner=%s cat=%s item=#%s stars=-%d balance %s→%s",
+             partner.id, body.category, lolz_item_id, price_stars, bal_before, u.balance_stars)
+
+    # НЕ нараховуємо партнёрку/рефералку для API-покупок (за вимогою)
+    return {
+        "ok": True,
+        "order_id": order_id,
+        "item_id": lolz_item_id,
+        "phone": phone,
+        "category": body.category,
+        "price_stars": price_stars,
+        "balance_stars": u.balance_stars,
+    }
+
+
+class ApiCodeRequest(BaseModel):
+    item_id: int
+
+
+@app.post("/api/v1/accounts/code")
+async def api_v1_code(body: ApiCodeRequest, partner: User = Depends(get_api_partner)):
+    if not _rl.allow(f"api_code:{partner.api_key}", 40, 60):
+        raise HTTPException(status_code=429, detail="rate_limited")
+    # Код видаємо лише якщо цей акаунт (item_id) належить замовленню партнёра
+    async with AsyncSessionLocal() as s:
+        order = (await s.execute(
+            select(Order).where(Order.lolz_item_id == body.item_id, Order.user_id == partner.id)
+            .order_by(Order.created_at.desc())
+        )).scalars().first()
+    if not order:
+        raise HTTPException(status_code=404, detail="account_not_found")
+
+    from lemur_shop.api.lolz import lolz as lolz_client
+    try:
+        code = await lolz_client.get_telegram_code(body.item_id)
+    except (LolzApiError, httpx.TimeoutException) as e:
+        err = str(e).lower()
+        if any(k in err for k in ("timeout", "timed out", "connection")):
+            raise HTTPException(status_code=502, detail="timeout")
+        # lolz віддав помилку по акаунту — вважаємо сесію недійсною
+        raise HTTPException(status_code=409, detail="session_invalid")
+    if not code:
+        # Код не видається — сесія акаунта недійсна / вхід недоступний
+        raise HTTPException(status_code=409, detail="session_invalid")
+    return {"ok": True, "item_id": body.item_id, "code": code}
+
+
+@app.get("/api/v1/orders")
+async def api_v1_orders(partner: User = Depends(get_api_partner)):
+    async with AsyncSessionLocal() as s:
+        rows = (await s.execute(
+            select(Order).where(Order.user_id == partner.id, Order.via_api == True)
+            .order_by(Order.created_at.desc()).limit(50)
+        )).scalars().all()
+    return [
+        {
+            "order_id":    o.id,
+            "item_id":     o.lolz_item_id,
+            "category":    o.category,
+            "phone":       o.delivered_data,
+            "price_stars": round(float(o.price_usd or 0) / settings.STAR_DISPLAY_USD),
+            "created_at":  o.created_at.isoformat(),
+        }
+        for o in rows
+    ]
+
+
+# ─── Керування ключем із міні-аппа (Telegram-автентифікація) ───────────────────
+
+@app.get("/api/partner/api-key")
+async def api_partner_get_key(user: User = Depends(get_current_user)):
+    if not (user.is_partner or user.id in settings.ADMIN_IDS):
+        raise HTTPException(status_code=403, detail="not_a_partner")
+    return {"api_key": user.api_key}
+
+
+@app.post("/api/partner/api-key/regenerate")
+async def api_partner_regen_key(user: User = Depends(get_current_user)):
+    if not (user.is_partner or user.id in settings.ADMIN_IDS):
+        raise HTTPException(status_code=403, detail="not_a_partner")
+    new_key = _gen_api_key()
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            u = await s.get(User, user.id, with_for_update=True)
+            u.api_key = new_key
+    return {"api_key": new_key}
+
+
+# ─── Окрема адмін-статистика по API-покупках ───────────────────────────────────
+
+@app.get("/api/admin/api-stats")
+async def api_admin_api_stats(admin: User = Depends(require_admin)):
+    star = settings.STAR_DISPLAY_USD
+    today0 = today_start_utc()
+    async with AsyncSessionLocal() as s:
+        total_cnt = await s.scalar(select(func.count()).where(Order.via_api == True)) or 0
+        total_rev = await s.scalar(select(func.coalesce(func.sum(Order.price_usd), 0)).where(Order.via_api == True)) or 0
+        total_cost = await s.scalar(select(func.coalesce(func.sum(Order.cost_usd), 0)).where(Order.via_api == True)) or 0
+        today_cnt = await s.scalar(select(func.count()).where(Order.via_api == True, Order.created_at >= today0)) or 0
+        today_rev = await s.scalar(select(func.coalesce(func.sum(Order.price_usd), 0)).where(Order.via_api == True, Order.created_at >= today0)) or 0
+        partners_cnt = await s.scalar(select(func.count()).where(User.api_key.isnot(None))) or 0
+        # ТОП партнёрів за API-покупками
+        top_rows = (await s.execute(
+            select(User.id, User.username, User.full_name,
+                   func.count(Order.id).label("cnt"),
+                   func.coalesce(func.sum(Order.price_usd), 0).label("rev"))
+            .join(Order, Order.user_id == User.id)
+            .where(Order.via_api == True)
+            .group_by(User.id, User.username, User.full_name)
+            .order_by(func.count(Order.id).desc())
+            .limit(10)
+        )).all()
+    total_rev_f = float(total_rev)
+    total_cost_f = float(total_cost)
+    return {
+        "total_orders":   int(total_cnt),
+        "total_revenue_stars": round(total_rev_f / star),
+        "total_revenue_usd":   round(total_rev_f, 2),
+        "total_cost_usd":      round(total_cost_f, 2),
+        "total_profit_usd":    round(total_rev_f - total_cost_f, 2),
+        "today_orders":   int(today_cnt),
+        "today_revenue_stars": round(float(today_rev) / star),
+        "api_keys_issued": int(partners_cnt),
+        "top_partners": [
+            {
+                "user_id": r.id,
+                "name": r.username or r.full_name or f"ID {r.id}",
+                "orders": int(r.cnt),
+                "revenue_stars": round(float(r.rev) / star),
+            }
+            for r in top_rows
+        ],
+    }
+
+
+# ─── Публічна документація партнёрського API (RU) ──────────────────────────────
+
+@app.get("/api-docs", response_class=HTMLResponse)
+async def api_docs_page(request: Request):
+    base = str(request.base_url).rstrip("/")
+    return HTMLResponse(_API_DOCS_HTML.replace("{{BASE}}", base))
 
 
 @app.post("/api/get-code/{order_id}")

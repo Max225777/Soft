@@ -103,6 +103,10 @@ _MIGRATIONS = [
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS partner_balance_usd NUMERIC(12,4) DEFAULT 0",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS partner_paid_usd NUMERIC(12,4) DEFAULT 0",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS partner_link_id INT",
+    # Партнёрський API — ключ юзера + позначка API-покупки на ордері
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS api_key VARCHAR(48)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uq_users_api_key ON users (api_key) WHERE api_key IS NOT NULL",
+    "ALTER TABLE orders ADD COLUMN IF NOT EXISTS via_api BOOLEAN DEFAULT FALSE",
 ]
 
 

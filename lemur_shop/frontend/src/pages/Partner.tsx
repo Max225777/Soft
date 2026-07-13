@@ -13,6 +13,22 @@ export default function Partner({ lang }: Props) {
   const [msg, setMsg] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
   const [refSort, setRefSort] = useState<'earned' | 'time'>('earned')
+  const [apiKey, setApiKey] = useState<string | null | undefined>(undefined)
+  const [apiBusy, setApiBusy] = useState(false)
+  const [apiRevealed, setApiRevealed] = useState(false)
+
+  useEffect(() => { api.partnerApiKey().then(r => setApiKey(r.api_key)).catch(() => setApiKey(null)) }, [])
+
+  async function genApiKey() {
+    if (apiBusy) return
+    setApiBusy(true)
+    try {
+      const r = await api.partnerApiKeyRegen()
+      setApiKey(r.api_key)
+      setApiRevealed(true)
+    } catch { /* ignore */ }
+    finally { setApiBusy(false) }
+  }
 
   function load() {
     api.partner().then(setData).catch(() => {}).finally(() => setLoading(false))
@@ -203,6 +219,59 @@ export default function Partner({ lang }: Props) {
           ))}
         </>
       )}
+
+      {/* ── API для разработчиков ── */}
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: .8, margin: '20px 0 8px' }}>API ДЛЯ РАЗРАБОТЧИКОВ</div>
+      <div style={{
+        background: 'radial-gradient(130% 100% at 12% 0%, rgba(46,124,246,.14) 0%, transparent 55%), var(--card)',
+        border: '1px solid rgba(46,124,246,.28)', borderRadius: 16, padding: '14px 16px',
+      }}>
+        <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5, marginBottom: 12 }}>
+          Покупайте TG-аккаунты программно по API-ключу. Покупки через API <b>не начисляют</b> партнёрскую комиссию и рефбонусы.
+        </div>
+
+        {apiKey === undefined ? (
+          <div style={{ fontSize: 12, color: 'var(--muted)' }}>⏳ ...</div>
+        ) : apiKey ? (
+          <>
+            <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: .5, marginBottom: 6 }}>ВАШ КЛЮЧ</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <code style={{
+                flex: 1, fontSize: 12, color: '#7DB4FF', overflow: 'hidden',
+                whiteSpace: 'nowrap', textOverflow: 'ellipsis', background: 'var(--bg2)',
+                border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px',
+              }}>{apiRevealed ? apiKey : 'lemur_' + '•'.repeat(18)}</code>
+              <button onClick={() => setApiRevealed(v => !v)} className="btn btn-secondary" style={{ width: 'auto', padding: '9px 12px', fontSize: 12 }}>
+                {apiRevealed ? '🙈' : '👁'}
+              </button>
+              <button onClick={() => { navigator.clipboard?.writeText(apiKey); setCopied('apikey'); setTimeout(() => setCopied(null), 1500) }}
+                className="btn btn-secondary" style={{ width: 'auto', padding: '9px 12px', fontSize: 12 }}>
+                {copied === 'apikey' ? '✓' : '📋'}
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <a href="/api-docs" target="_blank" rel="noreferrer" style={{ flex: 1, textDecoration: 'none' }}>
+                <button className="btn btn-primary" style={{ width: '100%', fontSize: 13, padding: '11px' }}>📖 Документация</button>
+              </a>
+              <button onClick={genApiKey} disabled={apiBusy} className="btn btn-secondary" style={{ width: 'auto', padding: '11px 14px', fontSize: 13 }}>
+                {apiBusy ? '⏳' : '↻ Сбросить'}
+              </button>
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 8, lineHeight: 1.4 }}>
+              «Сбросить» создаст новый ключ, старый перестанет работать.
+            </div>
+          </>
+        ) : (
+          <>
+            <button onClick={genApiKey} disabled={apiBusy} className="btn btn-primary" style={{ width: '100%', fontSize: 14, padding: '12px' }}>
+              {apiBusy ? '⏳ ...' : '🔑 Сгенерировать API-ключ'}
+            </button>
+            <a href="/api-docs" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+              <div style={{ textAlign: 'center', fontSize: 12, color: '#7DB4FF', marginTop: 10 }}>📖 Открыть документацию</div>
+            </a>
+          </>
+        )}
+      </div>
     </div>
   )
 }

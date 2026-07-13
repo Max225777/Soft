@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminReferralInvitedUser, type AdminPromoCode, type AdminPromoActivation, type EarningsChart, type EarningsDay, type AdminNftItem, type AdminNftRental, type FortunePoolInfo, type AdminPartnersData, type AdminRecentPurchase } from '../api'
+import { api, adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminReferralInvitedUser, type AdminPromoCode, type AdminPromoActivation, type EarningsChart, type EarningsDay, type AdminNftItem, type AdminNftRental, type FortunePoolInfo, type AdminPartnersData, type AdminRecentPurchase } from '../api'
 
 type DateMode = 'today' | 'all' | 'custom'
 
@@ -14,7 +14,7 @@ function useOverviewStats(dateFrom: string, dateTo: string) {
   return { stats, loading, reload }
 }
 
-type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'earnings' | 'broadcast' | 'promo' | 'referrals' | 'codes' | 'nft' | 'fortune' | 'partners'
+type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'earnings' | 'broadcast' | 'promo' | 'referrals' | 'codes' | 'nft' | 'fortune' | 'partners' | 'api'
 
 const CATEGORY_FLAGS: Record<string, string> = { us: '🇺🇸', ua: '🇺🇦', kz: '🇰🇿' }
 
@@ -1733,6 +1733,7 @@ const TABS: { id: AdminTab; label: string }[] = [
   { id: 'nft',       label: '🔤 NFT Юзи' },
   { id: 'fortune',   label: '🎲 Рандом акк' },
   { id: 'partners',  label: '🤝 Партнёри' },
+  { id: 'api',       label: '🔌 API' },
 ]
 
 export default function Admin() {
@@ -1775,6 +1776,57 @@ export default function Admin() {
       {tab === 'nft'       && <NftAdminTab />}
       {tab === 'fortune'   && <FortuneAdminTab />}
       {tab === 'partners'  && <PartnersAdminTab />}
+      {tab === 'api'       && <ApiStatsTab />}
+    </div>
+  )
+}
+
+function ApiStatsTab() {
+  const [data, setData] = useState<import('../api').ApiStats | null>(null)
+  const [loading, setLoading] = useState(true)
+  useEffect(() => { api.adminApiStats().then(d => { setData(d); setLoading(false) }).catch(() => setLoading(false)) }, [])
+
+  if (loading) return <div className="card"><div className="skeleton" style={{ height: 120 }} /></div>
+  if (!data) return <div className="card" style={{ textAlign: 'center', color: 'var(--muted)' }}>Нет данных</div>
+
+  return (
+    <div>
+      <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 10 }}>🔌 Покупки через API</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <StatCard label="Всего покупок" value={data.total_orders} color="#7DB4FF" sub={`сегодня: ${data.today_orders}`} />
+        <StatCard label="Выручка" value={`⭐${data.total_revenue_stars}`} color="var(--orange)" sub={`$${fmtUsd(data.total_revenue_usd)}`} />
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <StatCard label="Прибыль" value={`$${fmtUsd(data.total_profit_usd)}`} color="#4CAF72" sub={`себест. $${fmtUsd(data.total_cost_usd)}`} />
+        <StatCard label="Ключей выдано" value={data.api_keys_issued} color="#c084fc" sub={`сегодня ⭐${data.today_revenue_stars}`} />
+      </div>
+
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: .6, margin: '16px 0 8px' }}>ТОП ПАРТНЁРОВ ПО API</div>
+      {data.top_partners.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', color: 'var(--muted)', padding: '20px' }}>Пока нет API-покупок</div>
+      ) : (
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          {data.top_partners.map((p, i) => (
+            <div key={p.user_id} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
+              borderBottom: i < data.top_partners.length - 1 ? '1px solid var(--border)' : 'none',
+            }}>
+              <div style={{ width: 22, textAlign: 'center', fontWeight: 700, color: 'var(--muted)', fontSize: 13 }}>#{i + 1}</div>
+              <div style={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: 13, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                {p.name} <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: 11 }}>({p.user_id})</span>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{p.orders} шт.</div>
+                <div style={{ fontSize: 11, color: 'var(--orange)' }}>⭐{p.revenue_stars}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <a href="/api-docs" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+        <button className="btn btn-secondary" style={{ width: '100%', marginTop: 14, fontSize: 13 }}>📖 Документация API</button>
+      </a>
     </div>
   )
 }
