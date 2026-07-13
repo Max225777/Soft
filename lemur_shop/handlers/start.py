@@ -12,7 +12,7 @@ from aiogram.types import (
 from sqlalchemy import func, select as _select
 
 from lemur_shop.config import settings
-from lemur_shop.db.models import User
+from lemur_shop.db.models import Order, User
 from lemur_shop.db.session import AsyncSessionLocal
 from lemur_shop.services.referral import resolve_referral
 
@@ -70,14 +70,22 @@ async def _build_info() -> tuple[str, InlineKeyboardMarkup]:
     try:
         async with AsyncSessionLocal() as s:
             total_users = await s.scalar(_select(func.count()).select_from(User)) or 0
+            total_orders = await s.scalar(
+                _select(func.count()).select_from(Order).where(Order.status == "delivered")
+            ) or 0
     except Exception:
         total_users = 0
+        total_orders = 0
+
+    def _num(n: int) -> str:
+        return f"{n:,}".replace(",", " ")
 
     text = (
         "ℹ️ <b>Информация о нас</b>\n\n"
         "🦎 <b>Lemur Shop</b> — магазин цифровых товаров и услуг в Telegram: "
         "продажа TG-аккаунтов и продвижение (подписчики, просмотры, реакции).\n\n"
-        f"👥 <b>Всего пользователей:</b> {total_users:,}\n".replace(",", " ") +
+        f"👥 <b>Всего пользователей:</b> {_num(total_users)}\n"
+        f"🛒 <b>Всего покупок:</b> {_num(total_orders)}\n"
         "\n📄 <b>Документы:</b>\n"
         "• Пользовательское соглашение\n"
         "• Политика конфиденциальности\n\n"
