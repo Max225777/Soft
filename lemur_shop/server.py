@@ -2342,6 +2342,157 @@ async def heleket_notify(request: Request):
     return Response(content="ok")
 
 
+# ─── Platega (СБП / карти) ──────────────────────────────────────────────────────
+# Docs: https://docs.platega.io (закриті від автодоступу — реалізовано за відомим
+# API Platega). Комісію 14% Platega додає до платежу на боці платника, тож ми
+# створюємо платіж на потрібну суму й зараховуємо її ж.
+PLATEGA_API = "https://app.platega.io"
+
+
+def _platega_headers() -> dict:
+    return {
+        "X-MerchantId": settings.PLATEGA_MERCHANT_ID,
+        "X-Secret": settings.PLATEGA_SECRET,
+        "Content-Type": "application/json",
+    }
+
+
+class PlategaCreateRequest(BaseModel):
+    amount_usd: float
+
+
+@app.post("/api/platega/create")
+async def api_platega_create(body: PlategaCreateRequest, user: User = Depends(get_current_user)):
+    if not settings.PLATEGA_MERCHANT_ID or not settings.PLATEGA_SECRET:
+        raise HTTPException(status_code=503, detail="Platega not configured")
+    amount_usd = round(body.amount_usd, 2)
+    if amount_usd < 0.1 or amount_usd > 1000:
+        raise HTTPException(status_code=400, detail="Invalid amount")
+
+    rub_rate = await get_rate("RUB")
+    amount_rub = int(round(amount_usd * float(rub_rate)))
+    if amount_rub < 1:
+        raise HTTPException(status_code=400, detail="Invalid amount")
+
+    tx_id = str(_uuid.uuid4())
+    # user_id + сума(в центах USD) + нонс — щоб знати кому й скільки зарахувати
+    payload = f"topup_{user.id}_{int(round(amount_usd * 100))}_{_uuid.uuid4().hex[:8]}"
+    ret = (settings.WEBAPP_URL.rstrip("/") if settings.WEBAPP_URL else "https://t.me")
+    req_body = {
+        "paymentMethod": settings.PLATEGA_SBP_METHOD,
+        "id": tx_id,
+        "paymentDetails": {"amount": amount_rub, "currency": "RUB"},
+        "description": f"Пополнение баланса Lemur Shop (${amount_usd:.2f})",
+        "return": ret,
+        "failedUrl": ret,
+        "payload": payload,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=20) as c:
+            r = await c.post(f"{PLATEGA_API}/transaction/process", json=req_body, headers=_platega_headers())
+        data = r.json()
+    except Exception as e:
+        log.warning("Platega create failed: %s", e)
+        raise HTTPException(status_code=502, detail="Platega error")
+    url = data.get("redirect") or data.get("url") or data.get("paymentUrl")
+    if not url:
+        log.warning("Platega create — no redirect url: %s", data)
+        raise HTTPException(status_code=502, detail="Platega error")
+    return {"url": url, "id": data.get("id", tx_id), "amount_rub": amount_rub}
+
+
+@app.post("/api/platega/notify")
+async def platega_notify(request: Request):
+    # Первинна автентифікація — заголовки X-MerchantId / X-Secret від Platega
+    if (request.headers.get("X-MerchantId") != settings.PLATEGA_MERCHANT_ID
+            or request.headers.get("X-Secret") != settings.PLATEGA_SECRET):
+        log.warning("Platega webhook: bad auth headers")
+        return Response(status_code=403)
+
+    try:
+        data = await request.json()
+    except Exception:
+        return Response(status_code=400)
+
+    tx_id = str(data.get("id", ""))
+    status = str(data.get("status", "")).upper()
+    payload = str(data.get("payload", ""))
+
+    # Додатковий захист: перезапитуємо статус у Platega (best-effort, не блокує
+    # якщо ендпоінт статусу відрізняється — тоді покладаємось на заголовки+status)
+    try:
+        async with httpx.AsyncClient(timeout=15) as c:
+            rr = await c.get(f"{PLATEGA_API}/transaction/{tx_id}", headers=_platega_headers())
+        if rr.status_code == 200:
+            st2 = str(rr.json().get("status", "")).upper()
+            if st2:
+                status = st2
+    except Exception:
+        pass
+
+    if status not in ("CONFIRMED", "SUCCESS", "PAID", "COMPLETED"):
+        return Response(content="ok")
+
+    try:
+        _, user_id_str, cents_str, _nonce = payload.split("_", 3)
+        user_id = int(user_id_str)
+        amount_usd = Decimal(cents_str) / Decimal(100)
+    except Exception as e:
+        log.error("Platega bad payload %r: %s", payload, e)
+        return Response(content="ok")
+
+    stars_credited = 0
+    try:
+        async with AsyncSessionLocal() as s:
+            async with s.begin():
+                user = await s.get(User, user_id, with_for_update=True)
+                if not user:
+                    log.error("Platega payment for unknown user=%s", user_id)
+                    return Response(content="ok")
+                stars_credited = round(float(amount_usd) / settings.STAR_DISPLAY_USD)
+                bal_before = user.balance_stars
+                user.balance_usd = user.balance_usd + amount_usd
+                user.balance_stars = user.balance_stars + stars_credited
+                s.add(TopUp(
+                    user_id=user_id, amount_usd=amount_usd,
+                    amount_stars=stars_credited, admin_id=-1,
+                    method="crypto",
+                    charge_id=f"platega:{tx_id}",
+                ))
+                log.info("Platega paid: tx=%s user=%s amount=%s stars=%s balance %s→%s",
+                         tx_id, user_id, amount_usd, stars_credited, bal_before, user.balance_stars)
+    except IntegrityError:
+        log.warning("Platega DUPLICATE tx=%s user=%s — skip", tx_id, user_id)
+        return Response(content="ok")
+
+    if _bot:
+        if settings.ADMIN_IDS:
+            uname = f"@{user.username}" if user.username else f"ID:{user_id}"
+            txt = (
+                f"🏦 <b>Поповнення через СБП (Platega)!</b>\n\n"
+                f"👤 {uname} (<code>{user_id}</code>)\n"
+                f"💰 Зараховано: <b>${float(amount_usd):.2f} = ⭐{stars_credited}</b>\n"
+                f"💫 Баланс: <b>⭐{user.balance_stars}</b>"
+            )
+            for admin_id in settings.ADMIN_IDS:
+                try:
+                    await _bot.send_message(admin_id, txt, parse_mode="HTML")
+                except Exception:
+                    pass
+        try:
+            await _bot.send_message(
+                user_id,
+                f"✅ Баланс поповнено!\n\n"
+                f"💰 +${float(amount_usd):.2f} = ⭐+{stars_credited}\n"
+                f"💫 Новий баланс: <b>⭐{user.balance_stars}</b>",
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+
+    return Response(content="ok")
+
+
 # ─── Telegram Stars ───────────────────────────────────────────────────────────
 
 # user_id → (created_at_ts, invoice_url, stars)

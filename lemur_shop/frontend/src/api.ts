@@ -55,6 +55,7 @@ export const api = {
   checkSub:     () => req<{ subscribed: boolean }>('/check-sub'),
   cryptoCreate:   (amount_usd: number) => req<{ url: string; invoice_id: number }>('/crypto/create', { method: 'POST', body: JSON.stringify({ amount_usd }) }),
   heleketCreate:  (amount_usd: number) => req<{ url: string; uuid: string }>('/heleket/create', { method: 'POST', body: JSON.stringify({ amount_usd }) }),
+  plategaCreate:  (amount_usd: number) => req<{ url: string; id: string; amount_rub: number }>('/platega/create', { method: 'POST', body: JSON.stringify({ amount_usd }) }),
   starsRate:    () => req<{ stars_per_usd: number }>('/stars/rate'),
   starsInvoice: (stars: number) => req<{ invoice_url: string; stars: number; amount_usd: number }>('/stars/invoice', { method: 'POST', body: JSON.stringify({ stars }) }),
   starsBuy:     (stars: number, amount_usd: number) => req<{ ok: boolean }>('/stars/buy', { method: 'POST', body: JSON.stringify({ stars, amount_usd }) }),

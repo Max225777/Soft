@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     HELEKET_MERCHANT_ID: str = ""
     HELEKET_API_KEY: str = ""
 
+    # Platega (СБП / карти). MERCHANT_ID + SECRET з дешборду Platega.
+    PLATEGA_MERCHANT_ID: str = ""
+    PLATEGA_SECRET: str = ""
+    # Код методу СБП у Platega (перевір у доках; зазвичай 2). Card = 1.
+    PLATEGA_SBP_METHOD: int = 2
+
     SMMWAY_API_KEY: str = ""
     PREVIEW_MODE: bool = False
 

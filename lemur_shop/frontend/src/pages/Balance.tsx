@@ -50,7 +50,7 @@ function ExpandPanel({ children }: { children: React.ReactNode }) {
 
 export default function Balance({ me, lang, balanceDiff }: Props) {
   const T = getT(lang)
-  const [open, setOpen] = useState<'crypto' | 'heleket' | 'stars' | null>(null)
+  const [open, setOpen] = useState<'crypto' | 'heleket' | 'platega' | 'stars' | null>(null)
   const [promoCode, setPromoCode] = useState('')
   const [promoLoading, setPromoLoading] = useState(false)
   const [promoResult, setPromoResult] = useState<{ ok: boolean; stars?: number; error?: string } | null>(null)
@@ -65,6 +65,10 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
   const [customUsdH, setCustomUsdH] = useState('')
   const [heleketLoading, setHeleketLoading] = useState(false)
   const [heleketError, setHeleketError] = useState<string | null>(null)
+  const [plategaAmount, setPlategaAmount] = useState(0)
+  const [customUsdP, setCustomUsdP] = useState('')
+  const [plategaLoading, setPlategaLoading] = useState(false)
+  const [plategaError, setPlategaError] = useState<string | null>(null)
   const [starsError, setStarsError] = useState<string | null>(null)
   const [topupSuccess, setTopupSuccess] = useState<number | null>(null)
 
@@ -151,6 +155,20 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
   function toggleHeleket() {
     if (open === 'heleket') { setOpen(null); return }
     setHeleketError(null); setHeleketAmount(0); setCustomUsdH(''); setOpen('heleket')
+  }
+  async function payPlatega(amount: number) {
+    if (amount < 0.1) return
+    setPlategaLoading(true); setPlategaError(null)
+    try {
+      const { url } = await api.plategaCreate(amount)
+      if (window.Telegram?.WebApp) window.Telegram.WebApp.openLink(url)
+      else window.open(url, '_blank')
+    } catch (e: any) { setPlategaError(e.message ?? 'Error') }
+    finally { setPlategaLoading(false) }
+  }
+  function togglePlatega() {
+    if (open === 'platega') { setOpen(null); return }
+    setPlategaError(null); setPlategaAmount(0); setCustomUsdP(''); setOpen('platega')
   }
   function toggleStars() {
     if (open === 'stars') { setOpen(null); return }
@@ -352,6 +370,67 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
               style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}>
               {heleketLoading ? '⏳...' : heleketAmount >= 0.1
                 ? `${payLabel} $${heleketAmount.toFixed(2)} → ⭐${Math.round(heleketAmount / 0.013)}`
+                : payLabel}
+            </button>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{afterLabel}</div>
+          </ExpandPanel>
+        )}
+      </div>
+
+      {/* СБП (Platega) card */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(20,184,138,.08), rgba(20,184,138,.03))',
+        border: '1px solid rgba(20,184,138,.22)',
+        borderRadius: 14, marginBottom: 8, overflow: 'hidden',
+      }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer' }}
+          onClick={togglePlatega}
+        >
+          <div style={{
+            width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+            background: 'rgba(20,184,138,.15)', border: '1px solid rgba(20,184,138,.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+          }}>🏦</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#14B88A' }}>СБП</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+              {lang === 'ru' ? 'Оплата картой РФ · комиссия +14%' : lang === 'ua' ? 'Оплата картою РФ · комісія +14%' : 'Fast Payments (RU) · +14% fee'}
+            </div>
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: 18, transition: 'transform .2s', transform: open === 'platega' ? 'rotate(90deg)' : '' }}>›</div>
+        </div>
+
+        {open === 'platega' && (
+          <ExpandPanel>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
+              {PRESETS_USD.map(p => (
+                <button key={p} onClick={() => { setPlategaAmount(p); setCustomUsdP('') }}
+                  style={{ ...presetBtn(plategaAmount === p && !customUsdP), lineHeight: 1.3 }}>
+                  <div>${p}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7 }}>⭐{Math.round(p / 0.013)}</div>
+                </button>
+              ))}
+            </div>
+            <input
+              type="number" min="0.1" step="0.1"
+              placeholder={lang === 'ua' ? 'Сума від $0.10' : lang === 'ru' ? 'Сумма от $0.10' : 'Amount from $0.10'}
+              value={customUsdP}
+              onChange={e => { setCustomUsdP(e.target.value); setPlategaAmount(parseFloat(e.target.value) || 0) }}
+              style={{ ...inputStyle, marginBottom: plategaAmount > 0 ? 6 : 10 }}
+            />
+            {plategaAmount > 0 && (
+              <div style={{ fontSize: 13, color: '#14B88A', fontWeight: 600, marginBottom: 10, textAlign: 'center' }}>
+                ${plategaAmount.toFixed(2)} = <b>⭐{Math.round(plategaAmount / 0.013)}</b>
+                {me.rate_rub ? <span style={{ color: 'var(--muted)', fontWeight: 500 }}> · ≈{Math.round(plategaAmount * me.rate_rub * 1.14)} ₽</span> : null}
+              </div>
+            )}
+            {plategaError && <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--red)' }}>{plategaError}</div>}
+            <button className="btn btn-primary" disabled={plategaAmount < 0.1 || plategaLoading}
+              onClick={() => payPlatega(plategaAmount)}
+              style={{ background: 'linear-gradient(135deg, #14B88A, #0d8a67)' }}>
+              {plategaLoading ? '⏳...' : plategaAmount >= 0.1
+                ? `${payLabel} $${plategaAmount.toFixed(2)} → ⭐${Math.round(plategaAmount / 0.013)}`
                 : payLabel}
             </button>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{afterLabel}</div>
