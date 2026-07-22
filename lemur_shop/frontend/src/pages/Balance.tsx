@@ -259,6 +259,125 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
         {lang === 'ru' ? 'СПОСОБЫ ПОПОЛНЕНИЯ' : lang === 'ua' ? 'СПОСОБИ ПОПОВНЕННЯ' : 'TOP UP METHODS'}
       </div>
 
+      {/* СБП (Platega) card */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(20,184,138,.08), rgba(20,184,138,.03))',
+        border: '1px solid rgba(20,184,138,.22)',
+        borderRadius: 14, marginBottom: 8, overflow: 'hidden',
+      }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer' }}
+          onClick={togglePlatega}
+        >
+          <div style={{
+            width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+            background: 'rgba(20,184,138,.15)', border: '1px solid rgba(20,184,138,.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+          }}>🏦</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#14B88A' }}>СБП</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+              {lang === 'ru' ? 'Оплата картой РФ · комиссия +14%' : lang === 'ua' ? 'Оплата картою РФ · комісія +14%' : 'Fast Payments (RU) · +14% fee'}
+            </div>
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: 18, transition: 'transform .2s', transform: open === 'platega' ? 'rotate(90deg)' : '' }}>›</div>
+        </div>
+
+        {open === 'platega' && (
+          <ExpandPanel>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
+              {PRESETS_USD.map(p => (
+                <button key={p} onClick={() => { setPlategaAmount(p); setCustomUsdP('') }}
+                  style={{ ...presetBtn(plategaAmount === p && !customUsdP), lineHeight: 1.3 }}>
+                  <div>{usdRub(p)} ₽</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7 }}>(⭐{Math.round(p / 0.013)})</div>
+                </button>
+              ))}
+            </div>
+            <input
+              type="number" min={Math.max(1, Math.round(0.1 * rrub))} step="10"
+              placeholder={`${lang === 'ua' ? 'Сума від' : lang === 'ru' ? 'Сумма от' : 'Amount from'} ${Math.max(1, Math.round(0.1 * rrub))} ₽`}
+              value={customUsdP}
+              onChange={e => { setCustomUsdP(e.target.value); setPlategaAmount(rrub ? (parseFloat(e.target.value) || 0) / rrub : 0) }}
+              style={{ ...inputStyle, marginBottom: plategaAmount > 0 ? 6 : 10 }}
+            />
+            {plategaAmount > 0 && (
+              <div style={{ fontSize: 13, color: '#14B88A', fontWeight: 600, marginBottom: 10, textAlign: 'center' }}>
+                {usdRub(plategaAmount)} ₽ <b>(⭐{Math.round(plategaAmount / 0.013)})</b>
+                <span style={{ color: 'var(--muted)', fontWeight: 500 }}> · к оплате ≈{Math.round(plategaAmount * rrub * 1.14).toLocaleString('ru-RU')} ₽ (+14%)</span>
+              </div>
+            )}
+            {plategaError && <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--red)' }}>{plategaError}</div>}
+            <button className="btn btn-primary" disabled={plategaAmount < 0.1 || plategaLoading}
+              onClick={() => payPlatega(plategaAmount)}
+              style={{ background: 'linear-gradient(135deg, #14B88A, #0d8a67)' }}>
+              {plategaLoading ? '⏳...' : plategaAmount >= 0.1
+                ? `${payLabel} ≈${Math.round(plategaAmount * rrub * 1.14).toLocaleString('ru-RU')} ₽`
+                : payLabel}
+            </button>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{afterLabel}</div>
+          </ExpandPanel>
+        )}
+      </div>
+
+      {/* Stars card */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(255,184,48,.08), rgba(255,184,48,.03))',
+        border: '1px solid rgba(255,184,48,.22)',
+        borderRadius: 14, marginBottom: 8, overflow: 'hidden',
+      }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer' }}
+          onClick={toggleStars}
+        >
+          <div style={{
+            width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+            background: 'rgba(255,184,48,.15)', border: '1px solid rgba(255,184,48,.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+          }}>⭐</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#FFB830' }}>Telegram Stars</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+              {lang === 'ru' ? 'Оплата звёздами Telegram' : lang === 'ua' ? 'Оплата зірками Telegram' : 'Pay with Telegram Stars'}
+            </div>
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: 18, transition: 'transform .2s', transform: open === 'stars' ? 'rotate(90deg)' : '' }}>›</div>
+        </div>
+
+        {open === 'stars' && (
+          <ExpandPanel>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginBottom: 10 }}>
+              {PRESETS_STARS.map(s => (
+                <button key={s} onClick={() => { setStarsCount(s); setCustomStars(String(s)) }}
+                  style={presetBtn(customStars === String(s))}>
+                  ⭐{s}
+                </button>
+              ))}
+            </div>
+            <input
+              type="number" min="1" step="1"
+              placeholder={lang === 'ru' ? 'Кол-во звёзд (⭐)' : lang === 'ua' ? 'Кількість зірок (⭐)' : 'Stars amount (⭐)'}
+              value={customStars}
+              onChange={e => {
+                const s = Math.max(0, parseInt(e.target.value) || 0)
+                setCustomStars(e.target.value)
+                setStarsCount(s)
+              }}
+              style={{ ...inputStyle, marginBottom: 10 }}
+            />
+            {starsError && <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--red)' }}>{starsError}</div>}
+            <button className="btn btn-primary" disabled={starsCount < 1 || starsLoading}
+              onClick={() => payStars(starsCount)}
+              style={{ background: 'linear-gradient(135deg, #FFB830, #e09000)' }}>
+              {starsLoading ? '⏳...' : starsCount >= 1 ? `${payLabel} ⭐${starsCount}` : payLabel}
+            </button>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>
+              {lang === 'ru' ? 'Оплата через Telegram Stars' : lang === 'ua' ? 'Оплата через Telegram Stars' : 'Pay via Telegram Stars'}
+            </div>
+          </ExpandPanel>
+        )}
+      </div>
+
       {/* Crypto card */}
       <div style={{
         background: 'linear-gradient(135deg, rgba(38,161,123,.08), rgba(38,161,123,.03))',
@@ -375,125 +494,6 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
                 : payLabel}
             </button>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{afterLabel}</div>
-          </ExpandPanel>
-        )}
-      </div>
-
-      {/* СБП (Platega) card */}
-      <div style={{
-        background: 'linear-gradient(135deg, rgba(20,184,138,.08), rgba(20,184,138,.03))',
-        border: '1px solid rgba(20,184,138,.22)',
-        borderRadius: 14, marginBottom: 8, overflow: 'hidden',
-      }}>
-        <div
-          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer' }}
-          onClick={togglePlatega}
-        >
-          <div style={{
-            width: 38, height: 38, borderRadius: 11, flexShrink: 0,
-            background: 'rgba(20,184,138,.15)', border: '1px solid rgba(20,184,138,.3)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
-          }}>🏦</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: '#14B88A' }}>СБП</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-              {lang === 'ru' ? 'Оплата картой РФ · комиссия +14%' : lang === 'ua' ? 'Оплата картою РФ · комісія +14%' : 'Fast Payments (RU) · +14% fee'}
-            </div>
-          </div>
-          <div style={{ color: 'var(--muted)', fontSize: 18, transition: 'transform .2s', transform: open === 'platega' ? 'rotate(90deg)' : '' }}>›</div>
-        </div>
-
-        {open === 'platega' && (
-          <ExpandPanel>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
-              {PRESETS_USD.map(p => (
-                <button key={p} onClick={() => { setPlategaAmount(p); setCustomUsdP('') }}
-                  style={{ ...presetBtn(plategaAmount === p && !customUsdP), lineHeight: 1.3 }}>
-                  <div>{usdRub(p)} ₽</div>
-                  <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7 }}>(⭐{Math.round(p / 0.013)})</div>
-                </button>
-              ))}
-            </div>
-            <input
-              type="number" min={Math.max(1, Math.round(0.1 * rrub))} step="10"
-              placeholder={`${lang === 'ua' ? 'Сума від' : lang === 'ru' ? 'Сумма от' : 'Amount from'} ${Math.max(1, Math.round(0.1 * rrub))} ₽`}
-              value={customUsdP}
-              onChange={e => { setCustomUsdP(e.target.value); setPlategaAmount(rrub ? (parseFloat(e.target.value) || 0) / rrub : 0) }}
-              style={{ ...inputStyle, marginBottom: plategaAmount > 0 ? 6 : 10 }}
-            />
-            {plategaAmount > 0 && (
-              <div style={{ fontSize: 13, color: '#14B88A', fontWeight: 600, marginBottom: 10, textAlign: 'center' }}>
-                {usdRub(plategaAmount)} ₽ <b>(⭐{Math.round(plategaAmount / 0.013)})</b>
-                <span style={{ color: 'var(--muted)', fontWeight: 500 }}> · к оплате ≈{Math.round(plategaAmount * rrub * 1.14).toLocaleString('ru-RU')} ₽ (+14%)</span>
-              </div>
-            )}
-            {plategaError && <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--red)' }}>{plategaError}</div>}
-            <button className="btn btn-primary" disabled={plategaAmount < 0.1 || plategaLoading}
-              onClick={() => payPlatega(plategaAmount)}
-              style={{ background: 'linear-gradient(135deg, #14B88A, #0d8a67)' }}>
-              {plategaLoading ? '⏳...' : plategaAmount >= 0.1
-                ? `${payLabel} ≈${Math.round(plategaAmount * rrub * 1.14).toLocaleString('ru-RU')} ₽`
-                : payLabel}
-            </button>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{afterLabel}</div>
-          </ExpandPanel>
-        )}
-      </div>
-
-      {/* Stars card */}
-      <div style={{
-        background: 'linear-gradient(135deg, rgba(255,184,48,.08), rgba(255,184,48,.03))',
-        border: '1px solid rgba(255,184,48,.22)',
-        borderRadius: 14, marginBottom: 8, overflow: 'hidden',
-      }}>
-        <div
-          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer' }}
-          onClick={toggleStars}
-        >
-          <div style={{
-            width: 38, height: 38, borderRadius: 11, flexShrink: 0,
-            background: 'rgba(255,184,48,.15)', border: '1px solid rgba(255,184,48,.3)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
-          }}>⭐</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: '#FFB830' }}>Telegram Stars</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-              {lang === 'ru' ? 'Оплата звёздами Telegram' : lang === 'ua' ? 'Оплата зірками Telegram' : 'Pay with Telegram Stars'}
-            </div>
-          </div>
-          <div style={{ color: 'var(--muted)', fontSize: 18, transition: 'transform .2s', transform: open === 'stars' ? 'rotate(90deg)' : '' }}>›</div>
-        </div>
-
-        {open === 'stars' && (
-          <ExpandPanel>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginBottom: 10 }}>
-              {PRESETS_STARS.map(s => (
-                <button key={s} onClick={() => { setStarsCount(s); setCustomStars(String(s)) }}
-                  style={presetBtn(customStars === String(s))}>
-                  ⭐{s}
-                </button>
-              ))}
-            </div>
-            <input
-              type="number" min="1" step="1"
-              placeholder={lang === 'ru' ? 'Кол-во звёзд (⭐)' : lang === 'ua' ? 'Кількість зірок (⭐)' : 'Stars amount (⭐)'}
-              value={customStars}
-              onChange={e => {
-                const s = Math.max(0, parseInt(e.target.value) || 0)
-                setCustomStars(e.target.value)
-                setStarsCount(s)
-              }}
-              style={{ ...inputStyle, marginBottom: 10 }}
-            />
-            {starsError && <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--red)' }}>{starsError}</div>}
-            <button className="btn btn-primary" disabled={starsCount < 1 || starsLoading}
-              onClick={() => payStars(starsCount)}
-              style={{ background: 'linear-gradient(135deg, #FFB830, #e09000)' }}>
-              {starsLoading ? '⏳...' : starsCount >= 1 ? `${payLabel} ⭐${starsCount}` : payLabel}
-            </button>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>
-              {lang === 'ru' ? 'Оплата через Telegram Stars' : lang === 'ua' ? 'Оплата через Telegram Stars' : 'Pay via Telegram Stars'}
-            </div>
           </ExpandPanel>
         )}
       </div>
