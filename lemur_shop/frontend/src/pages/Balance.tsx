@@ -415,10 +415,10 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
               ))}
             </div>
             <input
-              type="number" min="0.1" step="0.1"
-              placeholder={lang === 'ua' ? 'Сума від $0.10' : lang === 'ru' ? 'Сумма от $0.10' : 'Amount from $0.10'}
+              type="number" min={Math.max(1, Math.round(0.1 * rrub))} step="10"
+              placeholder={`${lang === 'ua' ? 'Сума від' : lang === 'ru' ? 'Сумма от' : 'Amount from'} ${Math.max(1, Math.round(0.1 * rrub))} ₽`}
               value={customUsdP}
-              onChange={e => { setCustomUsdP(e.target.value); setPlategaAmount(parseFloat(e.target.value) || 0) }}
+              onChange={e => { setCustomUsdP(e.target.value); setPlategaAmount(rrub ? (parseFloat(e.target.value) || 0) / rrub : 0) }}
               style={{ ...inputStyle, marginBottom: plategaAmount > 0 ? 6 : 10 }}
             />
             {plategaAmount > 0 && (
