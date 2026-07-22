@@ -76,6 +76,8 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
 
   const stars = me.balance_stars
   const rubDisplay = Math.round(stars * 0.013 * (me.rate_rub || 0)).toLocaleString('ru-RU')
+  const rrub = me.rate_rub || 0
+  const usdRub = (usd: number) => Math.round(usd * rrub).toLocaleString('ru-RU')  // $ → ₽ (для показу)
 
   const payLabel = lang === 'ru' ? 'Пополнить' : lang === 'ua' ? 'Поповнити' : 'Pay'
   const afterLabel = lang === 'ru' ? 'Баланс зачисляется автоматически' : lang === 'ua' ? 'Баланс зараховується автоматично' : 'Balance credited automatically'
@@ -288,7 +290,7 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
                 <button key={p} onClick={() => { setCryptoAmount(p); setCustomUsd('') }}
                   style={{ ...presetBtn(cryptoAmount === p && !customUsd), lineHeight: 1.3 }}>
                   <div>${p}</div>
-                  <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7 }}>⭐{Math.round(p / 0.013)}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7 }}>(⭐{Math.round(p / 0.013)})</div>
                 </button>
               ))}
             </div>
@@ -301,7 +303,7 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
             />
             {cryptoAmount > 0 && (
               <div style={{ fontSize: 13, color: '#26A17B', fontWeight: 600, marginBottom: 10, textAlign: 'center' }}>
-                ${cryptoAmount.toFixed(2)} = <b>⭐{Math.round(cryptoAmount / 0.013)}</b>
+                ${cryptoAmount.toFixed(2)} <b>(⭐{Math.round(cryptoAmount / 0.013)})</b>
               </div>
             )}
             {cryptoError && <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--red)' }}>{cryptoError}</div>}
@@ -309,7 +311,7 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
               onClick={() => payCrypto(cryptoAmount)}
               style={{ background: 'linear-gradient(135deg, #26A17B, #1a7a5e)' }}>
               {cryptoLoading ? '⏳...' : cryptoAmount >= 0.1
-                ? `${payLabel} $${cryptoAmount.toFixed(2)} → ⭐${Math.round(cryptoAmount / 0.013)}`
+                ? `${payLabel} $${cryptoAmount.toFixed(2)} (⭐${Math.round(cryptoAmount / 0.013)})`
                 : payLabel}
             </button>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{afterLabel}</div>
@@ -348,7 +350,7 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
                 <button key={p} onClick={() => { setHeleketAmount(p); setCustomUsdH('') }}
                   style={{ ...presetBtn(heleketAmount === p && !customUsdH), lineHeight: 1.3 }}>
                   <div>${p}</div>
-                  <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7 }}>⭐{Math.round(p / 0.013)}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7 }}>(⭐{Math.round(p / 0.013)})</div>
                 </button>
               ))}
             </div>
@@ -361,7 +363,7 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
             />
             {heleketAmount > 0 && (
               <div style={{ fontSize: 13, color: '#818cf8', fontWeight: 600, marginBottom: 10, textAlign: 'center' }}>
-                ${heleketAmount.toFixed(2)} = <b>⭐{Math.round(heleketAmount / 0.013)}</b>
+                ${heleketAmount.toFixed(2)} <b>(⭐{Math.round(heleketAmount / 0.013)})</b>
               </div>
             )}
             {heleketError && <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--red)' }}>{heleketError}</div>}
@@ -369,7 +371,7 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
               onClick={() => payHeleket(heleketAmount)}
               style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}>
               {heleketLoading ? '⏳...' : heleketAmount >= 0.1
-                ? `${payLabel} $${heleketAmount.toFixed(2)} → ⭐${Math.round(heleketAmount / 0.013)}`
+                ? `${payLabel} $${heleketAmount.toFixed(2)} (⭐${Math.round(heleketAmount / 0.013)})`
                 : payLabel}
             </button>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{afterLabel}</div>
@@ -407,8 +409,8 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
               {PRESETS_USD.map(p => (
                 <button key={p} onClick={() => { setPlategaAmount(p); setCustomUsdP('') }}
                   style={{ ...presetBtn(plategaAmount === p && !customUsdP), lineHeight: 1.3 }}>
-                  <div>${p}</div>
-                  <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7 }}>⭐{Math.round(p / 0.013)}</div>
+                  <div>{usdRub(p)} ₽</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7 }}>(⭐{Math.round(p / 0.013)})</div>
                 </button>
               ))}
             </div>
@@ -421,8 +423,8 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
             />
             {plategaAmount > 0 && (
               <div style={{ fontSize: 13, color: '#14B88A', fontWeight: 600, marginBottom: 10, textAlign: 'center' }}>
-                ${plategaAmount.toFixed(2)} = <b>⭐{Math.round(plategaAmount / 0.013)}</b>
-                {me.rate_rub ? <span style={{ color: 'var(--muted)', fontWeight: 500 }}> · ≈{Math.round(plategaAmount * me.rate_rub * 1.14)} ₽</span> : null}
+                {usdRub(plategaAmount)} ₽ <b>(⭐{Math.round(plategaAmount / 0.013)})</b>
+                <span style={{ color: 'var(--muted)', fontWeight: 500 }}> · к оплате ≈{Math.round(plategaAmount * rrub * 1.14).toLocaleString('ru-RU')} ₽ (+14%)</span>
               </div>
             )}
             {plategaError && <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--red)' }}>{plategaError}</div>}
@@ -430,7 +432,7 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
               onClick={() => payPlatega(plategaAmount)}
               style={{ background: 'linear-gradient(135deg, #14B88A, #0d8a67)' }}>
               {plategaLoading ? '⏳...' : plategaAmount >= 0.1
-                ? `${payLabel} $${plategaAmount.toFixed(2)} → ⭐${Math.round(plategaAmount / 0.013)}`
+                ? `${payLabel} ≈${Math.round(plategaAmount * rrub * 1.14).toLocaleString('ru-RU')} ₽`
                 : payLabel}
             </button>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>{afterLabel}</div>
