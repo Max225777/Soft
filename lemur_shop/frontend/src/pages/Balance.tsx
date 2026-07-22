@@ -6,8 +6,9 @@ import BioPromoButton from '../components/BioPromoButton'
 
 interface Props { me: Me | null; lang: Lang; balanceDiff?: number | null }
 
-const PRESETS_USD = [1, 2, 5, 10, 25, 50]
-const PRESETS_STARS = [1, 5, 10, 50, 100]
+const PRESETS_RUB = [25, 50, 100, 250, 500, 1000]  // СБП — круглі суми в рублях
+const PRESETS_USD = [1, 2, 3, 5, 10]               // крипта — круглі долари (≤ ~1000₽)
+const PRESETS_STARS = [25, 50, 100, 250, 500]      // Stars — круглі суми
 const STARS_PER_USD = 141
 
 const SLIDE_STYLE = `
@@ -286,13 +287,15 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
         {open === 'platega' && (
           <ExpandPanel>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
-              {PRESETS_USD.map(p => (
-                <button key={p} onClick={() => { setPlategaAmount(p); setCustomUsdP('') }}
-                  style={{ ...presetBtn(plategaAmount === p && !customUsdP), lineHeight: 1.3 }}>
-                  <div>{usdRub(p)} ₽</div>
-                  <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7 }}>(⭐{Math.round(p / 0.013)})</div>
+              {PRESETS_RUB.map(p => {
+                const usd = rrub ? p / rrub : 0
+                return (
+                <button key={p} onClick={() => { setPlategaAmount(usd); setCustomUsdP('') }}
+                  style={{ ...presetBtn(!customUsdP && Math.round(plategaAmount * rrub) === p), lineHeight: 1.3 }}>
+                  <div>{p.toLocaleString('ru-RU')} ₽</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7 }}>(⭐{Math.round(usd / 0.013)})</div>
                 </button>
-              ))}
+              )})}
             </div>
             <input
               type="number" min={Math.max(1, Math.round(0.1 * rrub))} step="10"
