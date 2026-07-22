@@ -23,11 +23,22 @@ interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void; onGoToPr
 
 type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars' | 'smm' | 'smm_list' | 'smm_reactions' | 'nft'
 
-function localPrice(stars: number, usd: number): JSX.Element {
+// Курс RUB за 1 USD — оновлюється на кожному рендері Shop із me.rate_rub.
+// Ціни/баланс показуємо в рублях, а ⭐ — у дужках (крім крипто-поповнення).
+let _rateRub = 0
+function starsToRub(stars: number): number {
+  return Math.round(stars * 0.013 * (_rateRub || 0))
+}
+function fmtRub(n: number): string {
+  return n.toLocaleString('ru-RU')
+}
+
+// Ціна: «1 300 ₽ (⭐100)»
+function localPrice(stars: number, _usd?: number): JSX.Element {
   return (
     <>
-      <span style={{ fontWeight: 800 }}>⭐{stars}</span>
-      <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: 12, marginLeft: 6 }}>(${usd.toFixed(2)})</span>
+      <span style={{ fontWeight: 800 }}>{fmtRub(starsToRub(stars))} ₽</span>
+      <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: 12, marginLeft: 6 }}>(⭐{stars})</span>
     </>
   )
 }
@@ -122,16 +133,16 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
           <span style={{ fontWeight: 700, fontSize: 15 }}>{T.final_price}</span>
           {cat.discount_stars ? (
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontSize: 16 }}>⭐{cat.price_stars}</span>
+              <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontSize: 16 }}>{fmtRub(starsToRub(cat.price_stars))} ₽</span>
               <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                <span style={{ fontWeight: 800, fontSize: 24, color: 'var(--orange2)', lineHeight: 1 }}>⭐{cat.discount_stars}</span>
-                <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--muted)' }}>(${(cat.discount_stars * 0.013).toFixed(2)})</span>
+                <span style={{ fontWeight: 800, fontSize: 24, color: 'var(--orange2)', lineHeight: 1 }}>{fmtRub(starsToRub(cat.discount_stars))} ₽</span>
+                <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--muted)' }}>(⭐{cat.discount_stars})</span>
               </span>
             </span>
           ) : (
             <span style={{ fontWeight: 800, fontSize: 24, color: 'var(--orange)' }}>
-              ⭐{cat.price_stars}
-              <span style={{ fontWeight: 400, fontSize: 13, color: 'var(--muted)', marginLeft: 8 }}>(${cat.price_usd.toFixed(2)})</span>
+              {fmtRub(starsToRub(cat.price_stars))} ₽
+              <span style={{ fontWeight: 400, fontSize: 13, color: 'var(--muted)', marginLeft: 8 }}>(⭐{cat.price_stars})</span>
             </span>
           )}
         </div>
@@ -186,6 +197,7 @@ const SEARCH_ICON = (
 
 export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: Props) {
   const T = getT(lang)
+  _rateRub = me?.rate_rub ?? _rateRub  // курс для показу цін у рублях
   const [view, setView]       = useState<View>('menu')
   const [cats, setCats]       = useState<Category[]>([])
   const [result, setResult]   = useState<BuyResult | null>(null)
@@ -334,7 +346,6 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
   // ─── Головне меню ─────────────────────────────────────────────────────────
   if (view === 'menu') {
     const starsBalance = me?.balance_stars ?? 0
-    const usdDisplay = (starsBalance * 0.013).toFixed(2)
     const H = HERO_TEXT[lang]
 
     return (
@@ -346,8 +357,8 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
             background: 'var(--card)', border: '1px solid var(--border)',
             borderRadius: 999, padding: '7px 13px',
           }}>
-            <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--orange2)' }}>⭐{starsBalance}</span>
-            <span style={{ fontWeight: 400, fontSize: 11, color: 'var(--muted)' }}>${usdDisplay}</span>
+            <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--orange2)' }}>{fmtRub(starsToRub(starsBalance))} ₽</span>
+            <span style={{ fontWeight: 400, fontSize: 11, color: 'var(--muted)' }}>⭐{starsBalance}</span>
           </div>
         </div>
 
@@ -645,9 +656,9 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
                     <div style={{ marginTop: 4, fontSize: 13 }}>
                       {cat.discount_stars ? (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                          <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontSize: 11 }}>⭐{cat.price_stars}</span>
-                          <span style={{ fontWeight: 800, color: 'var(--orange2)', fontSize: 14 }}>⭐{cat.discount_stars}</span>
-                          <span style={{ color: 'var(--muted)', fontSize: 11 }}>(${(cat.discount_stars * 0.013).toFixed(2)})</span>
+                          <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontSize: 11 }}>{fmtRub(starsToRub(cat.price_stars))} ₽</span>
+                          <span style={{ fontWeight: 800, color: 'var(--orange2)', fontSize: 14 }}>{fmtRub(starsToRub(cat.discount_stars))} ₽</span>
+                          <span style={{ color: 'var(--muted)', fontSize: 11 }}>(⭐{cat.discount_stars})</span>
                         </span>
                       ) : (
                         <span style={{ color: 'var(--orange2)' }}>{localPrice(cat.price_stars, cat.price_usd)}</span>
@@ -753,7 +764,8 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
                 <div style={{ fontWeight: 900, fontSize: 18, color: 'var(--text)', lineHeight: 1 }}>{badgeQty}</div>
                 <div style={{ fontWeight: 700, fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap', marginTop: 2 }}>{badgeWord}</div>
                 <div style={{ fontSize: 10, color: 'rgba(255,255,255,.2)', margin: '4px 0' }}>——</div>
-                <div style={{ fontWeight: 900, fontSize: 22, color: 'var(--orange2)', lineHeight: 1 }}>⭐{badgeStars}</div>
+                <div style={{ fontWeight: 900, fontSize: 20, color: 'var(--orange2)', lineHeight: 1 }}>{fmtRub(starsToRub(badgeStars))} ₽</div>
+                <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>⭐{badgeStars}</div>
               </div>
 
               <div style={{ color: '#7DB4FF', fontSize: 18, fontWeight: 300, flexShrink: 0 }}>›</div>
@@ -979,12 +991,12 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 3 }}>{T.smm_total_label}</div>
               <div style={{ fontSize: 12, color: 'var(--text2)' }}>
                 {effectiveQty} {T.smm_reactions_word}
-                <span style={{ color: 'var(--muted)' }}> × ⭐{svc?.price_per_100_stars}/100</span>
+                <span style={{ color: 'var(--muted)' }}> × {fmtRub(starsToRub(svc?.price_per_100_stars ?? 0))} ₽/100</span>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div className="text-orange-grad" style={{ fontWeight: 900, fontSize: 30, lineHeight: 1 }}>⭐{priceStars}</div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{T.smm_balance_label} ⭐{balance}</div>
+              <div className="text-orange-grad" style={{ fontWeight: 900, fontSize: 26, lineHeight: 1 }}>{fmtRub(starsToRub(priceStars))} ₽</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>⭐{priceStars} · {T.smm_balance_label} {fmtRub(starsToRub(balance))} ₽</div>
             </div>
           </div>
 
@@ -1006,7 +1018,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
             disabled={!canOrder || smmLoading}
             onClick={orderReactions}
           >
-            {smmLoading ? '⏳ ...' : smmLink.trim() ? `${T.smm_order_btn} — ⭐${priceStars}` : T.smm_enter_link}
+            {smmLoading ? '⏳ ...' : smmLink.trim() ? `${T.smm_order_btn} — ${fmtRub(starsToRub(priceStars))} ₽` : T.smm_enter_link}
           </button>
         </div>
       </div>
@@ -1124,7 +1136,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
               }}>✅ {T.smm_guarantee}</span>
             </div>
             <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <div className="text-green-grad" style={{ fontWeight: 900, fontSize: 20, lineHeight: 1 }}>⭐{isViews ? Math.round(svc.price_per_100_stars * 10) : svc.price_per_100_stars}</div>
+              <div className="text-green-grad" style={{ fontWeight: 900, fontSize: 18, lineHeight: 1 }}>{fmtRub(starsToRub(isViews ? Math.round(svc.price_per_100_stars * 10) : svc.price_per_100_stars))} ₽</div>
               <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{isViews ? T.smm_per_1000 : isReactions ? T.smm_per_100 : T.smm_per_100}</div>
             </div>
           </div>
@@ -1235,13 +1247,13 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 3 }}>{T.smm_total_label}</div>
               <div style={{ fontSize: 12, color: 'var(--text2)' }}>
                 {effectiveQty} {isViews ? T.smm_views_word : isReactions ? T.smm_reactions_word : T.smm_subs_word}
-                <span style={{ color: 'var(--muted)' }}> × ⭐{isViews ? Math.round((svc?.price_per_100_stars ?? 0) * 10) : svc?.price_per_100_stars}/{isViews ? 1000 : 100}</span>
+                <span style={{ color: 'var(--muted)' }}> × {fmtRub(starsToRub(isViews ? Math.round((svc?.price_per_100_stars ?? 0) * 10) : (svc?.price_per_100_stars ?? 0)))} ₽/{isViews ? 1000 : 100}</span>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div className="text-orange-grad" style={{ fontWeight: 900, fontSize: 30, lineHeight: 1 }}>⭐{priceStars}</div>
+              <div className="text-orange-grad" style={{ fontWeight: 900, fontSize: 26, lineHeight: 1 }}>{fmtRub(starsToRub(priceStars))} ₽</div>
               <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>
-                {T.smm_balance_label} ⭐{balance}
+                ⭐{priceStars} · {T.smm_balance_label} {fmtRub(starsToRub(balance))} ₽
               </div>
             </div>
           </div>
@@ -1264,7 +1276,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
             disabled={!canOrder || smmLoading}
             onClick={orderSmm}
           >
-            {smmLoading ? '⏳ ...' : smmLink.trim() ? `${T.smm_order_btn} — ⭐${priceStars}` : T.smm_enter_link}
+            {smmLoading ? '⏳ ...' : smmLink.trim() ? `${T.smm_order_btn} — ${fmtRub(starsToRub(priceStars))} ₽` : T.smm_enter_link}
           </button>
         </div>
       </div>
@@ -1434,7 +1446,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           <div style={{ textAlign: 'center', padding: '30px 0 20px' }}>
             <div style={{ fontSize: 64, marginBottom: 12, filter: 'drop-shadow(0 0 20px rgba(155,89,245,.6))' }}>✅</div>
             <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 6 }}>Заказ #{nftDone.order_id} принят!</div>
-            <div style={{ fontSize: 13, color: 'var(--muted)' }}>⭐{nftDone.stars_spent} списано с баланса</div>
+            <div style={{ fontSize: 13, color: 'var(--muted)' }}>{fmtRub(starsToRub(nftDone.stars_spent))} ₽ (⭐{nftDone.stars_spent}) списано с баланса</div>
           </div>
 
           <div style={{
@@ -1565,7 +1577,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
                       borderRadius: 12, padding: '12px 14px',
                     }}>
                       <div style={{ fontSize: 13, marginBottom: 10, color: 'var(--text2)' }}>
-                        Підтвердити оренду <b>@{nft.username}</b> за <b>⭐{nft.price_stars}</b>?
+                        Підтвердити оренду <b>@{nft.username}</b> за <b>{fmtRub(starsToRub(nft.price_stars))} ₽</b> (⭐{nft.price_stars})?
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button className="btn btn-secondary" style={{ flex: 1, padding: '9px' }}
@@ -1578,7 +1590,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
                           disabled={nftBuying}
                           onClick={() => buyNft(nft)}
                         >
-                          {nftBuying ? '⏳...' : `✅ Орендувати ⭐${nft.price_stars}`}
+                          {nftBuying ? '⏳...' : `✅ Орендувати ${fmtRub(starsToRub(nft.price_stars))} ₽`}
                         </button>
                       </div>
                     </div>
@@ -1600,8 +1612,8 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
                       {rented
                         ? 'Зайнятий 🔒'
                         : balance < nft.price_stars
-                          ? `Недостатньо зірок (⭐${nft.price_stars})`
-                          : `Орендувати ⭐${nft.price_stars}`}
+                          ? `Недостатньо (${fmtRub(starsToRub(nft.price_stars))} ₽)`
+                          : `Орендувати ${fmtRub(starsToRub(nft.price_stars))} ₽`}
                     </button>
                   )}
                 </div>

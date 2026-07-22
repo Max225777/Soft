@@ -75,7 +75,7 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
   if (!me) return <div className="page"><p className="muted">{T.loading}</p></div>
 
   const stars = me.balance_stars
-  const usdDisplay = (stars * 0.013).toFixed(2)
+  const rubDisplay = Math.round(stars * 0.013 * (me.rate_rub || 0)).toLocaleString('ru-RU')
 
   const payLabel = lang === 'ru' ? 'Пополнить' : lang === 'ua' ? 'Поповнити' : 'Pay'
   const afterLabel = lang === 'ru' ? 'Баланс зачисляется автоматически' : lang === 'ua' ? 'Баланс зараховується автоматично' : 'Balance credited automatically'
@@ -237,8 +237,8 @@ export default function Balance({ me, lang, balanceDiff }: Props) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1, position: 'relative', display: 'inline-block' }}>
-            <span style={{ fontWeight: 800, fontSize: 40 }}>⭐{stars}</span>
-            <span style={{ fontWeight: 400, fontSize: 15, marginLeft: 10, color: 'var(--muted)' }}>(${usdDisplay})</span>
+            <span style={{ fontWeight: 800, fontSize: 40 }}>{rubDisplay} ₽</span>
+            <span style={{ fontWeight: 400, fontSize: 15, marginLeft: 10, color: 'var(--muted)' }}>(⭐{stars})</span>
             {balanceDiff && (
               <span style={{
                 position: 'absolute', top: -8, right: -48,

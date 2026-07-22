@@ -40,7 +40,7 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
   if (!me) return <div className="page"><p className="muted">{T.loading}</p></div>
 
   const starsBalance = me.balance_stars
-  const usdDisplay = (starsBalance * 0.013).toFixed(2)
+  const rubDisplay = Math.round(starsBalance * 0.013 * (me.rate_rub || 0)).toLocaleString('ru-RU')
 
   return (
     <div className="page">
@@ -83,8 +83,8 @@ export default function Profile({ me, lang, onChangeLang }: Props) {
             {T.balance.toUpperCase()}
           </div>
           <div className="balance-glow" style={{ color: 'var(--orange)', lineHeight: 1 }}>
-            <span style={{ fontWeight: 800, fontSize: 38 }}>⭐{starsBalance}</span>
-            <span style={{ fontWeight: 400, fontSize: 18, marginLeft: 10, color: 'var(--muted)' }}>(${usdDisplay})</span>
+            <span style={{ fontWeight: 800, fontSize: 38 }}>{rubDisplay} ₽</span>
+            <span style={{ fontWeight: 400, fontSize: 18, marginLeft: 10, color: 'var(--muted)' }}>(⭐{starsBalance})</span>
           </div>
         </div>
       </div>
