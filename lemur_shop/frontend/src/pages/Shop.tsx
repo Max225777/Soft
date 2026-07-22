@@ -358,7 +358,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
             borderRadius: 999, padding: '7px 13px',
           }}>
             <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--orange2)' }}>{fmtRub(starsToRub(starsBalance))} ₽</span>
-            <span style={{ fontWeight: 400, fontSize: 11, color: 'var(--muted)' }}>⭐{starsBalance}</span>
+            <span style={{ fontWeight: 400, fontSize: 11, color: 'var(--muted)' }}>(⭐{starsBalance})</span>
           </div>
         </div>
 
