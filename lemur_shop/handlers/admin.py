@@ -315,6 +315,41 @@ async def cmd_myid(message: Message) -> None:
     await message.answer(f"Ваш ID: <code>{message.from_user.id}</code>", parse_mode="HTML")
 
 
+@router.message(Command("platega_check"), IsAdmin())
+async def cmd_platega_check(message: Message) -> None:
+    """Ручна звірка застряглого СБП-платежу: /platega_check «tx_id».
+    Перезапитує статус у Platega й, якщо оплачено, зараховує (ідемпотентно)."""
+    parts = (message.text or "").split()
+    if len(parts) != 2:
+        await message.answer(
+            "Використання: /platega_check «tx_id»\n"
+            "tx_id — ID транзакції з дешборду Platega.", parse_mode=None)
+        return
+    tx_id = parts[1].strip()
+    # Ліниво, щоб уникнути циклічного імпорту з server.
+    from lemur_shop.server import _platega_query, _platega_credit, PLATEGA_PAID_STATES
+
+    q = await _platega_query(tx_id)
+    if q is None:
+        await message.answer(
+            f"❌ Не вдалося отримати статус транзакції <code>{tx_id}</code> у Platega.\n"
+            f"Перевір tx_id або зарахуй вручну: /topup «user_id» «зірки»",
+            parse_mode="HTML")
+        return
+    status = str(q.get("status") or q.get("state") or "").upper()
+    payload = str(q.get("payload") or "")
+    if status not in PLATEGA_PAID_STATES:
+        await message.answer(
+            f"ℹ️ Транзакція <code>{tx_id}</code> має статус <b>{status or '—'}</b> — не оплачено.",
+            parse_mode="HTML")
+        return
+    ok, msg = await _platega_credit(tx_id, payload)
+    if ok:
+        await message.answer(f"✅ {msg}\n<code>{tx_id}</code>", parse_mode="HTML")
+    else:
+        await message.answer(f"⚠️ {msg}", parse_mode="HTML")
+
+
 # ─── Партнёрська програма ───────────────────────────────────────────────────────
 
 @router.message(Command("partner_add"), IsAdmin())

@@ -2401,54 +2401,44 @@ async def api_platega_create(body: PlategaCreateRequest, user: User = Depends(ge
     return {"url": url, "id": data.get("id", tx_id), "amount_rub": amount_rub}
 
 
-@app.post("/api/platega/notify")
-async def platega_notify(request: Request):
-    # Первинна автентифікація — заголовки X-MerchantId / X-Secret від Platega
-    if (request.headers.get("X-MerchantId") != settings.PLATEGA_MERCHANT_ID
-            or request.headers.get("X-Secret") != settings.PLATEGA_SECRET):
-        log.warning("Platega webhook: bad auth headers")
-        return Response(status_code=403)
+PLATEGA_PAID_STATES = ("CONFIRMED", "SUCCESS", "PAID", "COMPLETED", "APPROVED", "DONE")
 
-    try:
-        data = await request.json()
-    except Exception:
-        return Response(status_code=400)
 
-    tx_id = str(data.get("id", ""))
-    status = str(data.get("status", "")).upper()
-    payload = str(data.get("payload", ""))
+async def _platega_query(tx_id: str) -> dict | None:
+    """Авторитетний запит статусу транзакції в Platega нашими ж кредами.
+    Повертає dict відповіді або None, якщо запит не вдався."""
+    if not tx_id:
+        return None
+    for path in (f"{PLATEGA_API}/transaction/{tx_id}", f"{PLATEGA_API}/transaction/status/{tx_id}"):
+        try:
+            async with httpx.AsyncClient(timeout=15) as c:
+                rr = await c.get(path, headers=_platega_headers())
+            if rr.status_code == 200:
+                return rr.json()
+        except Exception:
+            continue
+    return None
 
-    # Додатковий захист: перезапитуємо статус у Platega (best-effort, не блокує
-    # якщо ендпоінт статусу відрізняється — тоді покладаємось на заголовки+status)
-    try:
-        async with httpx.AsyncClient(timeout=15) as c:
-            rr = await c.get(f"{PLATEGA_API}/transaction/{tx_id}", headers=_platega_headers())
-        if rr.status_code == 200:
-            st2 = str(rr.json().get("status", "")).upper()
-            if st2:
-                status = st2
-    except Exception:
-        pass
 
-    if status not in ("CONFIRMED", "SUCCESS", "PAID", "COMPLETED"):
-        return Response(content="ok")
-
+async def _platega_credit(tx_id: str, payload: str) -> tuple[bool, str]:
+    """Ідемпотентне зарахування поповнення Platega за payload. Повертає (ok, msg)."""
     try:
         _, user_id_str, cents_str, _nonce = payload.split("_", 3)
         user_id = int(user_id_str)
         amount_usd = Decimal(cents_str) / Decimal(100)
     except Exception as e:
         log.error("Platega bad payload %r: %s", payload, e)
-        return Response(content="ok")
+        return False, f"bad payload: {payload!r}"
 
     stars_credited = 0
+    user = None
     try:
         async with AsyncSessionLocal() as s:
             async with s.begin():
                 user = await s.get(User, user_id, with_for_update=True)
                 if not user:
                     log.error("Platega payment for unknown user=%s", user_id)
-                    return Response(content="ok")
+                    return False, f"user {user_id} not found"
                 stars_credited = round(float(amount_usd) / settings.STAR_DISPLAY_USD)
                 bal_before = user.balance_stars
                 user.balance_usd = user.balance_usd + amount_usd
@@ -2463,7 +2453,7 @@ async def platega_notify(request: Request):
                          tx_id, user_id, amount_usd, stars_credited, bal_before, user.balance_stars)
     except IntegrityError:
         log.warning("Platega DUPLICATE tx=%s user=%s — skip", tx_id, user_id)
-        return Response(content="ok")
+        return False, f"already credited (duplicate) tx={tx_id}"
 
     if _bot:
         if settings.ADMIN_IDS:
@@ -2489,7 +2479,45 @@ async def platega_notify(request: Request):
             )
         except Exception:
             pass
+    return True, f"credited ⭐{stars_credited} to user {user_id}"
 
+
+@app.post("/api/platega/notify")
+async def platega_notify(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+
+    tx_id = str(data.get("id") or data.get("transactionId") or data.get("transaction_id") or "")
+    status = str(data.get("status") or data.get("state") or "").upper()
+    payload = str(data.get("payload") or "")
+
+    headers_ok = (request.headers.get("X-MerchantId") == settings.PLATEGA_MERCHANT_ID
+                  and request.headers.get("X-Secret") == settings.PLATEGA_SECRET)
+
+    # Авторитетна перевірка: перезапитуємо транзакцію в Platega нашими кредами.
+    # Це і є справжня автентифікація — навіть якщо заголовки вебхука не збіглися
+    # (Platega могла не надіслати X-Secret), ми довіряємо власному запиту.
+    q = await _platega_query(tx_id)
+    if q is not None:
+        st2 = str(q.get("status") or q.get("state") or "").upper()
+        if st2:
+            status = st2
+        if not payload:
+            payload = str(q.get("payload") or "")
+
+    # Приймаємо, якщо: (а) підтвердив наш перезапит, або (б) збіглися заголовки.
+    if q is None and not headers_ok:
+        log.warning("Platega webhook: cannot verify tx=%s (re-query failed, headers mismatch)", tx_id)
+        return Response(status_code=403)
+
+    if status not in PLATEGA_PAID_STATES:
+        log.info("Platega webhook tx=%s status=%s — not paid, skip", tx_id, status)
+        return Response(content="ok")
+
+    ok, msg = await _platega_credit(tx_id, payload)
+    log.info("Platega notify tx=%s → %s (%s)", tx_id, ok, msg)
     return Response(content="ok")
 
 
