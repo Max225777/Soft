@@ -291,7 +291,9 @@ export interface AdminStats {
 export interface EarningsDay {
   date: string
   stars_usd: number; stars_count: number
-  crypto_usd: number; crypto_count: number
+  cryptobot_usd: number; cryptobot_count: number
+  heleket_usd: number; heleket_count: number
+  sbp_usd: number; sbp_count: number
   admin_usd: number; admin_count: number
   total_usd: number
   revenue_usd: number; cost_usd: number; profit_usd: number

@@ -635,8 +635,19 @@ function Orders() {
 // ── Topups ────────────────────────────────────────────────────────────────────
 const METHOD_LABEL: Record<string, string> = {
   stars: '⭐ Stars',
+  cryptobot: '💎 CryptoBot',
+  heleket: '🪙 Heleket',
+  sbp: '🏦 СБП',
   crypto: '💎 Crypto',
   admin: '👤 Admin',
+}
+const METHOD_BADGE: Record<string, { bg: string; color: string; label: string }> = {
+  stars:     { bg: 'rgba(42,171,238,.15)', color: '#2AABEE', label: '⭐ Stars' },
+  cryptobot: { bg: 'rgba(59,163,255,.15)', color: '#3ba3ff', label: '💎 CryptoBot' },
+  crypto:    { bg: 'rgba(59,163,255,.15)', color: '#3ba3ff', label: '💎 Crypto' },
+  heleket:   { bg: 'rgba(129,140,248,.15)', color: '#818cf8', label: '🪙 Heleket' },
+  sbp:       { bg: 'rgba(20,184,138,.15)', color: '#14B88A', label: '🏦 СБП' },
+  admin:     { bg: 'rgba(154,154,154,.15)', color: 'var(--muted)', label: '👤 Admin' },
 }
 
 function Topups() {
@@ -655,15 +666,15 @@ function Topups() {
     <div>
       {stats && (
         <div style={{ marginBottom: 14 }}>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            {(['stars', 'crypto', 'admin'] as const).map(m => {
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+            {(['stars', 'cryptobot', 'heleket', 'sbp', 'admin'] as const).map(m => {
               const s = stats.by_method[m]
               if (!s) return null
-              const color = m === 'stars' ? '#2AABEE' : m === 'crypto' ? '#5fba47' : 'var(--muted)'
+              const color = METHOD_BADGE[m]?.color ?? 'var(--muted)'
               return (
                 <div key={m} style={{
-                  flex: 1, background: 'var(--bg2)', border: '1px solid var(--border)',
-                  borderRadius: 12, padding: '10px 12px', minWidth: 0,
+                  flex: '1 1 30%', background: 'var(--bg2)', border: '1px solid var(--border)',
+                  borderRadius: 12, padding: '10px 12px', minWidth: 90,
                 }}>
                   <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{METHOD_LABEL[m]}</div>
                   <div style={{ fontWeight: 800, fontSize: 16, color }}>⭐{s.stars.toLocaleString()}</div>
@@ -711,9 +722,9 @@ function Topups() {
                   <span style={{ color: 'var(--muted)', fontSize: 11, marginLeft: 6 }}>#{t.user_id}</span>
                   <span style={{
                     marginLeft: 6, fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 6,
-                    background: t.method === 'stars' ? 'rgba(42,171,238,.15)' : 'rgba(95,186,71,.15)',
-                    color: t.method === 'stars' ? '#2AABEE' : '#5fba47',
-                  }}>{t.method === 'stars' ? '⭐ Stars' : t.method === 'crypto' ? '💎 Crypto' : '👤 Admin'}</span>
+                    background: (METHOD_BADGE[t.method] ?? METHOD_BADGE.admin).bg,
+                    color: (METHOD_BADGE[t.method] ?? METHOD_BADGE.admin).color,
+                  }}>{(METHOD_BADGE[t.method] ?? METHOD_BADGE.admin).label}</span>
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>{fmt(t.created_at)}</div>
                 {t.charge_id && (
@@ -1139,9 +1150,11 @@ function PromoCodesTab() {
 
 // ── Earnings chart tab ──────────────────────────────────────────────────────
 const METHOD_META = {
-  stars:  { label: '⭐ Зірки',          color: '#ff6b2b' },
-  crypto: { label: '💎 Крипта',         color: '#3ba3ff' },
-  admin:  { label: '👤 Адмін (розіграші/реклама)', color: '#9a9a9a' },
+  stars:     { label: '⭐ Зірки',        color: '#ff6b2b' },
+  cryptobot: { label: '💎 CryptoBot',    color: '#3ba3ff' },
+  heleket:   { label: '🪙 Heleket',      color: '#818cf8' },
+  sbp:       { label: '🏦 СБП',          color: '#14B88A' },
+  admin:     { label: '👤 Адмін (розіграші/реклама)', color: '#9a9a9a' },
 } as const
 type MethodKey = keyof typeof METHOD_META
 
@@ -1158,7 +1171,7 @@ function EarningsTab() {
   const [dateTo, setDateTo]     = useState(kyivToday())
   const [data, setData]         = useState<EarningsChart | null>(null)
   const [loading, setLoading]   = useState(true)
-  const [methods, setMethods]   = useState<Record<MethodKey, boolean>>({ stars: true, crypto: true, admin: false })
+  const [methods, setMethods]   = useState<Record<MethodKey, boolean>>({ stars: true, cryptobot: true, heleket: true, sbp: true, admin: false })
   const [showProfit, setShowProfit] = useState(false)
 
   useEffect(() => {
@@ -1172,11 +1185,15 @@ function EarningsTab() {
 
   const days: EarningsDay[] = data?.days ?? []
   const dayTotal = (d: EarningsDay) =>
-    (methods.stars ? d.stars_usd : 0) + (methods.crypto ? d.crypto_usd : 0) + (methods.admin ? d.admin_usd : 0)
+    (methods.stars ? d.stars_usd : 0) + (methods.cryptobot ? d.cryptobot_usd : 0)
+    + (methods.heleket ? d.heleket_usd : 0) + (methods.sbp ? d.sbp_usd : 0)
+    + (methods.admin ? d.admin_usd : 0)
 
-  const sumStars  = days.reduce((a, d) => a + d.stars_usd, 0)
-  const sumCrypto = days.reduce((a, d) => a + d.crypto_usd, 0)
-  const sumAdmin  = days.reduce((a, d) => a + d.admin_usd, 0)
+  const sumStars     = days.reduce((a, d) => a + d.stars_usd, 0)
+  const sumCryptobot = days.reduce((a, d) => a + d.cryptobot_usd, 0)
+  const sumHeleket   = days.reduce((a, d) => a + d.heleket_usd, 0)
+  const sumSbp       = days.reduce((a, d) => a + d.sbp_usd, 0)
+  const sumAdmin     = days.reduce((a, d) => a + d.admin_usd, 0)
   const sumProfit = days.reduce((a, d) => a + d.profit_usd, 0)
   const sumTotal  = days.reduce((a, d) => a + dayTotal(d), 0)
 
@@ -1234,7 +1251,9 @@ function EarningsTab() {
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
             <StatCard label="Сума за період" value={`$${fmtUsd(sumTotal)}`} />
             <StatCard label="⭐ Зірки" value={`$${fmtUsd(sumStars)}`} color="#ff6b2b" />
-            <StatCard label="💎 Крипта" value={`$${fmtUsd(sumCrypto)}`} color="#3ba3ff" />
+            <StatCard label="💎 CryptoBot" value={`$${fmtUsd(sumCryptobot)}`} color="#3ba3ff" />
+            <StatCard label="🪙 Heleket" value={`$${fmtUsd(sumHeleket)}`} color="#818cf8" />
+            <StatCard label="🏦 СБП" value={`$${fmtUsd(sumSbp)}`} color="#14B88A" />
             <StatCard label="👤 Адмін" value={`$${fmtUsd(sumAdmin)}`} color="#9a9a9a" />
           </div>
           {showProfit && (
@@ -1253,9 +1272,11 @@ function EarningsTab() {
                   const x = gap + i * (barW + gap)
                   let yOff = chartH
                   const segs: { h: number; color: string }[] = []
-                  if (methods.stars && d.stars_usd > 0)  segs.push({ h: (d.stars_usd  / maxVal) * chartH, color: METHOD_META.stars.color })
-                  if (methods.crypto && d.crypto_usd > 0) segs.push({ h: (d.crypto_usd / maxVal) * chartH, color: METHOD_META.crypto.color })
-                  if (methods.admin && d.admin_usd > 0)   segs.push({ h: (d.admin_usd  / maxVal) * chartH, color: METHOD_META.admin.color })
+                  if (methods.stars && d.stars_usd > 0)         segs.push({ h: (d.stars_usd     / maxVal) * chartH, color: METHOD_META.stars.color })
+                  if (methods.cryptobot && d.cryptobot_usd > 0) segs.push({ h: (d.cryptobot_usd / maxVal) * chartH, color: METHOD_META.cryptobot.color })
+                  if (methods.heleket && d.heleket_usd > 0)     segs.push({ h: (d.heleket_usd   / maxVal) * chartH, color: METHOD_META.heleket.color })
+                  if (methods.sbp && d.sbp_usd > 0)             segs.push({ h: (d.sbp_usd       / maxVal) * chartH, color: METHOD_META.sbp.color })
+                  if (methods.admin && d.admin_usd > 0)         segs.push({ h: (d.admin_usd     / maxVal) * chartH, color: METHOD_META.admin.color })
                   const total = dayTotal(d)
                   const dayNum = d.date.slice(8, 10)
                   return (

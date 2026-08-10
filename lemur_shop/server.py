@@ -2171,7 +2171,7 @@ async def crypto_notify(request: Request):
                 s.add(TopUp(
                     user_id=user_id, amount_usd=amount_usd,
                     amount_stars=stars_credited, admin_id=-1,
-                    method="crypto",
+                    method="cryptobot",
                     charge_id=f"crypto:{crypto_invoice_id}",
                 ))
                 log.info("CryptoBot paid: invoice=%s user=%s amount=%s stars=%s balance %s→%s",
@@ -2305,7 +2305,7 @@ async def heleket_notify(request: Request):
                 s.add(TopUp(
                     user_id=user_id, amount_usd=amount_usd,
                     amount_stars=stars_credited, admin_id=-1,
-                    method="crypto",
+                    method="heleket",
                     charge_id=f"heleket:{htk_uuid}",
                 ))
                 log.info("Heleket paid: uuid=%s user=%s amount=%s stars=%s balance %s→%s",
@@ -2446,7 +2446,7 @@ async def _platega_credit(tx_id: str, payload: str) -> tuple[bool, str]:
                 s.add(TopUp(
                     user_id=user_id, amount_usd=amount_usd,
                     amount_stars=stars_credited, admin_id=-1,
-                    method="crypto",
+                    method="sbp",
                     charge_id=f"platega:{tx_id}",
                 ))
                 log.info("Platega paid: tx=%s user=%s amount=%s stars=%s balance %s→%s",
@@ -2943,16 +2943,27 @@ async def api_admin_earnings_chart(
             .where(Order.status == "delivered", Order.created_at >= range_start, Order.created_at < range_end)
         )).all()
 
-    buckets: dict[_date, dict] = {
-        d: {"stars_usd": 0.0, "stars_count": 0, "crypto_usd": 0.0, "crypto_count": 0,
-            "admin_usd": 0.0, "admin_count": 0, "revenue_usd": 0.0, "cost_usd": 0.0}
-        for d in days
+    # Ключі методів поповнення (окремо CryptoBot, Heleket, СБП).
+    METHOD_KEYS = ("stars", "cryptobot", "heleket", "sbp", "admin")
+    # Старий метод "crypto" (до розділення) відносимо до CryptoBot.
+    METHOD_MAP = {
+        "stars": "stars", "cryptobot": "cryptobot", "crypto": "cryptobot",
+        "heleket": "heleket", "sbp": "sbp", "platega": "sbp", "admin": "admin",
     }
+
+    def _new_bucket() -> dict:
+        b = {"revenue_usd": 0.0, "cost_usd": 0.0}
+        for k in METHOD_KEYS:
+            b[f"{k}_usd"] = 0.0
+            b[f"{k}_count"] = 0
+        return b
+
+    buckets: dict[_date, dict] = {d: _new_bucket() for d in days}
     for created_at, method, amount_usd, _amount_stars in topup_rows:
         b = buckets.get(_day_of(created_at))
         if b is None:
             continue
-        key = method if method in ("stars", "crypto", "admin") else "admin"
+        key = METHOD_MAP.get(method or "", "admin")
         b[f"{key}_usd"] += float(amount_usd or 0)
         b[f"{key}_count"] += 1
     for created_at, price_usd, cost_usd in order_rows:
@@ -2965,20 +2976,18 @@ async def api_admin_earnings_chart(
     rows = []
     for d in days:
         b = buckets[d]
-        total_usd = b["stars_usd"] + b["crypto_usd"] + b["admin_usd"]
-        rows.append({
-            "date":          d.isoformat(),
-            "stars_usd":     round(b["stars_usd"], 2),
-            "stars_count":   b["stars_count"],
-            "crypto_usd":    round(b["crypto_usd"], 2),
-            "crypto_count":  b["crypto_count"],
-            "admin_usd":     round(b["admin_usd"], 2),
-            "admin_count":   b["admin_count"],
-            "total_usd":     round(total_usd, 2),
-            "revenue_usd":   round(b["revenue_usd"], 2),
-            "cost_usd":      round(b["cost_usd"], 2),
-            "profit_usd":    round(b["revenue_usd"] - b["cost_usd"], 2),
-        })
+        total_usd = sum(b[f"{k}_usd"] for k in METHOD_KEYS)
+        row = {
+            "date":        d.isoformat(),
+            "total_usd":   round(total_usd, 2),
+            "revenue_usd": round(b["revenue_usd"], 2),
+            "cost_usd":    round(b["cost_usd"], 2),
+            "profit_usd":  round(b["revenue_usd"] - b["cost_usd"], 2),
+        }
+        for k in METHOD_KEYS:
+            row[f"{k}_usd"] = round(b[f"{k}_usd"], 2)
+            row[f"{k}_count"] = b[f"{k}_count"]
+        rows.append(row)
 
     return {
         "date_from": df.isoformat(),
@@ -3140,8 +3149,10 @@ async def api_admin_topups(page: int = 1, limit: int = 30, admin: User = Depends
                     func.coalesce(func.sum(TopUp.amount_usd), 0).label('usd'),
                 ).group_by(TopUp.method)
             )).all()
+            # Старі записи "crypto"/"platega" зводимо до нових ключів.
+            _METHOD_ALIAS = {"crypto": "cryptobot", "platega": "sbp"}
             for r in method_rows:
-                key = r.method or 'admin'
+                key = _METHOD_ALIAS.get(r.method or "", r.method or "admin")
                 existing = method_stats.get(key, {"count": 0, "stars": 0, "usd": 0.0})
                 method_stats[key] = {
                     "count": existing["count"] + int(r.cnt),
