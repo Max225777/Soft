@@ -417,3 +417,61 @@ async def cmd_partner_info(message: Message) -> None:
         f"Виплачено: <b>${float(user.partner_paid_usd or 0):.2f}</b>",
         parse_mode="HTML",
     )
+
+
+# ─── Fragment (прямий продаж Stars / Premium) ────────────────────────────────────
+
+@router.message(Command("fragstars"), IsAdmin())
+async def cmd_fragstars(message: Message) -> None:
+    """/fragstars @username «кількість» [calc]
+    calc — лише розрахунок ціни в TON без оплати."""
+    from lemur_shop.services.fragment_buy import buy_stars
+    parts = (message.text or "").split()
+    if len(parts) < 3:
+        await message.answer("Використання: /fragstars @username «кількість» [calc]\n"
+                             "Приклад (тест): /fragstars @durov 50 calc", parse_mode=None)
+        return
+    username = parts[1]
+    try:
+        qty = int(parts[2])
+    except ValueError:
+        await message.answer("❌ Кількість має бути числом.")
+        return
+    calc_only = len(parts) > 3 and parts[3].lower() in ("calc", "розрахунок", "price")
+    await message.answer(f"⏳ Fragment: ⭐{qty} для {username}{' (розрахунок)' if calc_only else ''}…", parse_mode=None)
+    try:
+        res = await buy_stars(username, qty, confirm=not calc_only)
+    except Exception as e:
+        log.exception("fragstars failed")
+        await message.answer(f"❌ Помилка: {e}", parse_mode=None)
+        return
+    icon = "✅" if res.ok else "❌"
+    dry = " · DRY-RUN (реально не оплачено)" if res.dry_run else ""
+    await message.answer(f"{icon} {res.detail}\n💎 ~{res.total_ton:.4f} TON{dry}", parse_mode=None)
+
+
+@router.message(Command("fragpremium"), IsAdmin())
+async def cmd_fragpremium(message: Message) -> None:
+    """/fragpremium @username «місяців(3/6/12)» [calc]"""
+    from lemur_shop.services.fragment_buy import buy_premium
+    parts = (message.text or "").split()
+    if len(parts) < 3:
+        await message.answer("Використання: /fragpremium @username «3|6|12» [calc]", parse_mode=None)
+        return
+    username = parts[1]
+    try:
+        months = int(parts[2])
+    except ValueError:
+        await message.answer("❌ Місяці мають бути числом (3, 6 або 12).")
+        return
+    calc_only = len(parts) > 3 and parts[3].lower() in ("calc", "розрахунок", "price")
+    await message.answer(f"⏳ Fragment: Premium {months}м для {username}{' (розрахунок)' if calc_only else ''}…", parse_mode=None)
+    try:
+        res = await buy_premium(username, months, confirm=not calc_only)
+    except Exception as e:
+        log.exception("fragpremium failed")
+        await message.answer(f"❌ Помилка: {e}", parse_mode=None)
+        return
+    icon = "✅" if res.ok else "❌"
+    dry = " · DRY-RUN (реально не оплачено)" if res.dry_run else ""
+    await message.answer(f"{icon} {res.detail}\n💎 ~{res.total_ton:.4f} TON{dry}", parse_mode=None)

@@ -52,5 +52,32 @@ class Settings(BaseSettings):
     SMMWAY_API_KEY: str = ""
     PREVIEW_MODE: bool = False
 
+    # ─── Fragment (прямий продаж Telegram Stars / Premium) ──────────────────────
+    # Куки Fragment беремо по API з LemurPanel (не зберігаємо в себе — протухають).
+    LEMURPANEL_URL: str = ""          # база LemurPanel, напр. https://panel.example.com
+    SHOP_API_KEY: str = ""            # ключ доступу до LemurPanel cookie-API
+    # Скільки секунд кешувати куки Fragment (протухають → тримаємо коротко).
+    FRAGMENT_COOKIE_TTL: int = 480    # 8 хв
+    # Резервні куки Fragment напряму (якщо LemurPanel недоступний) — рядок виду
+    # "stel_ssid=...; stel_token=...; stel_dt=...; stel_ton_token=..."
+    FRAGMENT_COOKIES_FALLBACK: str = ""
+    # User-Agent, з яким ходимо на fragment.com (має збігатися з тим, під яким
+    # видані куки — інакше Fragment інвалідуватиме сесію).
+    FRAGMENT_USER_AGENT: str = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+    )
+
+    # ─── Гаманець бота (pytoniq) для оплати Fragment ────────────────────────────
+    WALLET_SEED: str = ""             # 24 слова мнемоніки гаманця бота (через пробіл)
+    # Jetton-master USDT у мережі TON (mainnet).
+    USDT_JETTON_MASTER: str = "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs"
+    # TON API endpoint для pytoniq LiteClient (порожньо = глобальний конфіг mainnet).
+    TON_CONFIG_URL: str = "https://ton.org/global.config.json"
+    # Запобіжник: макс. сума однієї покупки в TON (щоб не злити гаманець при баге).
+    FRAGMENT_MAX_TON_PER_BUY: float = 20.0
+    # Сухий прогін: рахуємо/логуємо все, але НЕ шлемо TON (для тестів).
+    FRAGMENT_DRY_RUN: bool = True
+
 
 settings = Settings()
