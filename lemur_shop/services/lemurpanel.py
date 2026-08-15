@@ -83,25 +83,34 @@ async def _fetch_from_panel() -> dict[str, str]:
         #    без query-параметрів (вони ламають відповідь панелі).
         primary = settings.LEMURPANEL_COOKIE_PATH
         url = f"{base}{primary}"
+        payload = None
         try:
             r = await c.get(url, headers=headers)
-            ct = r.headers.get("content-type", "")
             log.info("LemurPanel primary GET %s → %s ct=%s body[:120]=%r",
-                     url, r.status_code, ct, r.text[:120])
+                     url, r.status_code, r.headers.get("content-type", ""), r.text[:120])
             if r.status_code == 200:
                 try:
                     payload = r.json()
                 except Exception:
                     payload = None
-                if payload is not None:
-                    cookies = _sanitize(_extract_cookies(payload))
-                    log.info("LemurPanel primary parsed cookie keys: %s", list(cookies))
-                    if _looks_like_fragment(cookies):
-                        return cookies
-                    log.warning("LemurPanel primary 200 but no valid stel_* cookies "
-                                "(raw keys before sanitize: %s)", list(_extract_cookies(payload)))
         except Exception as e:
             log.warning("LemurPanel primary request failed: %s", e)
+
+        if payload is not None:
+            raw = _extract_cookies(payload)
+            cookies = _sanitize(raw)
+            log.info("LemurPanel primary parsed cookie keys: %s", list(cookies))
+            if _looks_like_fragment(cookies):
+                return cookies
+            # 200 + правильна структура, але значення невалідні (напр. '…' —
+            # маскування/порожньо): це проблема панелі — даємо чітку помилку.
+            if any(str(k).startswith("stel") for k in raw):
+                sample = next((f"{k}={v!r}" for k, v in raw.items() if str(k).startswith("stel")), "")
+                raise CookieError(
+                    "LemurPanel віддає структуру кук, але значення порожні/замасковані "
+                    f"({sample}). У LemurPanel немає активної Fragment-сесії — "
+                    "залогінься/онови Fragment-акаунт у панелі, щоб вона повертала реальні токени."
+                )
 
         # 2) Резервні шляхи (на випадок, якщо шлях зміниться) — GET, лише заголовок.
         last_err: Exception | None = CookieError(f"primary {url} did not return valid cookies")
