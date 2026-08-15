@@ -66,12 +66,15 @@ class Settings(BaseSettings):
     # User-Agent, з яким ходимо на fragment.com (має збігатися з тим, під яким
     # видані куки — інакше Fragment інвалідуватиме сесію).
     FRAGMENT_USER_AGENT: str = (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
     )
 
     # ─── Гаманець бота (pytoniq) для оплати Fragment ────────────────────────────
     WALLET_SEED: str = ""             # 24 слова мнемоніки гаманця бота (через пробіл)
+    # Адреса гаманця бота (той самий, що WALLET_SEED). Потрібна Fragment у полі
+    # account при initGiftPremium/getBuyStarsLink. Публічна — можна вставити прямо.
+    WALLET_ADDRESS: str = ""
     # Jetton-master USDT у мережі TON (mainnet).
     USDT_JETTON_MASTER: str = "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs"
     # TON API endpoint для pytoniq LiteClient (порожньо = глобальний конфіг mainnet).
@@ -96,9 +99,6 @@ class Settings(BaseSettings):
     FRAGMENT_PREMIUM_MARKUP_USD: float = 2.00
     # Валюта оплати Fragment: USDT / USDC / TON.
     FRAGMENT_PAY_CURRENCY: str = "USDT"
-    # Проксі для запитів до fragment.com (residential), напр.
-    # http://user:pass@host:port — Fragment часто блокує покупки з серверних IP.
-    FRAGMENT_PROXY: str = ""
 
 
 settings = Settings()
