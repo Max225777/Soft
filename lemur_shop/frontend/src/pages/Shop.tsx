@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { api, smmApi, type Category, type BuyResult, type Me, type SmmService, type NftItem } from '../api'
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
+import FragmentStore from './FragmentStore'
 
 const REVIEWS_CHANNEL = 'LEMUR_SHOP_REP'
 const REVIEWS_URL = `https://t.me/${REVIEWS_CHANNEL}`
@@ -21,7 +22,7 @@ const SELL_T: Record<Lang, { title: string; sub: string }> = {
 
 interface Props { lang: Lang; me: Me | null; onGoToBalance: () => void; onGoToProfile?: () => void; onBuy?: () => void }
 
-type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars' | 'smm' | 'smm_list' | 'smm_reactions' | 'nft'
+type View = 'menu' | 'list' | 'buying' | 'success' | 'error' | 'stars' | 'smm' | 'smm_list' | 'smm_reactions' | 'nft' | 'fragment'
 
 // Курс RUB за 1 USD — оновлюється на кожному рендері Shop із me.rate_rub.
 // Ціни/баланс показуємо в рублях, а ⭐ — у дужках (крім крипто-поповнення).
@@ -511,6 +512,39 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           </button>
         </div>
 
+        {/* Fragment Stars / Premium card */}
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(255,184,48,.10), rgba(255,184,48,.03))',
+          border: '1px solid rgba(255,184,48,.28)',
+          borderRadius: 20, padding: '18px 16px', marginTop: 10,
+          position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+              background: 'linear-gradient(135deg, #FFB830, #e09000)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 14px rgba(255,184,48,.35)', fontSize: 26,
+            }}>⭐</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: 17 }}>
+                {lang === 'ua' ? 'Stars і Premium' : lang === 'en' ? 'Stars & Premium' : 'Stars и Premium'}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>
+                {lang === 'ua' ? 'Поповнення зірок і Premium на будь-який акаунт'
+                  : lang === 'en' ? 'Top up Stars or gift Premium to any account'
+                  : 'Пополнение звёзд и Premium на любой аккаунт'}
+              </div>
+            </div>
+          </div>
+          <button className="btn btn-primary" onClick={() => setView('fragment')} style={{
+            width: '100%', padding: '12px', fontSize: 14,
+            background: 'linear-gradient(135deg, #FFB830, #e09000)', color: '#1a1200',
+          }}>
+            {lang === 'ua' ? 'Купити' : lang === 'en' ? 'Buy' : 'Купить'} →
+          </button>
+        </div>
+
 
         {/* NFT Usernames card — hidden until feature is ready */}
         <div style={{ display: 'none' }}><div style={{
@@ -551,6 +585,11 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
         <LegalFooter />
       </div>
     )
+  }
+
+  // ─── Fragment: Stars / Premium ────────────────────────────────────────────
+  if (view === 'fragment') {
+    return <FragmentStore lang={lang} me={me} onBuy={onBuy} onBack={() => setView('menu')} />
   }
 
   // ─── Список ───────────────────────────────────────────────────────────────

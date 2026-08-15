@@ -71,6 +71,26 @@ export const api = {
   promoRedeem:  (code: string) => req<{ ok: boolean; stars: number }>('/promo/redeem', { method: 'POST', body: JSON.stringify({ code }) }),
   nftList:      (search?: string) => req<NftItem[]>(`/nft/list${search ? '?search=' + encodeURIComponent(search) : ''}`),
   nftBuy:       (nft_id: number) => req<{ order_id: number; stars_spent: number; expires_at: string }>('/nft/buy', { method: 'POST', body: JSON.stringify({ nft_id }) }),
+  fragmentPrices: () => req<FragmentPrices>('/fragment/prices'),
+  fragmentBuy:    (kind: 'stars' | 'premium', username: string, quantity: number, months: number) =>
+                    req<{ ok: boolean; order_id: number; label: string; recipient: string; price_stars: number; dry_run: boolean }>(
+                      '/fragment/buy', { method: 'POST', body: JSON.stringify({ kind, username, quantity, months }) }),
+}
+
+export interface FragmentQuote {
+  qty?: number; months?: number
+  cost_usd: number; sell_usd: number; profit_usd: number; margin_pct: number
+  sell_shop_stars: number; sell_rub: number | null
+}
+export interface FragmentPrices {
+  rate_rub: number
+  star_cost_usd: number
+  stars_margin_pct: number
+  stars_fee_usd: number
+  star_display_usd: number
+  stars_packages: FragmentQuote[]
+  premium_options: FragmentQuote[]
+  stars_min: number; stars_max: number
 }
 
 export interface ApiStats {

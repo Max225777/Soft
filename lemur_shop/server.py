@@ -993,6 +993,138 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
     return {"order_id": order_id, "phone": phone, "created_at": created_at.isoformat()}
 
 
+# ─── Fragment: продаж Telegram Stars / Premium ──────────────────────────────────
+
+STARS_PACKAGES = [50, 100, 500, 1000, 2500]
+PREMIUM_MONTHS = [3, 6, 12]
+
+
+@app.get("/api/fragment/prices")
+async def api_fragment_prices(user: User = Depends(get_current_user)):
+    from lemur_shop.services import fragment_pricing as fp
+    rate = await get_rate("RUB")
+    stars = [fp.quote_stars(q, rate_rub=rate) for q in STARS_PACKAGES]
+    premium = [fp.quote_premium(m, rate_rub=rate) for m in PREMIUM_MONTHS]
+    return {
+        "rate_rub": rate,
+        "star_cost_usd": settings.FRAGMENT_STAR_COST_USD,
+        "stars_margin_pct": settings.FRAGMENT_STARS_MARGIN_PCT,
+        "stars_fee_usd": settings.FRAGMENT_STARS_FEE_USD,
+        "star_display_usd": settings.STAR_DISPLAY_USD,
+        "stars_packages": stars,
+        "premium_options": premium,
+        "stars_min": 50, "stars_max": 10_000_000,
+    }
+
+
+class FragmentBuyRequest(BaseModel):
+    kind: str            # 'stars' | 'premium'
+    username: str
+    quantity: int = 0    # для stars
+    months: int = 0      # для premium
+
+
+@app.post("/api/fragment/buy")
+async def api_fragment_buy(body: FragmentBuyRequest, user: User = Depends(get_current_user)):
+    from lemur_shop.services import fragment_pricing as fp
+    from lemur_shop.services.fragment_buy import buy_stars, buy_premium
+
+    uname = (body.username or "").strip().lstrip("@")
+    if not uname or len(uname) < 3:
+        raise HTTPException(status_code=400, detail="bad_username")
+
+    # 1) Рахуємо ціну продажу + собівартість
+    if body.kind == "stars":
+        qty = int(body.quantity)
+        if qty < 50 or qty > 10_000_000:
+            raise HTTPException(status_code=400, detail="bad_quantity")
+        q = fp.quote_stars(qty)
+        label = f"⭐{qty}"
+    elif body.kind == "premium":
+        months = int(body.months)
+        if months not in PREMIUM_MONTHS:
+            raise HTTPException(status_code=400, detail="bad_months")
+        q = fp.quote_premium(months)
+        label = f"Premium {months}м"
+    else:
+        raise HTTPException(status_code=400, detail="bad_kind")
+
+    price_stars = fp.usd_to_shop_stars(q["sell_usd"])
+    price_usd = Decimal(str(round(price_stars * settings.STAR_DISPLAY_USD, 4)))
+    cost_usd = Decimal(str(q["cost_usd"]))
+
+    if user.balance_stars < price_stars:
+        raise HTTPException(status_code=402, detail="insufficient_balance")
+
+    # 2) Списуємо баланс і створюємо замовлення 'pending' (одна транзакція)
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            u = await s.get(User, user.id, with_for_update=True)
+            if u.balance_stars < price_stars:
+                raise HTTPException(status_code=402, detail="insufficient_balance")
+            u.balance_stars -= price_stars
+            u.balance_usd = max(Decimal(0), u.balance_usd - price_usd)
+            order = Order(
+                user_id=user.id, product_id=0,
+                price_usd=price_usd, cost_usd=cost_usd,
+                category=f"fragment_{body.kind}",
+                status="pending",
+                smm_quantity=int(body.quantity) if body.kind == "stars" else int(body.months),
+                delivered_data=f"@{uname}",
+            )
+            s.add(order)
+        await s.refresh(order)
+    order_id = order.id
+
+    # 3) Виконуємо через Fragment + гаманець бота
+    try:
+        if body.kind == "stars":
+            res = await buy_stars(uname, int(body.quantity), confirm=True)
+        else:
+            res = await buy_premium(uname, int(body.months), confirm=True)
+        ok = res.ok
+        detail = res.detail
+    except Exception as e:
+        log.exception("fragment buy failed order=%s", order_id)
+        ok, detail, res = False, str(e), None
+
+    # 4) Успіх → delivered; помилка → рефанд + failed
+    if ok:
+        async with AsyncSessionLocal() as s:
+            async with s.begin():
+                o = await s.get(Order, order_id, with_for_update=True)
+                o.status = "delivered"
+        if _bot and settings.ADMIN_IDS:
+            uref = f"@{user.username}" if user.username else f"ID:{user.id}"
+            dry = " · DRY-RUN" if getattr(res, "dry_run", False) else ""
+            txt = (
+                f"🎁 <b>Fragment: {label} → @{uname}</b>{dry}\n\n"
+                f"👤 Покупець: {uref} (<code>{user.id}</code>)\n"
+                f"💵 Ціна: <b>⭐{price_stars}</b> (${q['sell_usd']:.2f})\n"
+                f"📦 Собівартість: ${q['cost_usd']:.2f} · 📈 Прибуток: <b>${q['profit_usd']:.2f}</b>\n"
+                f"🧾 Замовлення #{order_id}"
+            )
+            for admin_id in settings.ADMIN_IDS:
+                try:
+                    await _bot.send_message(admin_id, txt, parse_mode="HTML")
+                except Exception:
+                    pass
+        return {"ok": True, "order_id": order_id, "label": label,
+                "recipient": uname, "price_stars": price_stars,
+                "dry_run": getattr(res, "dry_run", False), "detail": detail}
+
+    # рефанд
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            u = await s.get(User, user.id, with_for_update=True)
+            u.balance_stars += price_stars
+            u.balance_usd = u.balance_usd + price_usd
+            o = await s.get(Order, order_id, with_for_update=True)
+            o.status = "failed"
+    log.warning("fragment buy refunded order=%s user=%s: %s", order_id, user.id, detail)
+    raise HTTPException(status_code=502, detail="fragment_failed")
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  ПАРТНЁРСЬКИЙ API  (програмні покупки TG-акаунтів за API-ключем)
 #  – автентифікація за ключем (Authorization: Bearer <key> або X-API-Key)
