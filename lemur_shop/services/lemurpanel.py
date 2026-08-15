@@ -50,43 +50,61 @@ def _extract_cookies(data) -> dict[str, str]:
     raise CookieError(f"unexpected cookie payload type: {type(data)}")
 
 
+def _looks_like_cookies(c: dict[str, str]) -> bool:
+    """Схоже на куки Fragment — має хоч один stel_*-ключ (або взагалі непорожнє)."""
+    if not c:
+        return False
+    return any(k.startswith("stel") for k in c) or len(c) >= 1
+
+
 async def _fetch_from_panel() -> dict[str, str]:
     if not settings.LEMURPANEL_URL or not settings.SHOP_API_KEY:
         raise CookieError("LEMURPANEL_URL / SHOP_API_KEY not configured")
 
     base = settings.LEMURPANEL_URL.rstrip("/")
-    # NB: точний шлях/формат — з коду LemurPanel (був у стертому блоці).
-    # Тримаємо кілька ймовірних ендпоінтів; перший, що дасть куки, — виграє.
-    candidates = [
-        f"{base}/api/fragment/cookies",
-        f"{base}/api/cookies",
-        f"{base}/fragment/cookies",
+    key = settings.SHOP_API_KEY
+    # Точний шлях/формат — з боку LemurPanel. Перебираємо ймовірні варіанти;
+    # перший, що поверне валідні куки, виграє (і його буде видно в логах).
+    paths = [
+        "/api/fragment/cookies", "/api/fragment/cookie", "/api/cookies",
+        "/api/cookie", "/fragment/cookies", "/api/fragment", "/cookies",
+        "/api/get_cookies", "/api/fragment/session",
     ]
     headers = {
-        "Authorization": f"Bearer {settings.SHOP_API_KEY}",
-        "X-Api-Key": settings.SHOP_API_KEY,
+        "Authorization": f"Bearer {key}",
+        "X-Api-Key": key,
+        "X-Shop-Key": key,
         "Accept": "application/json",
     }
+    # Ключ ще й у query — деякі панелі приймають саме так.
+    query = {"key": key, "api_key": key, "token": key}
+
     last_err: Exception | None = None
-    async with httpx.AsyncClient(timeout=15) as c:
-        for url in candidates:
-            try:
-                r = await c.get(url, headers=headers)
-                if r.status_code != 200:
-                    last_err = CookieError(f"{url} → HTTP {r.status_code}")
-                    continue
+    async with httpx.AsyncClient(timeout=15, follow_redirects=True) as c:
+        for path in paths:
+            url = f"{base}{path}"
+            for method in ("GET", "POST"):
                 try:
-                    payload = r.json()
-                except Exception:
-                    payload = r.text
-                cookies = _extract_cookies(payload)
-                if cookies:
-                    log.info("LemurPanel cookies fetched from %s (%d keys)", url, len(cookies))
-                    return cookies
-                last_err = CookieError(f"{url} → empty cookies")
-            except Exception as e:
-                last_err = e
-                continue
+                    if method == "GET":
+                        r = await c.get(url, headers=headers, params=query)
+                    else:
+                        r = await c.post(url, headers=headers, params=query, json={"key": key})
+                    if r.status_code != 200:
+                        last_err = CookieError(f"{method} {url} → HTTP {r.status_code}")
+                        continue
+                    try:
+                        payload = r.json()
+                    except Exception:
+                        payload = r.text
+                    cookies = _extract_cookies(payload)
+                    if _looks_like_cookies(cookies):
+                        log.info("LemurPanel cookies from %s %s (%d keys: %s)",
+                                 method, url, len(cookies), ", ".join(list(cookies)[:4]))
+                        return cookies
+                    last_err = CookieError(f"{method} {url} → no cookies in body")
+                except Exception as e:
+                    last_err = e
+                    continue
     raise CookieError(f"could not fetch Fragment cookies: {last_err}")
 
 

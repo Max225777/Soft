@@ -67,17 +67,22 @@ async def send_ton_messages(messages: list[dict]) -> dict:
         wallet = await WalletV4R2.from_mnemonic(provider, _mnemonic_list())
         seqno_before = await wallet.get_seqno()
 
-        wallet_msgs = []
-        for m in messages:
-            body = None
-            if m.get("payload"):
-                body = Cell.one_from_boc(base64.b64decode(m["payload"]))
-            wallet_msgs.append(wallet.create_wallet_internal_message(
-                destination=Address(m["address"]),
-                value=int(m["amount"]),
-                body=body,
-            ))
-        await wallet.raw_transfer(msgs=wallet_msgs)
+        def _body(m: dict):
+            return Cell.one_from_boc(base64.b64decode(m["payload"])) if m.get("payload") else None
+
+        # Основний шлях — одне external з усіма повідомленнями (raw_transfer).
+        if hasattr(wallet, "create_wallet_internal_message") and hasattr(wallet, "raw_transfer"):
+            wallet_msgs = [
+                wallet.create_wallet_internal_message(
+                    destination=Address(m["address"]), value=int(m["amount"]), body=_body(m))
+                for m in messages
+            ]
+            await wallet.raw_transfer(msgs=wallet_msgs)
+        else:
+            # Фолбек — по одному переказу (менш атомарно, але сумісно зі старими pytoniq).
+            for m in messages:
+                await wallet.transfer(
+                    destination=Address(m["address"]), amount=int(m["amount"]), body=_body(m))
         log.info("TON transfer sent (seqno_before=%s, total=%.4f TON)", seqno_before, total)
         return {"ok": True, "dry_run": False, "total_ton": total, "seqno_before": seqno_before}
     finally:
