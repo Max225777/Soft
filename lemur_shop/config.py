@@ -80,16 +80,20 @@ class Settings(BaseSettings):
     FRAGMENT_DRY_RUN: bool = True
 
     # ─── Ціноутворення продажу Stars / Premium ──────────────────────────────────
+    # Оплата Fragment у USDT (стейбл) → собівартість фіксована в $, курс TON не
+    # впливає. Єдине в TON — газ за переказ (~$0.05/тx), його покриває фікс. збір.
     # Собівартість з Fragment (звіряй періодично на fragment.com):
     FRAGMENT_STAR_COST_USD: float = 0.015          # 50⭐ = $0.75
     FRAGMENT_PREMIUM_3M_COST_USD: float = 11.99
     FRAGMENT_PREMIUM_6M_COST_USD: float = 15.99
     FRAGMENT_PREMIUM_12M_COST_USD: float = 28.99
-    # Націнка на зірки: маржа у % + фікс. збір (покриває газ TON на дрібних сумах).
+    # Націнка на зірки: маржа у % + невеликий фікс. збір на газ TON.
     FRAGMENT_STARS_MARGIN_PCT: float = 20.0        # ≥20% прибутку
-    FRAGMENT_STARS_FEE_USD: float = 0.10
-    # Націнка Premium: чистими +$2, беремо трохи більше на газ/волатильність TON.
-    FRAGMENT_PREMIUM_MARKUP_USD: float = 2.20
+    FRAGMENT_STARS_FEE_USD: float = 0.05
+    # Націнка Premium: рівно +$2 (собівартість у USDT стабільна).
+    FRAGMENT_PREMIUM_MARKUP_USD: float = 2.00
+    # Валюта оплати Fragment: USDT / USDC / TON.
+    FRAGMENT_PAY_CURRENCY: str = "USDT"
 
 
 settings = Settings()

@@ -109,7 +109,8 @@ async def get_stars_transaction(username: str, quantity: int) -> list[dict]:
             if not req_id:
                 raise FragmentError(f"no req_id from initBuyStarsRequest: {str(init)[:200]}")
             link = await _api(client, cookies, api_hash,
-                              method="getBuyStarsLink", id=req_id, show_sender=0)
+                              method="getBuyStarsLink", id=req_id, show_sender=0,
+                              currency=settings.FRAGMENT_PAY_CURRENCY)
         except FragmentError as e:
             # куки могли протухнути — скинемо кеш, щоб наступна спроба взяла свіжі
             if "auth" in str(e).lower() or "expired" in str(e).lower():
@@ -135,7 +136,8 @@ async def get_premium_transaction(username: str, months: int) -> list[dict]:
             if not req_id:
                 raise FragmentError(f"no req_id from initGiftPremiumRequest: {str(init)[:200]}")
             link = await _api(client, cookies, api_hash,
-                              method="getGiftPremiumLink", id=req_id)
+                              method="getGiftPremiumLink", id=req_id,
+                              currency=settings.FRAGMENT_PAY_CURRENCY)
         except FragmentError as e:
             if "auth" in str(e).lower() or "expired" in str(e).lower():
                 invalidate_cookie_cache()

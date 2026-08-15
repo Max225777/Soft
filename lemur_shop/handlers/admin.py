@@ -458,7 +458,7 @@ async def cmd_fragstars(message: Message) -> None:
         return
     icon = "✅" if res.ok else "❌"
     dry = " · DRY-RUN (реально не оплачено)" if res.dry_run else ""
-    await message.answer(f"{icon} {res.detail}\n💎 собівартість ~{res.total_ton:.4f} TON{dry}{price_txt}", parse_mode="HTML")
+    await message.answer(f"{icon} {res.detail}\n⛽ газ ~{res.total_ton:.4f} TON (оплата в USDT){dry}{price_txt}", parse_mode="HTML")
 
 
 @router.message(Command("fragpremium"), IsAdmin())
@@ -499,4 +499,4 @@ async def cmd_fragpremium(message: Message) -> None:
         return
     icon = "✅" if res.ok else "❌"
     dry = " · DRY-RUN (реально не оплачено)" if res.dry_run else ""
-    await message.answer(f"{icon} {res.detail}\n💎 собівартість ~{res.total_ton:.4f} TON{dry}{price_txt}", parse_mode="HTML")
+    await message.answer(f"{icon} {res.detail}\n⛽ газ ~{res.total_ton:.4f} TON (оплата в USDT){dry}{price_txt}", parse_mode="HTML")
