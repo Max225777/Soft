@@ -105,12 +105,19 @@ async def get_stars_transaction(username: str, quantity: int) -> list[dict]:
                 client, cookies, api_hash,
                 search_method="searchStarsRecipient", query=username, quantity=quantity,
             )
-            init = await _api(client, cookies, api_hash,
+            # Хеш беремо зі сторінки покупки (як робить сайт: /stars/buy?recipient=..&quantity=..).
+            from urllib.parse import quote
+            buy_page = f"/stars/buy?recipient={quote(str(rid), safe='')}&quantity={quantity}"
+            try:
+                buy_hash = await _get_hash(client, cookies, buy_page)
+            except FragmentError:
+                buy_hash = api_hash
+            init = await _api(client, cookies, buy_hash,
                               method="initBuyStarsRequest", recipient=rid, quantity=quantity)
             req_id = init.get("req_id") or init.get("id")
             if not req_id:
                 raise FragmentError(f"no req_id from initBuyStarsRequest: {str(init)[:200]}")
-            link = await _api(client, cookies, api_hash,
+            link = await _api(client, cookies, buy_hash,
                               method="getBuyStarsLink", id=req_id, show_sender=0,
                               currency=settings.FRAGMENT_PAY_CURRENCY)
         except FragmentError as e:
@@ -132,12 +139,18 @@ async def get_premium_transaction(username: str, months: int) -> list[dict]:
                 client, cookies, api_hash,
                 search_method="searchPremiumGiftRecipient", query=username, months=months,
             )
-            init = await _api(client, cookies, api_hash,
+            from urllib.parse import quote
+            buy_page = f"/premium/buy?recipient={quote(str(rid), safe='')}&months={months}"
+            try:
+                buy_hash = await _get_hash(client, cookies, buy_page)
+            except FragmentError:
+                buy_hash = api_hash
+            init = await _api(client, cookies, buy_hash,
                               method="initGiftPremiumRequest", recipient=rid, months=months)
             req_id = init.get("req_id") or init.get("id")
             if not req_id:
                 raise FragmentError(f"no req_id from initGiftPremiumRequest: {str(init)[:200]}")
-            link = await _api(client, cookies, api_hash,
+            link = await _api(client, cookies, buy_hash,
                               method="getGiftPremiumLink", id=req_id,
                               currency=settings.FRAGMENT_PAY_CURRENCY)
         except FragmentError as e:
