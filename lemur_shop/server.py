@@ -1125,6 +1125,34 @@ async def api_fragment_buy(body: FragmentBuyRequest, user: User = Depends(get_cu
     raise HTTPException(status_code=502, detail="fragment_failed")
 
 
+@app.get("/api/admin/fragment/cookies")
+async def api_admin_fragment_cookies_get(admin: User = Depends(require_admin)):
+    from lemur_shop.services.lemurpanel import cookie_status
+    return await cookie_status()
+
+
+class FragmentCookiesBody(BaseModel):
+    cookies: str
+
+
+@app.post("/api/admin/fragment/cookies")
+async def api_admin_fragment_cookies_set(body: FragmentCookiesBody, admin: User = Depends(require_admin)):
+    from lemur_shop.services.lemurpanel import save_fragment_cookies, cookie_status, CookieError
+    try:
+        cookies = await save_fragment_cookies(body.cookies)
+    except CookieError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    st = await cookie_status()
+    return {"ok": True, "count": len(cookies), **st}
+
+
+@app.delete("/api/admin/fragment/cookies")
+async def api_admin_fragment_cookies_clear(admin: User = Depends(require_admin)):
+    from lemur_shop.services.lemurpanel import clear_fragment_cookies, cookie_status
+    await clear_fragment_cookies()
+    return {"ok": True, **(await cookie_status())}
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  ПАРТНЁРСЬКИЙ API  (програмні покупки TG-акаунтів за API-ключем)
 #  – автентифікація за ключем (Authorization: Bearer <key> або X-API-Key)

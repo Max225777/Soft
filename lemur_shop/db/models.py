@@ -274,3 +274,11 @@ class FortunePool(Base):
     total_admin_profit_stars: Mapped[int] = mapped_column(Integer, default=0)
     total_prizes_count: Mapped[int] = mapped_column(Integer, default=0)
     total_prizes_stars: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class AppSetting(Base):
+    """Проста key-value таблиця для рантайм-налаштувань (напр. куки Fragment)."""
+    __tablename__ = "app_settings"
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)

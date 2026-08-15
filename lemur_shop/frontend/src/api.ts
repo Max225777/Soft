@@ -234,6 +234,14 @@ export const adminApi = {
   nftEdit:         (id: number, data: Partial<{ username: string; description: string; price_stars: number; duration_days: number; is_available: boolean }>) => req<{ ok: boolean }>(`/admin/nft/${id}/edit`, { method: 'POST', body: JSON.stringify(data) }),
   nftDelete:       (id: number) => req<{ ok: boolean }>(`/admin/nft/${id}`, { method: 'DELETE' }),
   nftRentals:      () => req<AdminNftRental[]>('/admin/nft/rentals'),
+  fragmentCookiesGet:   () => req<FragmentCookieStatus>('/admin/fragment/cookies'),
+  fragmentCookiesSet:   (cookies: string) => req<FragmentCookieStatus & { ok: boolean; count: number }>('/admin/fragment/cookies', { method: 'POST', body: JSON.stringify({ cookies }) }),
+  fragmentCookiesClear: () => req<FragmentCookieStatus & { ok: boolean }>('/admin/fragment/cookies', { method: 'DELETE' }),
+}
+
+export interface FragmentCookieStatus {
+  has: boolean; valid: boolean; keys: string[]
+  updated_at: string | null; source: string | null
 }
 
 export interface Me {

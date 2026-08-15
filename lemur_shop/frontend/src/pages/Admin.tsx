@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { api, adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminReferralInvitedUser, type AdminPromoCode, type AdminPromoActivation, type EarningsChart, type EarningsDay, type AdminNftItem, type AdminNftRental, type FortunePoolInfo, type AdminPartnersData, type AdminRecentPurchase } from '../api'
+import { api, adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminReferralInvitedUser, type AdminPromoCode, type AdminPromoActivation, type EarningsChart, type EarningsDay, type AdminNftItem, type AdminNftRental, type FortunePoolInfo, type AdminPartnersData, type AdminRecentPurchase, type FragmentCookieStatus } from '../api'
 
 type DateMode = 'today' | 'all' | 'custom'
 
@@ -14,7 +14,7 @@ function useOverviewStats(dateFrom: string, dateTo: string) {
   return { stats, loading, reload }
 }
 
-type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'earnings' | 'broadcast' | 'promo' | 'referrals' | 'codes' | 'nft' | 'fortune' | 'partners' | 'api'
+type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'earnings' | 'broadcast' | 'promo' | 'referrals' | 'codes' | 'nft' | 'fortune' | 'partners' | 'api' | 'fragment'
 
 const CATEGORY_FLAGS: Record<string, string> = { us: '🇺🇸', ua: '🇺🇦', kz: '🇰🇿' }
 
@@ -1755,6 +1755,7 @@ const TABS: { id: AdminTab; label: string }[] = [
   { id: 'fortune',   label: '🎲 Рандом акк' },
   { id: 'partners',  label: '🤝 Партнёри' },
   { id: 'api',       label: '🔌 API' },
+  { id: 'fragment',  label: '⭐ Fragment' },
 ]
 
 export default function Admin() {
@@ -1798,6 +1799,98 @@ export default function Admin() {
       {tab === 'fortune'   && <FortuneAdminTab />}
       {tab === 'partners'  && <PartnersAdminTab />}
       {tab === 'api'       && <ApiStatsTab />}
+      {tab === 'fragment'  && <FragmentCookiesTab />}
+    </div>
+  )
+}
+
+function FragmentCookiesTab() {
+  const [status, setStatus] = useState<FragmentCookieStatus | null>(null)
+  const [input, setInput] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  const load = () => adminApi.fragmentCookiesGet().then(setStatus).catch(() => {})
+  useEffect(() => { load() }, [])
+
+  async function save() {
+    if (!input.trim() || saving) return
+    setSaving(true); setMsg(null)
+    try {
+      const res = await adminApi.fragmentCookiesSet(input.trim())
+      setStatus(res)
+      setInput('')
+      setMsg({ ok: true, text: `Збережено ${res.count} кук: ${res.keys.join(', ')}` })
+    } catch (e: any) {
+      setMsg({ ok: false, text: e?.message || 'Помилка збереження' })
+    } finally { setSaving(false) }
+  }
+
+  async function clear() {
+    if (!confirm('Видалити збережені куки Fragment?')) return
+    try { const res = await adminApi.fragmentCookiesClear(); setStatus(res); setMsg({ ok: true, text: 'Куки видалено' }) } catch {}
+  }
+
+  const box: React.CSSProperties = {
+    background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: 14, marginBottom: 12,
+  }
+
+  return (
+    <div>
+      <div style={box}>
+        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6 }}>⭐ Куки Fragment</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+          Куки для прямої оплати Stars/Premium. Бери їх у браузері: <b>fragment.com</b> (залогінений з гаманцем)
+          → F12 → Application → Cookies → скопіюй значення <code>stel_ssid</code>, <code>stel_token</code>,
+          <code>stel_dt</code>, <code>stel_ton_token</code>.
+        </div>
+      </div>
+
+      {/* Статус */}
+      <div style={box}>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Поточний статус</div>
+        {status ? (
+          status.has ? (
+            <div>
+              <div style={{ fontWeight: 700, color: status.valid ? '#4CAF72' : 'var(--red)' }}>
+                {status.valid ? '✅ Куки валідні' : '❌ Куки невалідні'}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                Ключі: {status.keys.join(', ') || '—'}<br />
+                Джерело: {status.source} · Оновлено: {status.updated_at ? new Date(status.updated_at).toLocaleString('uk-UA') : '—'}
+              </div>
+            </div>
+          ) : <div style={{ color: 'var(--red)', fontWeight: 700 }}>⚠️ Куки не задані</div>
+        ) : <div className="skeleton" style={{ height: 20 }} />}
+      </div>
+
+      {/* Ввід */}
+      <div style={box}>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Вставити куки (рядок або по одній на рядок)</div>
+        <textarea
+          value={input} onChange={e => setInput(e.target.value)}
+          placeholder="stel_ssid=...; stel_token=...; stel_dt=...; stel_ton_token=..."
+          rows={5}
+          style={{
+            width: '100%', background: 'var(--card2)', border: '1px solid var(--border)',
+            borderRadius: 10, padding: 12, color: 'var(--text)', fontSize: 13,
+            fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box', resize: 'vertical',
+          }}
+        />
+        {msg && (
+          <div style={{ marginTop: 8, fontSize: 13, color: msg.ok ? '#4CAF72' : 'var(--red)' }}>
+            {msg.ok ? '✅ ' : '❌ '}{msg.text}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+          <button className="btn btn-primary" disabled={!input.trim() || saving}
+            onClick={save} style={{ flex: 1 }}>{saving ? '⏳...' : '💾 Зберегти'}</button>
+          {status?.has && (
+            <button className="btn" onClick={clear}
+              style={{ background: 'var(--card2)', border: '1px solid var(--border)', color: 'var(--red)' }}>🗑</button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

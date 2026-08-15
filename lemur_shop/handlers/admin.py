@@ -421,27 +421,41 @@ async def cmd_partner_info(message: Message) -> None:
 
 # ─── Fragment (прямий продаж Stars / Premium) ────────────────────────────────────
 
-@router.message(Command("fragdiag"), IsAdmin())
-async def cmd_fragdiag(message: Message) -> None:
-    """Діагностика кук Fragment / LemurPanel — показує, що віддає панель."""
-    from lemur_shop.services.lemurpanel import diagnose
-    await message.answer("⏳ Перевіряю LemurPanel…", parse_mode=None)
+@router.message(Command("fragsetcookies"), IsAdmin())
+async def cmd_fragsetcookies(message: Message) -> None:
+    """Вставити куки Fragment: /fragsetcookies stel_ssid=...; stel_token=...; ..."""
+    from lemur_shop.services.lemurpanel import save_fragment_cookies, CookieError
+    raw = (message.text or "").split(maxsplit=1)
+    if len(raw) < 2:
+        await message.answer(
+            "Використання: /fragsetcookies «рядок кук»\n"
+            "Приклад: /fragsetcookies stel_ssid=...; stel_token=...; stel_dt=...; stel_ton_token=...\n\n"
+            "Куки бери з браузера: fragment.com → F12 → Application → Cookies.",
+            parse_mode=None)
+        return
     try:
-        report = await diagnose()
+        cookies = await save_fragment_cookies(raw[1])
+        await message.answer(f"✅ Збережено {len(cookies)} кук: {', '.join(cookies)}", parse_mode=None)
+    except CookieError as e:
+        await message.answer(f"❌ {e}", parse_mode=None)
     except Exception as e:
         await message.answer(f"❌ {type(e).__name__}: {e}", parse_mode=None)
-        return
-    await message.answer(f"<pre>{report}</pre>", parse_mode="HTML")
 
 
 @router.message(Command("fragcookies"), IsAdmin())
 async def cmd_fragcookies(message: Message) -> None:
-    """Пробує реально дістати куки Fragment і показує ключі (не значення)."""
-    from lemur_shop.services.lemurpanel import get_fragment_cookies
+    """Показує статус кук Fragment (ключі, не значення)."""
+    from lemur_shop.services.lemurpanel import cookie_status
     try:
-        cookies = await get_fragment_cookies(force=True)
-        keys = ", ".join(cookies)
-        await message.answer(f"✅ Куки отримано ({len(cookies)}): {keys}", parse_mode=None)
+        st = await cookie_status()
+        if not st["has"]:
+            await message.answer("⚠️ Куки Fragment не задані. Встав через адмін-панель або /fragsetcookies", parse_mode=None)
+            return
+        mark = "✅ валідні" if st["valid"] else "❌ невалідні"
+        await message.answer(
+            f"{mark} · {len(st['keys'])} кук: {', '.join(st['keys'])}\n"
+            f"Джерело: {st['source']} · Оновлено: {st['updated_at'] or '—'}",
+            parse_mode=None)
     except Exception as e:
         await message.answer(f"❌ {type(e).__name__}: {e}", parse_mode=None)
 
