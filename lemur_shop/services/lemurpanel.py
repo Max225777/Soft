@@ -30,13 +30,13 @@ def _parse_cookie_string(raw: str) -> dict[str, str]:
 
 
 def _header_safe(v: str) -> bool:
-    """Значення куки має бути безпечним для HTTP-заголовка: без пробілів,
-    переносів, керуючих символів і HTML."""
-    if not v or len(v) > 4096:
+    """Значення куки має бути безпечним для HTTP-заголовка та формату Cookie:
+    без керуючих символів, пробілів, ';' і не-ASCII. Решту символів дозволяємо."""
+    if not v or len(v) > 8192:
         return False
-    if any(c in v for c in "\r\n\t <>\"'"):
+    if "\r" in v or "\n" in v or "\t" in v or " " in v or ";" in v:
         return False
-    return all(32 < ord(c) < 127 for c in v)
+    return all(0x20 < ord(c) < 0x7f for c in v)
 
 
 def _sanitize(cookies: dict[str, str]) -> dict[str, str]:
@@ -76,59 +76,57 @@ async def _fetch_from_panel() -> dict[str, str]:
 
     base = settings.LEMURPANEL_URL.rstrip("/")
     key = settings.SHOP_API_KEY
-    # Точний шлях із config — першим; далі резервні варіанти.
-    paths = [
-        settings.LEMURPANEL_COOKIE_PATH,
-        "/api/fragment/cookies", "/api/fragment/cookie", "/api/cookies",
-        "/api/cookie", "/fragment/cookies", "/api/fragment", "/cookies",
-        "/api/get_cookies", "/api/fragment/session",
-    ]
-    # прибрати дублікати, зберігши порядок
-    paths = list(dict.fromkeys(paths))
-    headers = {
-        "Authorization": f"Bearer {key}",
-        "X-Api-Key": key,
-        "X-Shop-Key": key,
-        "Accept": "application/json",
-    }
-    # Ключ ще й у query — деякі панелі приймають саме так.
-    query = {"key": key, "api_key": key, "token": key}
+    headers = {"X-Shop-Key": key, "Accept": "application/json"}
 
-    last_err: Exception | None = None
     async with httpx.AsyncClient(timeout=15, follow_redirects=True) as c:
-        for path in paths:
-            url = f"{base}{path}"
-            for method in ("GET", "POST"):
+        # 1) Точний ендпоінт — РІВНО як робочий curl: GET, лише заголовок X-Shop-Key,
+        #    без query-параметрів (вони ламають відповідь панелі).
+        primary = settings.LEMURPANEL_COOKIE_PATH
+        url = f"{base}{primary}"
+        try:
+            r = await c.get(url, headers=headers)
+            ct = r.headers.get("content-type", "")
+            log.info("LemurPanel primary GET %s → %s ct=%s body[:120]=%r",
+                     url, r.status_code, ct, r.text[:120])
+            if r.status_code == 200:
                 try:
-                    if method == "GET":
-                        r = await c.get(url, headers=headers, params=query)
-                    else:
-                        r = await c.post(url, headers=headers, params=query, json={"key": key})
-                    if r.status_code != 200:
-                        last_err = CookieError(f"{method} {url} → HTTP {r.status_code}")
-                        continue
-                    ct = r.headers.get("content-type", "").lower()
-                    body = r.text
-                    # Ігноруємо HTML (напр. SPA index.html з кодом 200) — це не куки.
-                    if "html" in ct or body.lstrip()[:1] == "<":
-                        last_err = CookieError(f"{method} {url} → HTML, not cookies")
-                        continue
-                    try:
-                        payload = r.json()
-                    except Exception:
-                        payload = body if "stel" in body else None
-                    if payload is None:
-                        last_err = CookieError(f"{method} {url} → not JSON/cookies")
-                        continue
+                    payload = r.json()
+                except Exception:
+                    payload = None
+                if payload is not None:
                     cookies = _sanitize(_extract_cookies(payload))
+                    log.info("LemurPanel primary parsed cookie keys: %s", list(cookies))
                     if _looks_like_fragment(cookies):
-                        log.info("LemurPanel cookies from %s %s (%d keys: %s)",
-                                 method, url, len(cookies), ", ".join(list(cookies)[:4]))
                         return cookies
-                    last_err = CookieError(f"{method} {url} → no stel_ cookies in body")
-                except Exception as e:
-                    last_err = e
+                    log.warning("LemurPanel primary 200 but no valid stel_* cookies "
+                                "(raw keys before sanitize: %s)", list(_extract_cookies(payload)))
+        except Exception as e:
+            log.warning("LemurPanel primary request failed: %s", e)
+
+        # 2) Резервні шляхи (на випадок, якщо шлях зміниться) — GET, лише заголовок.
+        last_err: Exception | None = CookieError(f"primary {url} did not return valid cookies")
+        for path in ("/api/fragment/cookies", "/api/cookies", "/fragment/cookies"):
+            u = f"{base}{path}"
+            try:
+                r = await c.get(u, headers=headers)
+                if r.status_code != 200:
+                    last_err = CookieError(f"GET {u} → HTTP {r.status_code}")
                     continue
+                if "html" in r.headers.get("content-type", "").lower() or r.text.lstrip()[:1] == "<":
+                    last_err = CookieError(f"GET {u} → HTML, not cookies")
+                    continue
+                try:
+                    payload = r.json()
+                except Exception:
+                    last_err = CookieError(f"GET {u} → not JSON")
+                    continue
+                cookies = _sanitize(_extract_cookies(payload))
+                if _looks_like_fragment(cookies):
+                    log.info("LemurPanel cookies from %s (%s)", u, ", ".join(cookies))
+                    return cookies
+                last_err = CookieError(f"GET {u} → no stel_ cookies")
+            except Exception as e:
+                last_err = e
     raise CookieError(f"could not fetch Fragment cookies: {last_err}")
 
 
@@ -191,20 +189,14 @@ async def diagnose() -> str:
         return "\n".join(lines)
 
     key = settings.SHOP_API_KEY
-    headers = {"Authorization": f"Bearer {key}", "X-Api-Key": key, "Accept": "application/json"}
-    query = {"key": key, "api_key": key, "token": key}
-    paths = list(dict.fromkeys([
-        settings.LEMURPANEL_COOKIE_PATH,
-        "/api/fragment/cookies", "/api/fragment/cookie", "/api/cookies",
-        "/api/cookie", "/fragment/cookies", "/api/fragment", "/cookies",
-        "/api/get_cookies", "/api/fragment/session",
-    ]))
-    lines.append("\nПеревірка адрес (GET):")
+    headers = {"X-Shop-Key": key, "Accept": "application/json"}   # рівно як робочий curl
+    paths = [settings.LEMURPANEL_COOKIE_PATH]
+    lines.append("\nПеревірка (GET, лише X-Shop-Key):")
     async with httpx.AsyncClient(timeout=12, follow_redirects=True) as c:
         for path in paths:
             url = f"{base}{path}"
             try:
-                r = await c.get(url, headers=headers, params=query)
+                r = await c.get(url, headers=headers)
                 ct = r.headers.get("content-type", "").split(";")[0]
                 snippet = r.text[:80].replace("\n", " ").replace("\r", " ")
                 mark = ""
