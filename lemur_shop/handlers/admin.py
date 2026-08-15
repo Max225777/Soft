@@ -421,6 +421,31 @@ async def cmd_partner_info(message: Message) -> None:
 
 # ─── Fragment (прямий продаж Stars / Premium) ────────────────────────────────────
 
+@router.message(Command("fragdiag"), IsAdmin())
+async def cmd_fragdiag(message: Message) -> None:
+    """Діагностика кук Fragment / LemurPanel — показує, що віддає панель."""
+    from lemur_shop.services.lemurpanel import diagnose
+    await message.answer("⏳ Перевіряю LemurPanel…", parse_mode=None)
+    try:
+        report = await diagnose()
+    except Exception as e:
+        await message.answer(f"❌ {type(e).__name__}: {e}", parse_mode=None)
+        return
+    await message.answer(f"<pre>{report}</pre>", parse_mode="HTML")
+
+
+@router.message(Command("fragcookies"), IsAdmin())
+async def cmd_fragcookies(message: Message) -> None:
+    """Пробує реально дістати куки Fragment і показує ключі (не значення)."""
+    from lemur_shop.services.lemurpanel import get_fragment_cookies
+    try:
+        cookies = await get_fragment_cookies(force=True)
+        keys = ", ".join(cookies)
+        await message.answer(f"✅ Куки отримано ({len(cookies)}): {keys}", parse_mode=None)
+    except Exception as e:
+        await message.answer(f"❌ {type(e).__name__}: {e}", parse_mode=None)
+
+
 @router.message(Command("fragstars"), IsAdmin())
 async def cmd_fragstars(message: Message) -> None:
     """/fragstars @username «кількість» [calc]

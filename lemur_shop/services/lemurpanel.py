@@ -168,3 +168,48 @@ async def get_fragment_cookies(force: bool = False) -> dict[str, str]:
 def invalidate_cookie_cache() -> None:
     global _cache
     _cache = None
+
+
+async def diagnose() -> str:
+    """Діагностика: показує, що LemurPanel реально віддає по кожному адресу.
+    Запусти /fragdiag у боті й надішли вивід."""
+    lines = []
+    base = (settings.LEMURPANEL_URL or "").rstrip("/")
+    lines.append(f"LEMURPANEL_URL: {base or '(порожньо)'}")
+    lines.append(f"SHOP_API_KEY: {'заданий (' + str(len(settings.SHOP_API_KEY)) + ' симв.)' if settings.SHOP_API_KEY else '(порожньо)'}")
+    fb = settings.FRAGMENT_COOKIES_FALLBACK
+    if fb:
+        c = _sanitize(_parse_cookie_string(fb))
+        lines.append(f"FRAGMENT_COOKIES_FALLBACK: {'✅ валідний, ключі: ' + ', '.join(c) if _looks_like_fragment(c) else '⚠️ заданий, але немає stel_* куків'}")
+    else:
+        lines.append("FRAGMENT_COOKIES_FALLBACK: (порожньо)")
+
+    if not base:
+        lines.append("\n→ LEMURPANEL_URL порожній, панель не опитується.")
+        return "\n".join(lines)
+
+    key = settings.SHOP_API_KEY
+    headers = {"Authorization": f"Bearer {key}", "X-Api-Key": key, "Accept": "application/json"}
+    query = {"key": key, "api_key": key, "token": key}
+    paths = [
+        "/api/fragment/cookies", "/api/fragment/cookie", "/api/cookies",
+        "/api/cookie", "/fragment/cookies", "/api/fragment", "/cookies",
+        "/api/get_cookies", "/api/fragment/session",
+    ]
+    lines.append("\nПеревірка адрес (GET):")
+    async with httpx.AsyncClient(timeout=12, follow_redirects=True) as c:
+        for path in paths:
+            url = f"{base}{path}"
+            try:
+                r = await c.get(url, headers=headers, params=query)
+                ct = r.headers.get("content-type", "").split(";")[0]
+                snippet = r.text[:80].replace("\n", " ").replace("\r", " ")
+                mark = ""
+                if "html" in ct.lower() or r.text.lstrip()[:1] == "<":
+                    mark = " ← HTML (не куки)"
+                elif "stel" in r.text:
+                    mark = " ← ✅ Є stel_!"
+                lines.append(f"  {path} → {r.status_code} {ct} | {snippet}{mark}")
+            except Exception as e:
+                lines.append(f"  {path} → ПОМИЛКА: {type(e).__name__}: {str(e)[:60]}")
+    return "\n".join(lines)
