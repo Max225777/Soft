@@ -438,16 +438,27 @@ async def cmd_fragstars(message: Message) -> None:
         await message.answer("❌ Кількість має бути числом.")
         return
     calc_only = len(parts) > 3 and parts[3].lower() in ("calc", "розрахунок", "price")
+
+    # Ціноутворення для покупця (маржа ≥20%)
+    from lemur_shop.services.fragment_pricing import quote_stars
+    from lemur_shop.utils.currency import get_rate
+    rate = await get_rate("RUB")
+    q = quote_stars(qty, rate_rub=rate)
+    price_txt = (
+        f"\n\n💵 <b>Ціна для покупця:</b> ${q['sell_usd']:.2f} ≈ {q['sell_rub']}₽ (⭐{q['sell_shop_stars']} балансу)\n"
+        f"📦 Собівартість: ${q['cost_usd']:.2f} · 📈 Прибуток: <b>${q['profit_usd']:.2f} ({q['margin_pct']:.0f}%)</b>"
+    )
+
     await message.answer(f"⏳ Fragment: ⭐{qty} для {username}{' (розрахунок)' if calc_only else ''}…", parse_mode=None)
     try:
         res = await buy_stars(username, qty, confirm=not calc_only)
     except Exception as e:
         log.exception("fragstars failed")
-        await message.answer(f"❌ Помилка: {e}", parse_mode=None)
+        await message.answer(f"❌ Помилка Fragment: {e}{price_txt}", parse_mode="HTML")
         return
     icon = "✅" if res.ok else "❌"
     dry = " · DRY-RUN (реально не оплачено)" if res.dry_run else ""
-    await message.answer(f"{icon} {res.detail}\n💎 ~{res.total_ton:.4f} TON{dry}", parse_mode=None)
+    await message.answer(f"{icon} {res.detail}\n💎 собівартість ~{res.total_ton:.4f} TON{dry}{price_txt}", parse_mode="HTML")
 
 
 @router.message(Command("fragpremium"), IsAdmin())
@@ -465,13 +476,27 @@ async def cmd_fragpremium(message: Message) -> None:
         await message.answer("❌ Місяці мають бути числом (3, 6 або 12).")
         return
     calc_only = len(parts) > 3 and parts[3].lower() in ("calc", "розрахунок", "price")
+
+    from lemur_shop.services.fragment_pricing import quote_premium
+    from lemur_shop.utils.currency import get_rate
+    try:
+        rate = await get_rate("RUB")
+        q = quote_premium(months, rate_rub=rate)
+        price_txt = (
+            f"\n\n💵 <b>Ціна для покупця:</b> ${q['sell_usd']:.2f} ≈ {q['sell_rub']}₽ (⭐{q['sell_shop_stars']} балансу)\n"
+            f"📦 Собівартість: ${q['cost_usd']:.2f} · 📈 Прибуток: <b>${q['profit_usd']:.2f}</b>"
+        )
+    except ValueError as e:
+        await message.answer(f"❌ {e}", parse_mode=None)
+        return
+
     await message.answer(f"⏳ Fragment: Premium {months}м для {username}{' (розрахунок)' if calc_only else ''}…", parse_mode=None)
     try:
         res = await buy_premium(username, months, confirm=not calc_only)
     except Exception as e:
         log.exception("fragpremium failed")
-        await message.answer(f"❌ Помилка: {e}", parse_mode=None)
+        await message.answer(f"❌ Помилка Fragment: {e}{price_txt}", parse_mode="HTML")
         return
     icon = "✅" if res.ok else "❌"
     dry = " · DRY-RUN (реально не оплачено)" if res.dry_run else ""
-    await message.answer(f"{icon} {res.detail}\n💎 ~{res.total_ton:.4f} TON{dry}", parse_mode=None)
+    await message.answer(f"{icon} {res.detail}\n💎 собівартість ~{res.total_ton:.4f} TON{dry}{price_txt}", parse_mode="HTML")

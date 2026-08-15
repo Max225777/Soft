@@ -79,5 +79,17 @@ class Settings(BaseSettings):
     # Сухий прогін: рахуємо/логуємо все, але НЕ шлемо TON (для тестів).
     FRAGMENT_DRY_RUN: bool = True
 
+    # ─── Ціноутворення продажу Stars / Premium ──────────────────────────────────
+    # Собівартість з Fragment (звіряй періодично на fragment.com):
+    FRAGMENT_STAR_COST_USD: float = 0.015          # 50⭐ = $0.75
+    FRAGMENT_PREMIUM_3M_COST_USD: float = 11.99
+    FRAGMENT_PREMIUM_6M_COST_USD: float = 15.99
+    FRAGMENT_PREMIUM_12M_COST_USD: float = 28.99
+    # Націнка на зірки: маржа у % + фікс. збір (покриває газ TON на дрібних сумах).
+    FRAGMENT_STARS_MARGIN_PCT: float = 20.0        # ≥20% прибутку
+    FRAGMENT_STARS_FEE_USD: float = 0.10
+    # Націнка Premium: чистими +$2, беремо трохи більше на газ/волатильність TON.
+    FRAGMENT_PREMIUM_MARKUP_USD: float = 2.20
+
 
 settings = Settings()
