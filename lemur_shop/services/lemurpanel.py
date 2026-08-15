@@ -31,10 +31,32 @@ class CookieError(Exception):
 # ─── Парсинг / валідація ─────────────────────────────────────────────────────
 
 def _parse_cookie_string(raw: str) -> dict[str, str]:
-    """'k1=v1; k2=v2' → {'k1': 'v1', 'k2': 'v2'}. Терпить префікс 'Cookie:'."""
+    """Розбирає куки з різних форматів:
+      • 'k1=v1; k2=v2'                     (рядок Cookie)
+      • JSON-експорт [{"name":..,"value":..}]   (з браузерних розширень)
+      • JSON-обʼєкт {"stel_ssid": "..."}
+    """
     raw = (raw or "").strip()
     if raw.lower().startswith("cookie:"):
         raw = raw[len("cookie:"):].strip()
+    # JSON-формат (експорт кук із браузера)
+    if raw[:1] in ("[", "{"):
+        try:
+            import json
+            data = json.loads(raw)
+            if isinstance(data, list):
+                out = {}
+                for it in data:
+                    if isinstance(it, dict) and it.get("name"):
+                        out[str(it["name"])] = str(it.get("value", ""))
+                if out:
+                    return out
+            elif isinstance(data, dict):
+                inner = data.get("cookies", data)
+                if isinstance(inner, dict):
+                    return {k: str(v) for k, v in inner.items()}
+        except Exception:
+            pass
     out: dict[str, str] = {}
     # роздільник — ';' або переноси рядків
     for part in raw.replace("\n", ";").split(";"):
