@@ -96,6 +96,8 @@ async def _resolve_recipient(client, cookies, api_hash, *, search_method: str, q
 async def get_stars_transaction(username: str, quantity: int) -> list[dict]:
     """Повний Fragment-флоу для Stars → список messages для оплати з гаманця."""
     cookies = await get_fragment_cookies()
+    log.info("fragment stars: cookie keys=%s (stel_ton_token=%s)",
+             list(cookies), "yes" if cookies.get("stel_ton_token") else "NO")
     async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
         try:
             api_hash = await _get_hash(client, cookies, "/stars")
