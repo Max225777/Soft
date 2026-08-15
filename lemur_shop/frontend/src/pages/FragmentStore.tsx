@@ -221,7 +221,9 @@ export default function FragmentStore({ lang, me, onBuy, onBack }: Props) {
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 12, color: 'var(--muted)' }}>{L.balance}</div>
-          <div style={{ fontWeight: 700, fontSize: 15, color: enough ? 'var(--text)' : 'var(--red)' }}>⭐{fmt(balance)}</div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: enough ? 'var(--text)' : 'var(--red)' }}>
+            {rub(balance * starUsd)} ₽ <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>(⭐{fmt(balance)})</span>
+          </div>
         </div>
       </div>
 
