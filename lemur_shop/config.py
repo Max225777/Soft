@@ -54,8 +54,10 @@ class Settings(BaseSettings):
 
     # ─── Fragment (прямий продаж Telegram Stars / Premium) ──────────────────────
     # Куки Fragment беремо по API з LemurPanel (не зберігаємо в себе — протухають).
-    LEMURPANEL_URL: str = ""          # база LemurPanel, напр. https://panel.example.com
-    SHOP_API_KEY: str = ""            # ключ доступу до LemurPanel cookie-API
+    LEMURPANEL_URL: str = "https://www.lemurpanel.org"   # база LemurPanel
+    SHOP_API_KEY: str = ""            # ключ доступу (надсилається як X-Shop-Key)
+    # Точний шлях cookie-API LemurPanel (пробується першим).
+    LEMURPANEL_COOKIE_PATH: str = "/api/shop/fragment/cookies"
     # Скільки секунд кешувати куки Fragment (протухають → тримаємо коротко).
     FRAGMENT_COOKIE_TTL: int = 480    # 8 хв
     # Резервні куки Fragment напряму (якщо LemurPanel недоступний) — рядок виду

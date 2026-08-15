@@ -76,13 +76,15 @@ async def _fetch_from_panel() -> dict[str, str]:
 
     base = settings.LEMURPANEL_URL.rstrip("/")
     key = settings.SHOP_API_KEY
-    # Точний шлях/формат — з боку LemurPanel. Перебираємо ймовірні варіанти;
-    # перший, що поверне валідні куки, виграє (і його буде видно в логах).
+    # Точний шлях із config — першим; далі резервні варіанти.
     paths = [
+        settings.LEMURPANEL_COOKIE_PATH,
         "/api/fragment/cookies", "/api/fragment/cookie", "/api/cookies",
         "/api/cookie", "/fragment/cookies", "/api/fragment", "/cookies",
         "/api/get_cookies", "/api/fragment/session",
     ]
+    # прибрати дублікати, зберігши порядок
+    paths = list(dict.fromkeys(paths))
     headers = {
         "Authorization": f"Bearer {key}",
         "X-Api-Key": key,
@@ -191,11 +193,12 @@ async def diagnose() -> str:
     key = settings.SHOP_API_KEY
     headers = {"Authorization": f"Bearer {key}", "X-Api-Key": key, "Accept": "application/json"}
     query = {"key": key, "api_key": key, "token": key}
-    paths = [
+    paths = list(dict.fromkeys([
+        settings.LEMURPANEL_COOKIE_PATH,
         "/api/fragment/cookies", "/api/fragment/cookie", "/api/cookies",
         "/api/cookie", "/fragment/cookies", "/api/fragment", "/cookies",
         "/api/get_cookies", "/api/fragment/session",
-    ]
+    ]))
     lines.append("\nПеревірка адрес (GET):")
     async with httpx.AsyncClient(timeout=12, follow_redirects=True) as c:
         for path in paths:
