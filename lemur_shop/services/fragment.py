@@ -98,7 +98,8 @@ async def get_stars_transaction(username: str, quantity: int) -> list[dict]:
     cookies = await get_fragment_cookies()
     log.info("fragment stars: cookie keys=%s (stel_ton_token=%s)",
              list(cookies), "yes" if cookies.get("stel_ton_token") else "NO")
-    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True,
+                                 proxy=settings.FRAGMENT_PROXY or None) as client:
         try:
             api_hash = await _get_hash(client, cookies, "/stars")
             rid = await _resolve_recipient(
@@ -132,7 +133,8 @@ async def get_stars_transaction(username: str, quantity: int) -> list[dict]:
 async def get_premium_transaction(username: str, months: int) -> list[dict]:
     """Повний Fragment-флоу для Premium (подарунок) → messages для оплати."""
     cookies = await get_fragment_cookies()
-    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True,
+                                 proxy=settings.FRAGMENT_PROXY or None) as client:
         try:
             api_hash = await _get_hash(client, cookies, "/premium")
             rid = await _resolve_recipient(

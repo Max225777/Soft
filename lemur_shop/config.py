@@ -96,6 +96,9 @@ class Settings(BaseSettings):
     FRAGMENT_PREMIUM_MARKUP_USD: float = 2.00
     # Валюта оплати Fragment: USDT / USDC / TON.
     FRAGMENT_PAY_CURRENCY: str = "USDT"
+    # Проксі для запитів до fragment.com (residential), напр.
+    # http://user:pass@host:port — Fragment часто блокує покупки з серверних IP.
+    FRAGMENT_PROXY: str = ""
 
 
 settings = Settings()
