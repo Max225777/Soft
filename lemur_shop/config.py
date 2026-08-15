@@ -88,7 +88,7 @@ class Settings(BaseSettings):
     FRAGMENT_PREMIUM_6M_COST_USD: float = 15.99
     FRAGMENT_PREMIUM_12M_COST_USD: float = 28.99
     # Націнка на зірки: маржа у % + невеликий фікс. збір на газ TON.
-    FRAGMENT_STARS_MARGIN_PCT: float = 20.0        # ≥20% прибутку
+    FRAGMENT_STARS_MARGIN_PCT: float = 10.0        # ~10% прибутку
     FRAGMENT_STARS_FEE_USD: float = 0.05
     # Націнка Premium: рівно +$2 (собівартість у USDT стабільна).
     FRAGMENT_PREMIUM_MARKUP_USD: float = 2.00
