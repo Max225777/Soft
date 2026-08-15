@@ -68,7 +68,14 @@ async def send_ton_messages(messages: list[dict]) -> dict:
         seqno_before = await wallet.get_seqno()
 
         def _body(m: dict):
-            return Cell.one_from_boc(base64.b64decode(m["payload"])) if m.get("payload") else None
+            p = m.get("payload")
+            if not p:
+                return None
+            # Fragment віддає payload у URL-safe base64 (символи - та _), інколи без
+            # паддінгу. Нормалізуємо до стандартного base64 перед декодуванням.
+            s = p.strip().replace("-", "+").replace("_", "/")
+            s += "=" * (-len(s) % 4)
+            return Cell.one_from_boc(base64.b64decode(s))
 
         # Основний шлях — одне external з усіма повідомленнями (raw_transfer).
         if hasattr(wallet, "create_wallet_internal_message") and hasattr(wallet, "raw_transfer"):
