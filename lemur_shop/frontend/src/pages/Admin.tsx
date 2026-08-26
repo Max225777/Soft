@@ -1166,13 +1166,46 @@ function kyivDaysAgo(n: number): string {
   return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' })
 }
 
+interface Bucket {
+  label: string
+  stars_usd: number; cryptobot_usd: number; heleket_usd: number; sbp_usd: number; admin_usd: number
+  profit_usd: number
+}
+
+function groupDays(days: EarningsDay[], size: number): Bucket[] {
+  const out: Bucket[] = []
+  // Групуємо з кінця, щоб останній (актуальний) стовпець був повним справа.
+  for (let end = days.length; end > 0; end -= size) {
+    const slice = days.slice(Math.max(0, end - size), end)
+    const b: Bucket = { label: '', stars_usd: 0, cryptobot_usd: 0, heleket_usd: 0, sbp_usd: 0, admin_usd: 0, profit_usd: 0 }
+    for (const d of slice) {
+      b.stars_usd += d.stars_usd; b.cryptobot_usd += d.cryptobot_usd
+      b.heleket_usd += d.heleket_usd; b.sbp_usd += d.sbp_usd
+      b.admin_usd += d.admin_usd; b.profit_usd += d.profit_usd
+    }
+    const f = slice[0].date, t = slice[slice.length - 1].date
+    b.label = size === 1 ? f.slice(8, 10) : `${f.slice(8, 10)}–${t.slice(8, 10)}`
+    out.unshift(b)
+  }
+  return out
+}
+
+function niceMax(v: number): number {
+  if (v <= 1) return 1
+  const pow = Math.pow(10, Math.floor(Math.log10(v)))
+  const n = v / pow
+  const step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10
+  return step * pow
+}
+
 function EarningsTab() {
   const [dateFrom, setDateFrom] = useState(kyivDaysAgo(13))
   const [dateTo, setDateTo]     = useState(kyivToday())
   const [data, setData]         = useState<EarningsChart | null>(null)
   const [loading, setLoading]   = useState(true)
   const [methods, setMethods]   = useState<Record<MethodKey, boolean>>({ stars: true, cryptobot: true, heleket: true, sbp: true, admin: false })
-  const [showProfit, setShowProfit] = useState(false)
+  const [showProfit, setShowProfit] = useState(true)
+  const [group, setGroup]       = useState<1 | 3 | 7>(1)
 
   useEffect(() => {
     setLoading(true)
@@ -1180,132 +1213,178 @@ function EarningsTab() {
   }, [dateFrom, dateTo])
 
   const toggleMethod = (k: MethodKey) => setMethods(m => ({ ...m, [k]: !m[k] }))
-
   const preset = (days: number) => { setDateFrom(kyivDaysAgo(days - 1)); setDateTo(kyivToday()) }
 
   const days: EarningsDay[] = data?.days ?? []
-  const dayTotal = (d: EarningsDay) =>
-    (methods.stars ? d.stars_usd : 0) + (methods.cryptobot ? d.cryptobot_usd : 0)
-    + (methods.heleket ? d.heleket_usd : 0) + (methods.sbp ? d.sbp_usd : 0)
-    + (methods.admin ? d.admin_usd : 0)
+  const buckets = groupDays(days, group)
+  const bTotal = (b: Bucket) =>
+    (methods.stars ? b.stars_usd : 0) + (methods.cryptobot ? b.cryptobot_usd : 0)
+    + (methods.heleket ? b.heleket_usd : 0) + (methods.sbp ? b.sbp_usd : 0)
+    + (methods.admin ? b.admin_usd : 0)
 
-  const sumStars     = days.reduce((a, d) => a + d.stars_usd, 0)
-  const sumCryptobot = days.reduce((a, d) => a + d.cryptobot_usd, 0)
-  const sumHeleket   = days.reduce((a, d) => a + d.heleket_usd, 0)
-  const sumSbp       = days.reduce((a, d) => a + d.sbp_usd, 0)
-  const sumAdmin     = days.reduce((a, d) => a + d.admin_usd, 0)
-  const sumProfit = days.reduce((a, d) => a + d.profit_usd, 0)
-  const sumTotal  = days.reduce((a, d) => a + dayTotal(d), 0)
+  const sum = (f: (d: EarningsDay) => number) => days.reduce((a, d) => a + f(d), 0)
+  const sumStars = sum(d => d.stars_usd), sumCryptobot = sum(d => d.cryptobot_usd)
+  const sumHeleket = sum(d => d.heleket_usd), sumSbp = sum(d => d.sbp_usd)
+  const sumAdmin = sum(d => d.admin_usd), sumProfit = sum(d => d.profit_usd)
+  const sumTotal = buckets.reduce((a, b) => a + bTotal(b), 0)
 
-  const maxVal = Math.max(1, ...days.map(d => Math.max(dayTotal(d), showProfit ? d.profit_usd : 0)))
-  const barW = 22, gap = 8, chartH = 160
+  // ── Геометрія графіка (адаптивна ширина стовпців) ──
+  const AX = 30, TOP = 12, PLOT_H = 168, GAP = 10
+  const nb = buckets.length || 1
+  let barW = Math.floor((320 - GAP * (nb + 1)) / nb)
+  barW = Math.max(16, Math.min(barW, 56))
+  const plotW = GAP + nb * (barW + GAP)
+  const baseY = TOP + PLOT_H
+  const svgW = AX + plotW
+  const svgH = baseY + 26
+  const rawMax = Math.max(1, ...buckets.map(b => Math.max(bTotal(b), showProfit ? b.profit_usd : 0)))
+  const maxV = niceMax(rawMax)
+  const yOf = (v: number) => baseY - (v / maxV) * PLOT_H
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => maxV * f)
+
+  const segMethods: MethodKey[] = ['stars', 'cryptobot', 'heleket', 'sbp', 'admin']
+  const seg = (b: Bucket, k: MethodKey) => (b as any)[`${k}_usd`] as number
+
+  const btnSeg = (active: boolean): React.CSSProperties => ({
+    flex: 1, padding: '7px 4px', fontSize: 12, fontWeight: active ? 700 : 500,
+    background: active ? 'rgba(255,107,43,.18)' : 'transparent',
+    color: active ? 'var(--orange)' : 'var(--muted)',
+    border: `1px solid ${active ? 'rgba(255,107,43,.4)' : 'var(--border)'}`,
+    borderRadius: 9, cursor: 'pointer',
+  })
 
   return (
     <div>
-      {/* Період */}
-      <div className="card" style={{ marginBottom: 12 }}>
-        <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+      {/* Період + групування */}
+      <div className="card" style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>ПЕРІОД</div>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
           {[7, 14, 30, 90].map(n => (
-            <button key={n} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }}
-              onClick={() => preset(n)}>{n}д</button>
+            <button key={n} style={btnSeg(false)} onClick={() => preset(n)}>{n}д</button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
           <input type="date" value={dateFrom} max={dateTo} onChange={e => setDateFrom(e.target.value)}
-            style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 8px', color: 'var(--text)', fontSize: 12 }} />
+            style={{ flex: 1, background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 8px', color: 'var(--text)', fontSize: 12 }} />
           <span className="muted" style={{ fontSize: 12 }}>—</span>
           <input type="date" value={dateTo} min={dateFrom} max={kyivToday()} onChange={e => setDateTo(e.target.value)}
-            style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 8px', color: 'var(--text)', fontSize: 12 }} />
+            style={{ flex: 1, background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 8px', color: 'var(--text)', fontSize: 12 }} />
         </div>
-      </div>
-
-      {/* Перемикачі способів поповнення */}
-      <div className="card" style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Що враховувати в суму та графік:</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {(Object.keys(METHOD_META) as MethodKey[]).map(k => (
-            <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
-              <input type="checkbox" checked={methods[k]} onChange={() => toggleMethod(k)} />
-              <span style={{ width: 10, height: 10, borderRadius: 3, background: METHOD_META[k].color, display: 'inline-block' }} />
-              {METHOD_META[k].label}
-            </label>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>КРОК СТОВПЦЯ</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {([[1, 'День'], [3, '3 дні'], [7, 'Тиждень']] as const).map(([g, lbl]) => (
+            <button key={g} style={btnSeg(group === g)} onClick={() => setGroup(g)}>{lbl}</button>
           ))}
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
-            <input type="checkbox" checked={showProfit} onChange={() => setShowProfit(s => !s)} />
-            <span style={{ width: 10, height: 10, borderRadius: 3, background: '#4cff8f', display: 'inline-block' }} />
-            📦 Прибуток з продажів (лінія, для порівняння)
-          </label>
         </div>
-        {methods.admin && (
-          <div style={{ fontSize: 11, color: '#ffb347', marginTop: 8 }}>
-            ⚠️ Поповнення методом "Адмін" часто це розіграші чи виплати за рекламу, а не реальний дохід.
-          </div>
-        )}
       </div>
 
       {loading ? (
-        <div className="card"><div className="skeleton" style={{ height: 200 }} /></div>
+        <div className="card"><div className="skeleton" style={{ height: 220 }} /></div>
       ) : (
         <>
-          {/* Підсумок */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-            <StatCard label="Сума за період" value={`$${fmtUsd(sumTotal)}`} />
+          {/* Підсумок — сітка 2 колонки */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 10 }}>
+            <StatCard label="💵 Сума за період" value={`$${fmtUsd(sumTotal)}`} />
+            <StatCard label="📦 Прибуток (продажі)" value={`$${fmtUsd(sumProfit)}`} color="#4cff8f" />
+          </div>
+
+          {/* Графік */}
+          <div className="card" style={{ padding: '14px 8px 10px' }}>
+            {buckets.length === 0 ? (
+              <div className="muted" style={{ fontSize: 13, textAlign: 'center', padding: 20 }}>Немає даних за період</div>
+            ) : (
+              <div style={{ overflowX: nb <= 16 ? 'visible' : 'auto' }}>
+                <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`}
+                  style={nb <= 16 ? { display: 'block', width: '100%', height: 'auto' } : { display: 'block' }}>
+                  {/* Сітка + підписи осі Y */}
+                  {ticks.map((t, i) => (
+                    <g key={i}>
+                      <line x1={AX} y1={yOf(t)} x2={svgW} y2={yOf(t)}
+                        stroke="var(--border)" strokeWidth={1} strokeDasharray={i === 0 ? '' : '3 4'} opacity={i === 0 ? 1 : 0.6} />
+                      <text x={AX - 5} y={yOf(t) + 3} textAnchor="end" fontSize={9} fill="var(--muted)">
+                        {t >= 1 ? Math.round(t) : t.toFixed(1)}
+                      </text>
+                    </g>
+                  ))}
+                  {/* Стовпці */}
+                  {buckets.map((b, i) => {
+                    const x = AX + GAP + i * (barW + GAP)
+                    let y = baseY
+                    const total = bTotal(b)
+                    return (
+                      <g key={i}>
+                        {segMethods.map(k => {
+                          if (!methods[k]) return null
+                          const v = seg(b, k)
+                          if (v <= 0) return null
+                          const h = (v / maxV) * PLOT_H
+                          y -= h
+                          return <rect key={k} x={x} y={y} width={barW} height={Math.max(h, 1)} fill={METHOD_META[k].color} rx={3} />
+                        })}
+                        {total === 0 && <rect x={x} y={baseY - 1} width={barW} height={2} rx={1} fill="var(--border)" />}
+                        {total > 0 && (
+                          <text x={x + barW / 2} y={Math.max(y - 4, TOP - 2)} textAnchor="middle" fontSize={9} fontWeight={700} fill="var(--text)">
+                            {total >= 1 ? Math.round(total) : total.toFixed(1)}
+                          </text>
+                        )}
+                        <text x={x + barW / 2} y={baseY + 15} textAnchor="middle" fontSize={9} fill="var(--muted)">{b.label}</text>
+                      </g>
+                    )
+                  })}
+                  {/* Лінія прибутку */}
+                  {showProfit && buckets.length > 1 && (
+                    <polyline fill="none" stroke="#4cff8f" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round"
+                      points={buckets.map((b, i) => `${AX + GAP + i * (barW + GAP) + barW / 2},${yOf(b.profit_usd)}`).join(' ')} />
+                  )}
+                  {showProfit && buckets.map((b, i) => b.profit_usd > 0 && (
+                    <circle key={`p${i}`} cx={AX + GAP + i * (barW + GAP) + barW / 2} cy={yOf(b.profit_usd)} r={2.6} fill="#4cff8f" />
+                  ))}
+                </svg>
+              </div>
+            )}
+            <div style={{ fontSize: 10, color: 'var(--muted)', textAlign: 'center', marginTop: 6 }}>
+              стовпці — поповнення за методами · <span style={{ color: '#4cff8f' }}>━ лінія</span> — прибуток з продажів ($)
+            </div>
+          </div>
+
+          {/* Розбивка по методах — сітка */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginTop: 10 }}>
             <StatCard label="⭐ Зірки" value={`$${fmtUsd(sumStars)}`} color="#ff6b2b" />
             <StatCard label="💎 CryptoBot" value={`$${fmtUsd(sumCryptobot)}`} color="#3ba3ff" />
             <StatCard label="🪙 Heleket" value={`$${fmtUsd(sumHeleket)}`} color="#818cf8" />
             <StatCard label="🏦 СБП" value={`$${fmtUsd(sumSbp)}`} color="#14B88A" />
             <StatCard label="👤 Адмін" value={`$${fmtUsd(sumAdmin)}`} color="#9a9a9a" />
           </div>
-          {showProfit && (
-            <div style={{ marginBottom: 12 }}>
-              <StatCard label="📦 Прибуток з продажів за період" value={`$${fmtUsd(sumProfit)}`} color="#4cff8f" />
-            </div>
-          )}
 
-          {/* Графік */}
-          <div className="card" style={{ overflowX: 'auto' }}>
-            {days.length === 0 ? (
-              <div className="muted" style={{ fontSize: 13, textAlign: 'center', padding: 20 }}>Немає даних за період</div>
-            ) : (
-              <svg width={days.length * (barW + gap) + gap} height={chartH + 36} style={{ display: 'block' }}>
-                {days.map((d, i) => {
-                  const x = gap + i * (barW + gap)
-                  let yOff = chartH
-                  const segs: { h: number; color: string }[] = []
-                  if (methods.stars && d.stars_usd > 0)         segs.push({ h: (d.stars_usd     / maxVal) * chartH, color: METHOD_META.stars.color })
-                  if (methods.cryptobot && d.cryptobot_usd > 0) segs.push({ h: (d.cryptobot_usd / maxVal) * chartH, color: METHOD_META.cryptobot.color })
-                  if (methods.heleket && d.heleket_usd > 0)     segs.push({ h: (d.heleket_usd   / maxVal) * chartH, color: METHOD_META.heleket.color })
-                  if (methods.sbp && d.sbp_usd > 0)             segs.push({ h: (d.sbp_usd       / maxVal) * chartH, color: METHOD_META.sbp.color })
-                  if (methods.admin && d.admin_usd > 0)         segs.push({ h: (d.admin_usd     / maxVal) * chartH, color: METHOD_META.admin.color })
-                  const total = dayTotal(d)
-                  const dayNum = d.date.slice(8, 10)
-                  return (
-                    <g key={d.date}>
-                      {segs.map((seg, si) => {
-                        yOff -= seg.h
-                        return <rect key={si} x={x} y={yOff} width={barW} height={Math.max(seg.h, 0.5)} fill={seg.color} rx={2} />
-                      })}
-                      {total === 0 && <rect x={x} y={chartH - 1} width={barW} height={1} fill="var(--border)" />}
-                      <text x={x + barW / 2} y={chartH + 14} textAnchor="middle" fontSize={9} fill="var(--muted)">{dayNum}</text>
-                      {total > 0 && (
-                        <text x={x + barW / 2} y={Math.max(chartH - total / maxVal * chartH - 4, 10)} textAnchor="middle" fontSize={8} fill="var(--text)">
-                          {total >= 1 ? Math.round(total) : ''}
-                        </text>
-                      )}
-                    </g>
-                  )
-                })}
-                {showProfit && (
-                  <polyline
-                    fill="none" stroke="#4cff8f" strokeWidth={2}
-                    points={days.map((d, i) => {
-                      const x = gap + i * (barW + gap) + barW / 2
-                      const y = chartH - (d.profit_usd / maxVal) * chartH
-                      return `${x},${y}`
-                    }).join(' ')}
-                  />
-                )}
-              </svg>
+          {/* Фільтр методів у графіку */}
+          <div className="card" style={{ marginTop: 10 }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>ПОКАЗУВАТИ В ГРАФІКУ</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {(Object.keys(METHOD_META) as MethodKey[]).map(k => (
+                <button key={k} onClick={() => toggleMethod(k)} style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 20, cursor: 'pointer', fontSize: 12,
+                  background: methods[k] ? 'var(--card2)' : 'transparent',
+                  border: `1px solid ${methods[k] ? METHOD_META[k].color : 'var(--border)'}`,
+                  color: methods[k] ? 'var(--text)' : 'var(--muted)', opacity: methods[k] ? 1 : 0.55,
+                }}>
+                  <span style={{ width: 9, height: 9, borderRadius: 3, background: METHOD_META[k].color }} />
+                  {METHOD_META[k].label}
+                </button>
+              ))}
+              <button onClick={() => setShowProfit(s => !s)} style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 20, cursor: 'pointer', fontSize: 12,
+                background: showProfit ? 'var(--card2)' : 'transparent',
+                border: `1px solid ${showProfit ? '#4cff8f' : 'var(--border)'}`,
+                color: showProfit ? 'var(--text)' : 'var(--muted)', opacity: showProfit ? 1 : 0.55,
+              }}>
+                <span style={{ width: 12, height: 3, borderRadius: 2, background: '#4cff8f' }} />
+                📦 Прибуток
+              </button>
+            </div>
+            {methods.admin && (
+              <div style={{ fontSize: 11, color: '#ffb347', marginTop: 8 }}>
+                ⚠️ "Адмін" — часто розіграші/реклама, а не реальний дохід.
+              </div>
             )}
           </div>
         </>
