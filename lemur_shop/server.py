@@ -2953,8 +2953,10 @@ async def api_admin_stats(
 
     conversion_pct = round(unique_buyers / total_users * 100, 1) if total_users else 0.0
     avg_order_usd  = float(total_rev_usd) / total_orders if total_orders else 0.0
-    total_profit   = float(total_rev_usd) - float(total_cost_usd) - float(partner_cost_range) - float(ref_cost_range)
-    profit_today   = float(revenue_today) - float(cost_today) - float(partner_cost_today) - float(ref_cost_today)
+    # Прибуток = виручка − собівартість (партнёрські/реферальні виплати НЕ віднімаємо —
+    # вони балансові й покриті непотраченим балансом користувачів).
+    total_profit   = float(total_rev_usd) - float(total_cost_usd)
+    profit_today   = float(revenue_today) - float(cost_today)
 
     return {
         "total_users":         total_users,
