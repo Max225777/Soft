@@ -1228,50 +1228,59 @@ function EarningsTab() {
   const sumAdmin = sum(d => d.admin_usd), sumProfit = sum(d => d.profit_usd)
   const sumTotal = buckets.reduce((a, b) => a + bTotal(b), 0)
 
-  // ── Геометрія графіка (адаптивна ширина стовпців) ──
-  const AX = 30, TOP = 12, PLOT_H = 168, GAP = 10
+  const sumNet = sumProfit - sumAdmin           // чистий прибуток = продажі − адмін-поповнення
+  const netOf = (b: Bucket) => Math.max(0, b.profit_usd - b.admin_usd)
+
+  // ── Геометрія графіка (компактна, адаптивна ширина стовпців) ──
+  const AX = 28, TOP = 10, PLOT_H = 118, GAP = 9
   const nb = buckets.length || 1
   let barW = Math.floor((320 - GAP * (nb + 1)) / nb)
-  barW = Math.max(16, Math.min(barW, 56))
+  barW = Math.max(15, Math.min(barW, 54))
   const plotW = GAP + nb * (barW + GAP)
   const baseY = TOP + PLOT_H
   const svgW = AX + plotW
-  const svgH = baseY + 26
-  const rawMax = Math.max(1, ...buckets.map(b => Math.max(bTotal(b), showProfit ? b.profit_usd : 0)))
+  const svgH = baseY + 24
+  const rawMax = Math.max(1, ...buckets.map(b => Math.max(bTotal(b), showProfit ? netOf(b) : 0)))
   const maxV = niceMax(rawMax)
   const yOf = (v: number) => baseY - (v / maxV) * PLOT_H
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => maxV * f)
+  const ticks = [0, 0.5, 1].map(f => maxV * f)
 
   const segMethods: MethodKey[] = ['stars', 'cryptobot', 'heleket', 'sbp', 'admin']
   const seg = (b: Bucket, k: MethodKey) => (b as any)[`${k}_usd`] as number
+  const methodSum: Record<MethodKey, number> = { stars: sumStars, cryptobot: sumCryptobot, heleket: sumHeleket, sbp: sumSbp, admin: sumAdmin }
+  const SHORT: Record<MethodKey, string> = { stars: '⭐ Зірки', cryptobot: '💎 CryptoBot', heleket: '🪙 Heleket', sbp: '🏦 СБП', admin: '👤 Адмін' }
 
   const btnSeg = (active: boolean): React.CSSProperties => ({
-    flex: 1, padding: '7px 4px', fontSize: 12, fontWeight: active ? 700 : 500,
+    flex: 1, padding: '6px 4px', fontSize: 12, fontWeight: active ? 700 : 500,
     background: active ? 'rgba(255,107,43,.18)' : 'transparent',
     color: active ? 'var(--orange)' : 'var(--muted)',
     border: `1px solid ${active ? 'rgba(255,107,43,.4)' : 'var(--border)'}`,
-    borderRadius: 9, cursor: 'pointer',
+    borderRadius: 8, cursor: 'pointer',
   })
+
+  const tiles = [
+    { l: '💵 Сума', v: sumTotal, c: 'var(--orange)' },
+    { l: '📦 Продажі', v: sumProfit, c: '#3ba3ff' },
+    { l: '✅ Чистий', v: sumNet, c: sumNet >= 0 ? '#4cff8f' : 'var(--red)' },
+  ]
 
   return (
     <div>
-      {/* Період + групування */}
-      <div className="card" style={{ marginBottom: 10 }}>
-        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>ПЕРІОД</div>
-        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+      {/* Керування — компактно */}
+      <div className="card" style={{ marginBottom: 8, padding: '10px 12px' }}>
+        <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
           {[7, 14, 30, 90].map(n => (
             <button key={n} style={btnSeg(false)} onClick={() => preset(n)}>{n}д</button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
           <input type="date" value={dateFrom} max={dateTo} onChange={e => setDateFrom(e.target.value)}
-            style={{ flex: 1, background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 8px', color: 'var(--text)', fontSize: 12 }} />
+            style={{ flex: 1, background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 6px', color: 'var(--text)', fontSize: 12 }} />
           <span className="muted" style={{ fontSize: 12 }}>—</span>
           <input type="date" value={dateTo} min={dateFrom} max={kyivToday()} onChange={e => setDateTo(e.target.value)}
-            style={{ flex: 1, background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 8px', color: 'var(--text)', fontSize: 12 }} />
+            style={{ flex: 1, background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 6px', color: 'var(--text)', fontSize: 12 }} />
         </div>
-        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>КРОК СТОВПЦЯ</div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 5 }}>
           {([[1, 'День'], [3, '3 дні'], [7, 'Тиждень']] as const).map(([g, lbl]) => (
             <button key={g} style={btnSeg(group === g)} onClick={() => setGroup(g)}>{lbl}</button>
           ))}
@@ -1279,34 +1288,36 @@ function EarningsTab() {
       </div>
 
       {loading ? (
-        <div className="card"><div className="skeleton" style={{ height: 220 }} /></div>
+        <div className="card"><div className="skeleton" style={{ height: 200 }} /></div>
       ) : (
         <>
-          {/* Підсумок — сітка 2 колонки */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 10 }}>
-            <StatCard label="💵 Сума за період" value={`$${fmtUsd(sumTotal)}`} />
-            <StatCard label="📦 Прибуток (продажі)" value={`$${fmtUsd(sumProfit)}`} color="#4cff8f" />
+          {/* 3 компактні плитки */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 8 }}>
+            {tiles.map(t => (
+              <div key={t.l} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '8px 8px' }}>
+                <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 2 }}>{t.l}</div>
+                <div style={{ fontWeight: 800, fontSize: 16, color: t.c }}>${fmtUsd(t.v)}</div>
+              </div>
+            ))}
           </div>
 
           {/* Графік */}
-          <div className="card" style={{ padding: '14px 8px 10px' }}>
+          <div className="card" style={{ padding: '10px 6px 8px' }}>
             {buckets.length === 0 ? (
               <div className="muted" style={{ fontSize: 13, textAlign: 'center', padding: 20 }}>Немає даних за період</div>
             ) : (
               <div style={{ overflowX: nb <= 16 ? 'visible' : 'auto' }}>
                 <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`}
                   style={nb <= 16 ? { display: 'block', width: '100%', height: 'auto' } : { display: 'block' }}>
-                  {/* Сітка + підписи осі Y */}
                   {ticks.map((t, i) => (
                     <g key={i}>
                       <line x1={AX} y1={yOf(t)} x2={svgW} y2={yOf(t)}
                         stroke="var(--border)" strokeWidth={1} strokeDasharray={i === 0 ? '' : '3 4'} opacity={i === 0 ? 1 : 0.6} />
-                      <text x={AX - 5} y={yOf(t) + 3} textAnchor="end" fontSize={9} fill="var(--muted)">
+                      <text x={AX - 4} y={yOf(t) + 3} textAnchor="end" fontSize={8} fill="var(--muted)">
                         {t >= 1 ? Math.round(t) : t.toFixed(1)}
                       </text>
                     </g>
                   ))}
-                  {/* Стовпці */}
                   {buckets.map((b, i) => {
                     const x = AX + GAP + i * (barW + GAP)
                     let y = baseY
@@ -1323,69 +1334,50 @@ function EarningsTab() {
                         })}
                         {total === 0 && <rect x={x} y={baseY - 1} width={barW} height={2} rx={1} fill="var(--border)" />}
                         {total > 0 && (
-                          <text x={x + barW / 2} y={Math.max(y - 4, TOP - 2)} textAnchor="middle" fontSize={9} fontWeight={700} fill="var(--text)">
+                          <text x={x + barW / 2} y={Math.max(y - 3, TOP - 2)} textAnchor="middle" fontSize={8} fontWeight={700} fill="var(--text)">
                             {total >= 1 ? Math.round(total) : total.toFixed(1)}
                           </text>
                         )}
-                        <text x={x + barW / 2} y={baseY + 15} textAnchor="middle" fontSize={9} fill="var(--muted)">{b.label}</text>
+                        <text x={x + barW / 2} y={baseY + 14} textAnchor="middle" fontSize={8} fill="var(--muted)">{b.label}</text>
                       </g>
                     )
                   })}
-                  {/* Лінія прибутку */}
                   {showProfit && buckets.length > 1 && (
                     <polyline fill="none" stroke="#4cff8f" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round"
-                      points={buckets.map((b, i) => `${AX + GAP + i * (barW + GAP) + barW / 2},${yOf(b.profit_usd)}`).join(' ')} />
+                      points={buckets.map((b, i) => `${AX + GAP + i * (barW + GAP) + barW / 2},${yOf(netOf(b))}`).join(' ')} />
                   )}
-                  {showProfit && buckets.map((b, i) => b.profit_usd > 0 && (
-                    <circle key={`p${i}`} cx={AX + GAP + i * (barW + GAP) + barW / 2} cy={yOf(b.profit_usd)} r={2.6} fill="#4cff8f" />
+                  {showProfit && buckets.map((b, i) => netOf(b) > 0 && (
+                    <circle key={`p${i}`} cx={AX + GAP + i * (barW + GAP) + barW / 2} cy={yOf(netOf(b))} r={2.4} fill="#4cff8f" />
                   ))}
                 </svg>
               </div>
             )}
-            <div style={{ fontSize: 10, color: 'var(--muted)', textAlign: 'center', marginTop: 6 }}>
-              стовпці — поповнення за методами · <span style={{ color: '#4cff8f' }}>━ лінія</span> — прибуток з продажів ($)
-            </div>
-          </div>
-
-          {/* Розбивка по методах — сітка */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginTop: 10 }}>
-            <StatCard label="⭐ Зірки" value={`$${fmtUsd(sumStars)}`} color="#ff6b2b" />
-            <StatCard label="💎 CryptoBot" value={`$${fmtUsd(sumCryptobot)}`} color="#3ba3ff" />
-            <StatCard label="🪙 Heleket" value={`$${fmtUsd(sumHeleket)}`} color="#818cf8" />
-            <StatCard label="🏦 СБП" value={`$${fmtUsd(sumSbp)}`} color="#14B88A" />
-            <StatCard label="👤 Адмін" value={`$${fmtUsd(sumAdmin)}`} color="#9a9a9a" />
-          </div>
-
-          {/* Фільтр методів у графіку */}
-          <div className="card" style={{ marginTop: 10 }}>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>ПОКАЗУВАТИ В ГРАФІКУ</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {(Object.keys(METHOD_META) as MethodKey[]).map(k => (
+            {/* Легенда-фільтр з сумами по методах */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
+              {segMethods.map(k => (
                 <button key={k} onClick={() => toggleMethod(k)} style={{
-                  display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 20, cursor: 'pointer', fontSize: 12,
+                  display: 'flex', alignItems: 'center', gap: 5, padding: '4px 8px', borderRadius: 16, cursor: 'pointer', fontSize: 11,
                   background: methods[k] ? 'var(--card2)' : 'transparent',
                   border: `1px solid ${methods[k] ? METHOD_META[k].color : 'var(--border)'}`,
-                  color: methods[k] ? 'var(--text)' : 'var(--muted)', opacity: methods[k] ? 1 : 0.55,
+                  color: methods[k] ? 'var(--text)' : 'var(--muted)', opacity: methods[k] ? 1 : 0.5,
                 }}>
-                  <span style={{ width: 9, height: 9, borderRadius: 3, background: METHOD_META[k].color }} />
-                  {METHOD_META[k].label}
+                  <span style={{ width: 8, height: 8, borderRadius: 2, background: METHOD_META[k].color }} />
+                  {SHORT[k]} <b>${fmtUsd(methodSum[k])}</b>
                 </button>
               ))}
               <button onClick={() => setShowProfit(s => !s)} style={{
-                display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 20, cursor: 'pointer', fontSize: 12,
+                display: 'flex', alignItems: 'center', gap: 5, padding: '4px 8px', borderRadius: 16, cursor: 'pointer', fontSize: 11,
                 background: showProfit ? 'var(--card2)' : 'transparent',
                 border: `1px solid ${showProfit ? '#4cff8f' : 'var(--border)'}`,
-                color: showProfit ? 'var(--text)' : 'var(--muted)', opacity: showProfit ? 1 : 0.55,
+                color: showProfit ? 'var(--text)' : 'var(--muted)', opacity: showProfit ? 1 : 0.5,
               }}>
-                <span style={{ width: 12, height: 3, borderRadius: 2, background: '#4cff8f' }} />
-                📦 Прибуток
+                <span style={{ width: 11, height: 3, borderRadius: 2, background: '#4cff8f' }} />
+                ✅ Чистий прибуток
               </button>
             </div>
-            {methods.admin && (
-              <div style={{ fontSize: 11, color: '#ffb347', marginTop: 8 }}>
-                ⚠️ "Адмін" — часто розіграші/реклама, а не реальний дохід.
-              </div>
-            )}
+            <div style={{ fontSize: 9, color: 'var(--muted)', textAlign: 'center', marginTop: 6 }}>
+              стовпці — поповнення · <span style={{ color: '#4cff8f' }}>━</span> чистий прибуток (продажі − адмін)
+            </div>
           </div>
         </>
       )}
