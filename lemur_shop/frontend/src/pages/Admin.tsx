@@ -1226,10 +1226,10 @@ function EarningsTab() {
   const sumStars = sum(d => d.stars_usd), sumCryptobot = sum(d => d.cryptobot_usd)
   const sumHeleket = sum(d => d.heleket_usd), sumSbp = sum(d => d.sbp_usd)
   const sumAdmin = sum(d => d.admin_usd), sumProfit = sum(d => d.profit_usd)
+  const sumRevenue = sum(d => d.revenue_usd)
   const sumTotal = buckets.reduce((a, b) => a + bTotal(b), 0)
 
-  const sumNet = sumProfit - sumAdmin           // чистий прибуток = продажі − адмін-поповнення
-  const netOf = (b: Bucket) => Math.max(0, b.profit_usd - b.admin_usd)
+  const netOf = (b: Bucket) => Math.max(0, b.profit_usd)   // лінія = прибуток з продажів
 
   // ── Геометрія графіка (компактна, адаптивна ширина стовпців) ──
   const AX = 28, TOP = 10, PLOT_H = 118, GAP = 9
@@ -1259,9 +1259,9 @@ function EarningsTab() {
   })
 
   const tiles = [
-    { l: '💵 Сума', v: sumTotal, c: 'var(--orange)' },
-    { l: '📦 Продажі', v: sumProfit, c: '#3ba3ff' },
-    { l: '✅ Чистий', v: sumNet, c: sumNet >= 0 ? '#4cff8f' : 'var(--red)' },
+    { l: '💵 Поповнення', v: sumTotal, c: 'var(--orange)' },
+    { l: '💰 Дохід', v: sumRevenue, c: '#3ba3ff' },
+    { l: '📈 Прибуток', v: sumProfit, c: '#4cff8f' },
   ]
 
   return (
@@ -1372,11 +1372,11 @@ function EarningsTab() {
                 color: showProfit ? 'var(--text)' : 'var(--muted)', opacity: showProfit ? 1 : 0.5,
               }}>
                 <span style={{ width: 11, height: 3, borderRadius: 2, background: '#4cff8f' }} />
-                ✅ Чистий прибуток
+                📈 Прибуток
               </button>
             </div>
             <div style={{ fontSize: 9, color: 'var(--muted)', textAlign: 'center', marginTop: 6 }}>
-              стовпці — поповнення · <span style={{ color: '#4cff8f' }}>━</span> чистий прибуток (продажі − адмін)
+              стовпці — поповнення за методами · <span style={{ color: '#4cff8f' }}>━</span> прибуток з продажів ($)
             </div>
           </div>
         </>

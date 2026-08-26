@@ -2882,10 +2882,6 @@ async def api_admin_stats(
         if range_end:
             top_filters.append(TopUp.created_at < range_end)
         total_topups = await s.scalar(select(func.sum(TopUp.amount_usd)).where(*top_filters)) or 0
-        # Адмін-поповнення (розіграші/реклама) — витрати, віднімаємо з чистого прибутку
-        admin_topups_range = await s.scalar(
-            select(func.coalesce(func.sum(TopUp.amount_usd), 0)).where(TopUp.method == "admin", *top_filters)
-        ) or 0
 
         # Bio promo stats
         bio_promo_total  = await s.scalar(select(func.count(BioPromo.user_id))) or 0
@@ -2900,7 +2896,6 @@ async def api_admin_stats(
         revenue_today   = await s.scalar(select(func.sum(Order.price_usd)).where(Order.status == "delivered", Order.created_at >= today_start)) or 0
         cost_today      = await s.scalar(select(func.sum(Order.cost_usd)).where(Order.status == "delivered", Order.created_at >= today_start)) or 0
         topups_today    = await s.scalar(select(func.sum(TopUp.amount_usd)).where(TopUp.created_at >= today_start)) or 0
-        admin_topups_today = await s.scalar(select(func.coalesce(func.sum(TopUp.amount_usd), 0)).where(TopUp.method == "admin", TopUp.created_at >= today_start)) or 0
 
         # Партнёрські комісії (зменшують чистий прибуток)
         pe_filters = []
@@ -2958,8 +2953,8 @@ async def api_admin_stats(
 
     conversion_pct = round(unique_buyers / total_users * 100, 1) if total_users else 0.0
     avg_order_usd  = float(total_rev_usd) / total_orders if total_orders else 0.0
-    total_profit   = float(total_rev_usd) - float(total_cost_usd) - float(partner_cost_range) - float(ref_cost_range) - float(admin_topups_range)
-    profit_today   = float(revenue_today) - float(cost_today) - float(partner_cost_today) - float(ref_cost_today) - float(admin_topups_today)
+    total_profit   = float(total_rev_usd) - float(total_cost_usd) - float(partner_cost_range) - float(ref_cost_range)
+    profit_today   = float(revenue_today) - float(cost_today) - float(partner_cost_today) - float(ref_cost_today)
 
     return {
         "total_users":         total_users,
@@ -2972,7 +2967,6 @@ async def api_admin_stats(
         "total_cost_usd":      float(total_cost_usd),
         "partner_cost_usd":    round(float(partner_cost_range), 2),
         "referral_cost_usd":   round(float(ref_cost_range), 2),
-        "admin_topups_usd":    round(float(admin_topups_range), 2),
         "total_profit_usd":    round(total_profit, 2),
         "total_topups_usd":    float(total_topups),
         "total_stars_balance": total_stars_balance,

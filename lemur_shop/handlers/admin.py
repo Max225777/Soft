@@ -193,10 +193,6 @@ async def cmd_stats(message: Message) -> None:
 
         total_topups_amount = await s.scalar(select(func.sum(TopUp.amount_usd))) or Decimal(0)
         total_topups_count = await s.scalar(select(func.count(TopUp.id))) or 0
-        # Адмін-поповнення (розіграші/реклама) — це витрати, віднімаємо з чистого прибутку
-        admin_topups = await s.scalar(
-            select(func.sum(TopUp.amount_usd)).where(TopUp.method == "admin")
-        ) or Decimal(0)
 
         # По категоріях
         from sqlalchemy import text
@@ -208,7 +204,6 @@ async def cmd_stats(message: Message) -> None:
         cats = cats_result.all()
 
     profit = total_revenue - total_cost
-    net_profit = profit - admin_topups          # чистий прибуток = продажі − адмін-поповнення
 
     lines = [
         "📊 <b>Статистика магазину</b>\n",
@@ -218,9 +213,7 @@ async def cmd_stats(message: Message) -> None:
         f"💳 Поповнень: {total_topups_count} шт → <b>${float(total_topups_amount):.2f}</b>",
         f"💰 Дохід (продажі): <b>${float(total_revenue):.2f}</b>",
         f"💸 Витрати (Lolz): ${float(total_cost):.2f}",
-        f"📈 Прибуток з продажів: <b>${float(profit):.2f}</b>",
-        f"🎁 Адмін-поповнення (розіграші/реклама): −${float(admin_topups):.2f}",
-        f"✅ <b>Чистий прибуток: ${float(net_profit):.2f}</b>",
+        f"📈 Прибуток: <b>${float(profit):.2f}</b>",
     ]
 
     if cats:
