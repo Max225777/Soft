@@ -251,7 +251,20 @@ function Overview() {
             <StatCard label="Виручка" value={`$${stats.total_revenue_usd.toFixed(2)}`}
               sub={`⭐${Math.round(stats.total_revenue_usd / 0.013)}`} color="var(--orange)" />
             <StatCard label="Прибуток" value={`$${stats.total_profit_usd.toFixed(2)}`}
-              sub={`витрати $${stats.total_cost_usd.toFixed(2)}`} color={profitColor(stats.total_profit_usd)} />
+              sub={`= виручка − все нижче`} color={profitColor(stats.total_profit_usd)} />
+          </div>
+          {/* Розбивка витрат, що зменшують прибуток */}
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 14px' }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>ВИТРАТИ (мінус з прибутку)</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0' }}>
+              <span>💸 Собівартість (Lolz/SMM)</span><span style={{ fontWeight: 700 }}>${stats.total_cost_usd.toFixed(2)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0' }}>
+              <span>🤝 Партнёрам виплачено</span><span style={{ fontWeight: 700 }}>${stats.partner_cost_usd.toFixed(2)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0' }}>
+              <span>👥 Рефералам (бонуси)</span><span style={{ fontWeight: 700 }}>${stats.referral_cost_usd.toFixed(2)}</span>
+            </div>
           </div>
         </>)}
 
