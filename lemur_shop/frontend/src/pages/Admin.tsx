@@ -52,20 +52,20 @@ function Pagination({ page, pages, onPage }: { page: number; pages: number; onPa
 }
 
 const SMM_TITLES: Record<string, string> = {
-  tg_subscribers: '👥 Підписники',
-  tg_views:       '👁️ Перегляди',
-  tg_reactions:   '👍❤️🔥🎉 Мікс',
-  tg_react_like:        '👍 Реакція',
-  tg_react_dislike:     '👎 Реакція',
-  tg_react_heart:       '❤️ Реакція',
-  tg_react_fire:        '🔥 Реакція',
-  tg_react_poop:  '💩 Реакція',
-  tg_react_clown: '🤡 Реакція',
-  tg_react_middlefinger: '🖕 Реакція',
-  tg_react_vomit:      '🤮 Реакція',
-  tg_react_sunglasses: '😎 Реакція',
-  tg_react_angry:      '😡 Реакція',
-  tg_react_neg_mix1:   '👎😁😢💩 Мікс',
+  tg_subscribers: '👥 Подписчики',
+  tg_views:       '👁️ Просмотры',
+  tg_reactions:   '👍❤️🔥🎉 Микс',
+  tg_react_like:        '👍 Реакция',
+  tg_react_dislike:     '👎 Реакция',
+  tg_react_heart:       '❤️ Реакция',
+  tg_react_fire:        '🔥 Реакция',
+  tg_react_poop:  '💩 Реакция',
+  tg_react_clown: '🤡 Реакция',
+  tg_react_middlefinger: '🖕 Реакция',
+  tg_react_vomit:      '🤮 Реакция',
+  tg_react_sunglasses: '😎 Реакция',
+  tg_react_angry:      '😡 Реакция',
+  tg_react_neg_mix1:   '👎😁😢💩 Микс',
 }
 
 function fmtUsd(v: number): string {
@@ -89,7 +89,7 @@ function GroupStats({
   profitColor: (v: number) => string
   flags: Record<string, string>
 }) {
-  // завжди показуємо блок
+  // всегда показываем блок
   return (
     <>
       <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>{label}</div>
@@ -100,22 +100,22 @@ function GroupStats({
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>Замовлень: {group.count}</div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>Заказов: {group.count}</div>
             {group.smm_quantity > 0 && (
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-                Одиниць: {group.smm_quantity.toLocaleString()}
+                Единиц: {group.smm_quantity.toLocaleString()}
               </div>
             )}
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-              виручка <b style={{ color: 'var(--text)' }}>${fmtUsd(group.revenue_usd)}</b>
+              выручка <b style={{ color: 'var(--text)' }}>${fmtUsd(group.revenue_usd)}</b>
             </div>
             <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-              витрати <b style={{ color: 'var(--text)' }}>${fmtUsd(group.cost_usd)}</b>
+              расходы <b style={{ color: 'var(--text)' }}>${fmtUsd(group.cost_usd)}</b>
             </div>
             <div style={{ fontWeight: 800, fontSize: 16, color: profitColor(group.profit_usd), marginTop: 2 }}>
-              прибуток ${fmtUsd(group.profit_usd)}
+              прибыль ${fmtUsd(group.profit_usd)}
               {group.revenue_usd > 0 && (
                 <span style={{ fontSize: 12, fontWeight: 600, marginLeft: 6, opacity: 0.75 }}>
                   ({marginPct(group.revenue_usd, group.cost_usd)})
@@ -140,12 +140,12 @@ function GroupStats({
             </div>
             {c.smm_quantity > 0 && (
               <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                {c.smm_quantity.toLocaleString()} од.
+                {c.smm_quantity.toLocaleString()} ед.
               </div>
             )}
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ color: 'var(--orange)', fontWeight: 700, fontSize: 13 }}>{c.count} замовл.</div>
+            <div style={{ color: 'var(--orange)', fontWeight: 700, fontSize: 13 }}>{c.count} заказ.</div>
             <div style={{ fontSize: 11, color: 'var(--muted)' }}>
               ${fmtUsd(c.revenue_usd)} / -${fmtUsd(c.cost_usd)}
             </div>
@@ -166,7 +166,7 @@ function GroupStats({
 
 // ── Overview ──────────────────────────────────────────────────────────────────
 function Overview() {
-  // Дата за київським часом (UA/RU), а не UTC — щоб збігалось з бекендом
+  // Дата по киевскому времени (UA/RU), а не UTC — чтобы совпадало с бэкендом
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' })
   const [mode, setMode] = useState<DateMode>('today')
   const [customFrom, setCustomFrom] = useState(todayStr)
@@ -179,7 +179,7 @@ function Overview() {
   const [resetting, setResetting] = useState(false)
 
   async function handleReset() {
-    if (!confirm('Скинути ВСІ баланси, замовлення і поповнення? Це незворотно!')) return
+    if (!confirm('Сбросить ВСЕ балансы, заказы и пополнения? Это необратимо!')) return
     setResetting(true)
     try {
       await adminApi.resetStats()
@@ -206,7 +206,7 @@ function Overview() {
             border: mode === m ? '1px solid rgba(255,107,43,.4)' : '1px solid var(--border)',
             borderRadius: 10, cursor: 'pointer',
           }}>
-            {m === 'today' ? '📅 Сьогодні' : m === 'all' ? '📊 Весь час' : '🗓 Дата'}
+            {m === 'today' ? '📅 Сегодня' : m === 'all' ? '📊 Всё время' : '🗓 Дата'}
           </button>
         ))}
       </div>
@@ -220,78 +220,78 @@ function Overview() {
         </div>
       )}
 
-      {loading && <div style={{ padding: 20, textAlign: 'center', color: 'var(--muted)' }}>⏳ Завантаження...</div>}
-      {!loading && !stats && <div style={{ padding: 20, color: 'var(--red)' }}>Помилка завантаження</div>}
+      {loading && <div style={{ padding: 20, textAlign: 'center', color: 'var(--muted)' }}>⏳ Загрузка...</div>}
+      {!loading && !stats && <div style={{ padding: 20, color: 'var(--red)' }}>Ошибка загрузки</div>}
       {!loading && stats && (<>
 
-        {/* ── СЬОГОДНІ ── */}
+        {/* ── СЕГОДНЯ ── */}
         {mode === 'today' && (<>
           <div style={{ display: 'flex', gap: 8 }}>
-            <StatCard label="Нових юзерів" value={stats.new_users_today} color="#4CAF72" />
-            <StatCard label="Замовлень" value={stats.orders_today} color="var(--orange)" />
+            <StatCard label="Новых юзеров" value={stats.new_users_today} color="#4CAF72" />
+            <StatCard label="Заказов" value={stats.orders_today} color="var(--orange)" />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <StatCard label="Виручка" value={`$${stats.revenue_today.toFixed(2)}`}
+            <StatCard label="Выручка" value={`$${stats.revenue_today.toFixed(2)}`}
               sub={`⭐${Math.round(stats.revenue_today / 0.013)}`} color="var(--orange)" />
-            <StatCard label="Прибуток" value={`$${stats.profit_today.toFixed(2)}`}
-              sub={`витрати $${stats.cost_today.toFixed(2)}`} color={profitColor(stats.profit_today)} />
+            <StatCard label="Прибыль" value={`$${stats.profit_today.toFixed(2)}`}
+              sub={`расходы $${stats.cost_today.toFixed(2)}`} color={profitColor(stats.profit_today)} />
           </div>
-          <StatCard label="Поповнено сьогодні" value={`$${stats.topups_today.toFixed(2)}`}
+          <StatCard label="Пополнено сегодня" value={`$${stats.topups_today.toFixed(2)}`}
             sub={`⭐${Math.round(stats.topups_today / 0.013)}`} color="#2AABEE" />
         </>)}
 
-        {/* ── ВЕСЬ ЧАС або ОБРАНИЙ ПЕРІОД ── */}
+        {/* ── ВЕСЬ ЧАС или ВЫБРАННЫЙ ПЕРИОД ── */}
         {mode !== 'today' && (<>
           <div style={{ display: 'flex', gap: 8 }}>
-            <StatCard label="Замовлень" value={stats.total_orders} color="var(--orange)" />
-            <StatCard label="Поповнено" value={`$${stats.total_topups_usd.toFixed(2)}`}
+            <StatCard label="Заказов" value={stats.total_orders} color="var(--orange)" />
+            <StatCard label="Пополнено" value={`$${stats.total_topups_usd.toFixed(2)}`}
               sub={`⭐${Math.round(stats.total_topups_usd / 0.013)}`} color="#2AABEE" />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <StatCard label="Виручка" value={`$${stats.total_revenue_usd.toFixed(2)}`}
+            <StatCard label="Выручка" value={`$${stats.total_revenue_usd.toFixed(2)}`}
               sub={`⭐${Math.round(stats.total_revenue_usd / 0.013)}`} color="var(--orange)" />
-            <StatCard label="Прибуток" value={`$${stats.total_profit_usd.toFixed(2)}`}
-              sub={`= виручка − все нижче`} color={profitColor(stats.total_profit_usd)} />
+            <StatCard label="Прибыль" value={`$${stats.total_profit_usd.toFixed(2)}`}
+              sub={`= выручка − всё ниже`} color={profitColor(stats.total_profit_usd)} />
           </div>
-          {/* Розбивка витрат, що зменшують прибуток */}
+          {/* Разбивка расходов, що уменьшают прибыль */}
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 14px' }}>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>ВИТРАТИ (мінус з прибутку)</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>РАСХОДЫ (минус из прибыли)</div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0' }}>
-              <span>💸 Собівартість (Lolz/SMM)</span><span style={{ fontWeight: 700 }}>${stats.total_cost_usd.toFixed(2)}</span>
+              <span>💸 Себестоимость (Lolz/SMM)</span><span style={{ fontWeight: 700 }}>${stats.total_cost_usd.toFixed(2)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0' }}>
-              <span>🤝 Партнёрам виплачено</span><span style={{ fontWeight: 700 }}>${stats.partner_cost_usd.toFixed(2)}</span>
+              <span>🤝 Партнёрам выплачено</span><span style={{ fontWeight: 700 }}>${stats.partner_cost_usd.toFixed(2)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0' }}>
-              <span>👥 Рефералам (бонуси)</span><span style={{ fontWeight: 700 }}>${stats.referral_cost_usd.toFixed(2)}</span>
+              <span>👥 Рефералам (бонусы)</span><span style={{ fontWeight: 700 }}>${stats.referral_cost_usd.toFixed(2)}</span>
             </div>
           </div>
         </>)}
 
-        {/* ── ВОРОНКА — тільки "весь час" ── */}
+        {/* ── ВОРОНКА — только "всё время" ── */}
         {mode === 'all' && (<>
-          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>ПРОМО В БІО</div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>ПРОМО В БИО</div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <StatCard label="Учасники" value={stats.bio_promo_total} color="#5fba47" />
-            <StatCard label="Активні (з біо)" value={stats.bio_promo_active}
+            <StatCard label="Участники" value={stats.bio_promo_total} color="#5fba47" />
+            <StatCard label="Активные (с био)" value={stats.bio_promo_active}
               sub={stats.bio_promo_total ? `${Math.round(stats.bio_promo_active/stats.bio_promo_total*100)}%` : '0%'} color="#5fba47" />
-            <StatCard label="Зірок видано" value={`⭐${stats.bio_promo_stars}`} color="var(--gold)" />
+            <StatCard label="Звёзд выдано" value={`⭐${stats.bio_promo_stars}`} color="var(--gold)" />
           </div>
 
           <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 4, marginBottom: -4 }}>ВОРОНКА</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <StatCard label="Запустили бота" value={stats.total_users} color="#4CAF72" />
-            <StatCard label="Купили (унікал.)" value={stats.unique_buyers}
-              sub={`${stats.conversion_pct}% конверсія`} color="var(--orange)" />
+            <StatCard label="Купили (уникал.)" value={stats.unique_buyers}
+              sub={`${stats.conversion_pct}% конверсия`} color="var(--orange)" />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <StatCard label="Є баланс ⭐" value={stats.users_with_balance} color="var(--gold)" />
+            <StatCard label="Есть баланс ⭐" value={stats.users_with_balance} color="var(--gold)" />
             <StatCard label="На балансах" value={`⭐${stats.total_stars_balance}`}
               sub={`$${(stats.total_stars_balance * 0.013).toFixed(2)}`} color="var(--gold)" />
           </div>
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px' }}>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
-              Конверсія: {stats.unique_buyers} / {stats.total_users} купили
+              Конверсия: {stats.unique_buyers} / {stats.total_users} купили
             </div>
             <div style={{ height: 8, borderRadius: 4, background: 'rgba(255,255,255,.08)', overflow: 'hidden' }}>
               <div style={{
@@ -304,20 +304,20 @@ function Overview() {
           </div>
         </>)}
 
-        {/* ── НАКРУТКА і АКАУНТИ ── */}
+        {/* ── НАКРУТКА и АККАУНТЫ ── */}
         <GroupStats label="📊 НАКРУТКА (SMM)" group={stats.smm} profitColor={profitColor} flags={CATEGORY_FLAGS} />
-        <GroupStats label="📱 ТГ АКАУНТИ" group={stats.accounts} profitColor={profitColor} flags={CATEGORY_FLAGS} />
+        <GroupStats label="📱 TG АККАУНТЫ" group={stats.accounts} profitColor={profitColor} flags={CATEGORY_FLAGS} />
 
-        {/* ── Небезпечна зона ── */}
+        {/* ── Опасная зона ── */}
         {mode === 'all' && (
           <div style={{
             marginTop: 4, background: 'rgba(255,60,60,.06)',
             border: '1px solid rgba(255,60,60,.2)', borderRadius: 12, padding: '12px 14px',
           }}>
-            <div style={{ fontSize: 12, color: '#ff5555', fontWeight: 700, marginBottom: 8 }}>⚠️ Небезпечна зона</div>
+            <div style={{ fontSize: 12, color: '#ff5555', fontWeight: 700, marginBottom: 8 }}>⚠️ Опасная зона</div>
             <button className="btn" disabled={resetting} onClick={handleReset}
               style={{ background: 'rgba(255,60,60,.15)', color: '#ff5555', border: '1px solid rgba(255,60,60,.3)', fontSize: 13 }}>
-              {resetting ? '⏳ Скидання...' : '🗑 Скинути всі баланси і статистику'}
+              {resetting ? '⏳ Сброс...' : '🗑 Сбросить все балансы и статистику'}
             </button>
           </div>
         )}
@@ -336,7 +336,7 @@ function RecentPurchases() {
   return (
     <div style={{ marginTop: 4 }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: .6, marginBottom: 8 }}>
-        🧾 ОСТАННІ ПОКУПКИ (чистий прибуток)
+        🧾 ПОСЛЕДНИЕ ПОКУПКИ (чистый прибыль)
       </div>
       {rows.map(r => (
         <div key={r.id} style={{
@@ -348,7 +348,7 @@ function RecentPurchases() {
             <span style={{ fontWeight: 800, fontSize: 14, color: r.net_usd >= 0 ? '#4CAF72' : '#ff5555' }}>${r.net_usd.toFixed(2)}</span>
           </div>
           <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-            ціна ${r.price_usd.toFixed(2)} − себес ${r.cost_usd.toFixed(2)}
+            цена ${r.price_usd.toFixed(2)} − себес ${r.cost_usd.toFixed(2)}
             {r.ref_usd > 0 ? ` − реф $${r.ref_usd.toFixed(2)}` : ''}
             {r.partner_usd > 0 ? ` − партнёр $${r.partner_usd.toFixed(2)}` : ''}
             {r.created_at ? ` · ${new Date(r.created_at).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}` : ''}
@@ -389,19 +389,19 @@ function BioPromoTab() {
       {data && (
         <>
           <div style={{ display: 'flex', gap: 8 }}>
-            <StatCard label="Всього учасників" value={data.total} color="#5fba47" />
-            <StatCard label="Активних (+1⭐)" value={activeCount - tier2Count} color="#5fba47" />
-            <StatCard label="Активних (+2⭐)" value={tier2Count} color="#FFB347" />
+            <StatCard label="Всего участников" value={data.total} color="#5fba47" />
+            <StatCard label="Активных (+1⭐)" value={activeCount - tier2Count} color="#5fba47" />
+            <StatCard label="Активных (+2⭐)" value={tier2Count} color="#FFB347" />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <StatCard label="Зірок видано" value={`⭐${totalStars}`} color="var(--gold)" />
-            <StatCard label="З повною фразою" value={`${tier2Count} / ${activeCount}`}
+            <StatCard label="Звёзд выдано" value={`⭐${totalStars}`} color="var(--gold)" />
+            <StatCard label="С полной фразой" value={`${tier2Count} / ${activeCount}`}
               sub={activeCount ? `${Math.round(tier2Count / activeCount * 100)}%` : '0%'} color="#FFB347" />
           </div>
         </>
       )}
 
-      {loading && <div style={{ fontSize: 13, color: 'var(--muted)' }}>Завантаження...</div>}
+      {loading && <div style={{ fontSize: 13, color: 'var(--muted)' }}>Загрузка...</div>}
       {data && (
         <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -422,9 +422,9 @@ function BioPromoTab() {
                   <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>
                     <span>ID {p.user_id}</span>
                     <span style={{ margin: '0 4px' }}>·</span>
-                    <span>підключ: {fmtDate(p.joined_at)}</span>
+                    <span>подключ: {fmtDate(p.joined_at)}</span>
                     {p.last_rewarded_at && (
-                      <><span style={{ margin: '0 4px' }}>·</span><span>нагорода: {fmtDate(p.last_rewarded_at)}</span></>
+                      <><span style={{ margin: '0 4px' }}>·</span><span>награда: {fmtDate(p.last_rewarded_at)}</span></>
                     )}
                   </div>
                 </div>
@@ -432,7 +432,7 @@ function BioPromoTab() {
                   <div style={{ fontWeight: 800, color: 'var(--gold)', fontSize: 16 }}>⭐{p.total_rewarded}</div>
                   <div style={{ fontSize: 10, marginTop: 1,
                     color: p.is_active ? (p.reward_tier === 2 ? '#FFB347' : '#5fba47') : 'var(--muted)' }}>
-                    {p.is_active ? (p.reward_tier === 2 ? '+2⭐/день' : '+1⭐/день') : 'неактивний'}
+                    {p.is_active ? (p.reward_tier === 2 ? '+2⭐/день' : '+1⭐/день') : 'неактивный'}
                   </div>
                 </div>
               </div>
@@ -487,7 +487,7 @@ function Users() {
             flex: 1, background: 'var(--bg2)', border: '1px solid var(--border)',
             borderRadius: 10, padding: '10px 14px', color: 'var(--text)', fontSize: 14,
           }}
-          placeholder="ID / ім'я / @username"
+          placeholder="ID / имя / @username"
           value={searchInput}
           onChange={e => setSearchInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && doSearch()}
@@ -495,7 +495,7 @@ function Users() {
         <button className="btn btn-primary" style={{ width: 'auto', padding: '10px 16px', fontSize: 14 }} onClick={doSearch}>🔍</button>
       </div>
 
-      {data && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Всього: {data.total}</div>}
+      {data && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Всего: {data.total}</div>}
 
       {loading ? (
         [0,1,2,3,4].map(i => <div key={i} className="card" style={{ marginBottom: 6 }}><div className="skeleton" style={{ height: 48 }} /></div>)
@@ -522,7 +522,7 @@ function Users() {
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
                 <div style={{ fontWeight: 700, color: 'var(--orange)', fontSize: 14 }}>⭐{u.balance_stars}</div>
-                <div style={{ fontSize: 11, color: 'var(--muted)' }}>{u.orders_count} замовл.</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)' }}>{u.orders_count} заказ.</div>
               </div>
             </div>
           </div>
@@ -554,14 +554,14 @@ function UserDetail({ user }: { user: AdminUserDetail }) {
           </span>
           {user.is_banned && <span style={{ background: 'rgba(255,60,60,.15)', color: '#ff5555', borderRadius: 8, padding: '4px 10px', fontSize: 13 }}>🚫 BANNED</span>}
         </div>
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>Реєстрація: {fmt(user.created_at)}</div>
-        {user.referred_by_id && <div style={{ fontSize: 12, color: 'var(--muted)' }}>Запросив: #{user.referred_by_id}</div>}
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>Регистрация: {fmt(user.created_at)}</div>
+        {user.referred_by_id && <div style={{ fontSize: 12, color: 'var(--muted)' }}>Пригласил: #{user.referred_by_id}</div>}
       </div>
 
       {/* Orders */}
-      <div style={{ fontWeight: 700, fontSize: 14, marginTop: 4 }}>Замовлення ({user.orders.length})</div>
+      <div style={{ fontWeight: 700, fontSize: 14, marginTop: 4 }}>Заказы ({user.orders.length})</div>
       {user.orders.length === 0
-        ? <div className="card" style={{ textAlign: 'center', color: 'var(--muted)' }}>Немає</div>
+        ? <div className="card" style={{ textAlign: 'center', color: 'var(--muted)' }}>Нет</div>
         : user.orders.map(o => (
           <div key={o.id} className="card" style={{ padding: '12px 14px', marginBottom: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -582,9 +582,9 @@ function UserDetail({ user }: { user: AdminUserDetail }) {
       }
 
       {/* Topups */}
-      <div style={{ fontWeight: 700, fontSize: 14, marginTop: 4 }}>Поповнення ({user.topups.length})</div>
+      <div style={{ fontWeight: 700, fontSize: 14, marginTop: 4 }}>Пополнения ({user.topups.length})</div>
       {user.topups.length === 0
-        ? <div className="card" style={{ textAlign: 'center', color: 'var(--muted)' }}>Немає</div>
+        ? <div className="card" style={{ textAlign: 'center', color: 'var(--muted)' }}>Нет</div>
         : user.topups.map(t => (
           <div key={t.id} className="card" style={{ padding: '12px 14px', marginBottom: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -614,7 +614,7 @@ function Orders() {
 
   return (
     <div>
-      {data && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Всього замовлень: {data.total}</div>}
+      {data && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Всего заказов: {data.total}</div>}
 
       {loading ? (
         [0,1,2,3].map(i => <div key={i} className="card" style={{ marginBottom: 6 }}><div className="skeleton" style={{ height: 52 }} /></div>)
@@ -703,17 +703,17 @@ function Topups() {
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
               <div>
-                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>🎟 Промокоди</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>🎟 Промокоды</div>
                 <div style={{ fontWeight: 800, fontSize: 16, color: '#FFB830' }}>⭐{stats.promo.stars.toLocaleString()}</div>
               </div>
-              <div style={{ fontSize: 10, color: 'var(--muted)', textAlign: 'right' }}>{stats.promo.count} активацій</div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', textAlign: 'right' }}>{stats.promo.count} активаций</div>
             </div>
           )}
           <div style={{
             background: 'rgba(255,184,48,.06)', border: '1px solid rgba(255,184,48,.2)',
             borderRadius: 12, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
-            <span style={{ fontSize: 12, color: 'var(--muted)' }}>Всього поповнено</span>
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>Всего пополнено</span>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontWeight: 800, fontSize: 16, color: '#FFD700' }}>⭐{stats.total_stars.toLocaleString()}</div>
               <div style={{ fontSize: 11, color: 'var(--muted)' }}>${stats.total_usd.toFixed(2)}</div>
@@ -721,7 +721,7 @@ function Topups() {
           </div>
         </div>
       )}
-      {data && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Всього записів: {data.total}</div>}
+      {data && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Всего записей: {data.total}</div>}
 
       {loading ? (
         [0,1,2,3].map(i => <div key={i} className="card" style={{ marginBottom: 6 }}><div className="skeleton" style={{ height: 48 }} /></div>)
@@ -743,7 +743,7 @@ function Topups() {
                 {t.charge_id && (
                   <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3, fontFamily: 'monospace', wordBreak: 'break-all' }}
                     onClick={() => navigator.clipboard?.writeText(t.charge_id!)}
-                    title="Натисни щоб скопіювати"
+                    title="Нажми чтобы скопировать"
                   >
                     🆔 <code style={{ cursor: 'pointer', color: 'rgba(255,255,255,.4)' }}>{t.charge_id}</code>
                   </div>
@@ -816,13 +816,13 @@ function Broadcast() {
           borderRadius: 12, padding: '12px 14px',
         }}>
           <div style={{ fontWeight: 700, fontSize: 14, color: '#2AABEE', marginBottom: 8 }}>
-            📤 Розсилка виконується...
+            📤 Рассылка выполняется...
           </div>
           <div style={{ height: 6, background: 'rgba(255,255,255,.1)', borderRadius: 3, marginBottom: 6, overflow: 'hidden' }}>
             <div style={{ height: '100%', background: '#2AABEE', borderRadius: 3, width: `${progress}%`, transition: 'width .3s' }} />
           </div>
           <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-            ✅ {status.sent} надіслано · ❌ {status.failed} помилок · з {status.total}
+            ✅ {status.sent} отправлено · ❌ {status.failed} ошибок · з {status.total}
           </div>
         </div>
       )}
@@ -831,9 +831,9 @@ function Broadcast() {
           background: 'rgba(76,175,114,.1)', border: '1px solid rgba(76,175,114,.3)',
           borderRadius: 12, padding: '12px 14px',
         }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: '#4CAF72', marginBottom: 4 }}>✅ Розсилку завершено</div>
+          <div style={{ fontWeight: 700, fontSize: 14, color: '#4CAF72', marginBottom: 4 }}>✅ Рассылка завершена</div>
           <div style={{ fontSize: 13, color: 'var(--muted)' }}>
-            Надіслано: {status.sent} · Помилки (заблоковані): {status.failed} · Всього: {status.total}
+            Отправлено: {status.sent} · Ошибки (заблокированные): {status.failed} · Всего: {status.total}
           </div>
         </div>
       )}
@@ -855,14 +855,14 @@ function Broadcast() {
           ))}
         </div>
 
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Текст повідомлення</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Текст сообщение</div>
         <textarea
           value={text}
           onChange={e => setText(e.target.value)}
           rows={6}
           placeholder={parseMode === 'HTML'
-            ? '<b>Жирний</b>, <i>курсив</i>, <code>код</code>'
-            : '*Жирний*, _курсив_, `код`'}
+            ? '<b>Жирный</b>, <i>курсив</i>, <code>код</code>'
+            : '*Жирный*, _курсив_, `код`'}
           style={{
             width: '100%', background: 'rgba(255,255,255,.05)',
             border: '1px solid var(--border)', borderRadius: 10,
@@ -871,7 +871,7 @@ function Broadcast() {
           }}
         />
         <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, marginBottom: 12 }}>
-          Буде надіслано <b style={{ color: 'var(--text)' }}>всім незаблокованим</b> користувачам
+          Будет отправлено <b style={{ color: 'var(--text)' }}>всем незаблокированным</b> пользователям
         </div>
 
         <button
@@ -879,7 +879,7 @@ function Broadcast() {
           disabled={sending || !text.trim() || (status?.running ?? false)}
           onClick={send}
         >
-          {sending || status?.running ? '📤 Надсилається...' : '📢 Розіслати всім'}
+          {sending || status?.running ? '📤 Отправляется...' : '📢 Разослать всем'}
         </button>
       </div>
     </div>
@@ -894,8 +894,8 @@ function ReferralInvitedList({ referrerId }: { referrerId: number }) {
     adminApi.referralInvited(referrerId).then(setItems).catch(() => setItems([]))
   }, [referrerId])
 
-  if (items === null) return <div className="muted" style={{ fontSize: 12, padding: '8px 0' }}>Завантаження...</div>
-  if (items.length === 0) return <div className="muted" style={{ fontSize: 12, padding: '8px 0' }}>Ще нікого не запросив</div>
+  if (items === null) return <div className="muted" style={{ fontSize: 12, padding: '8px 0' }}>Загрузка...</div>
+  if (items.length === 0) return <div className="muted" style={{ fontSize: 12, padding: '8px 0' }}>Ещё никого не пригласил</div>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 8 }}>
@@ -911,7 +911,7 @@ function ReferralInvitedList({ referrerId }: { referrerId: number }) {
             {u.username && <span className="muted" style={{ fontSize: 11, marginLeft: 6 }}>@{u.username}</span>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {u.is_buyer && <span style={{ fontSize: 11, color: 'var(--orange)', fontWeight: 700 }}>купив</span>}
+            {u.is_buyer && <span style={{ fontSize: 11, color: 'var(--orange)', fontWeight: 700 }}>купил</span>}
             <span className="muted" style={{ fontSize: 10 }}>{new Date(u.joined_at).toLocaleDateString()}</span>
           </div>
         </div>
@@ -929,42 +929,42 @@ function ReferralsTab() {
     adminApi.referralStats().then(setData).finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <p className="muted">Завантаження...</p>
-  if (!data) return <p className="muted">Помилка завантаження</p>
+  if (loading) return <p className="muted">Загрузка...</p>
+  if (!data) return <p className="muted">Ошибка загрузки</p>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* Загальна статистика */}
+      {/* Общая статистика */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <div className="card" style={{ textAlign: 'center', padding: '12px 8px' }}>
-          <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>Сьогодні запрошено</div>
+          <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>Сегодня приглашено</div>
           <div style={{ fontWeight: 800, fontSize: 28, color: 'var(--orange)' }}>{data.invited_today}</div>
         </div>
         <div className="card" style={{ textAlign: 'center', padding: '12px 8px' }}>
-          <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>Всього через реф</div>
+          <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>Всего через реф</div>
           <div style={{ fontWeight: 800, fontSize: 28, color: 'var(--orange)' }}>{data.invited_total}</div>
         </div>
       </div>
 
-      {/* Статистика виплат */}
+      {/* Статистика выплат */}
       <div style={{
         background: 'rgba(255,184,48,.06)', border: '1px solid rgba(255,184,48,.2)',
         borderRadius: 14, padding: '12px 14px',
       }}>
-        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>🤝 Виплати реферальних нагород</div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>🤝 Выплаты реферальных наград</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>Сьогодні</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>Сегодня</span>
           <span style={{ fontWeight: 700, fontSize: 13, color: '#FFD700' }}>⭐{data.payouts.today_stars} ({data.payouts.today_count})</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>Всього</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>Всего</span>
           <span style={{ fontWeight: 800, fontSize: 15, color: '#FFD700' }}>⭐{data.payouts.total_stars} ({data.payouts.total_count})</span>
         </div>
       </div>
 
-      {/* Таблиця реферерів */}
+      {/* Таблица рефереров */}
       {data.referrers.length === 0 ? (
-        <p className="muted" style={{ fontSize: 13 }}>Рефералів ще немає</p>
+        <p className="muted" style={{ fontSize: 13 }}>Рефералов ещё нет</p>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           {/* Заголовок */}
@@ -977,7 +977,7 @@ function ReferralsTab() {
             <span>Реферер</span>
             <span style={{ textAlign: 'center' }}>Запр.</span>
             <span style={{ textAlign: 'center' }}>Купили</span>
-            <span style={{ textAlign: 'right' }}>Зірки</span>
+            <span style={{ textAlign: 'right' }}>Звёзды</span>
           </div>
           {data.referrers.map((r, i) => (
             <div key={r.id} style={{
@@ -1024,8 +1024,8 @@ function PromoActivationsList({ promoId }: { promoId: number }) {
     adminApi.promoActivations(promoId).then(setItems).catch(() => setItems([]))
   }, [promoId])
 
-  if (items === null) return <div className="muted" style={{ fontSize: 12, padding: '8px 0' }}>Завантаження...</div>
-  if (items.length === 0) return <div className="muted" style={{ fontSize: 12, padding: '8px 0' }}>Ще ніхто не активував</div>
+  if (items === null) return <div className="muted" style={{ fontSize: 12, padding: '8px 0' }}>Загрузка...</div>
+  if (items.length === 0) return <div className="muted" style={{ fontSize: 12, padding: '8px 0' }}>Ещё никто не активировал</div>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 8 }}>
@@ -1068,7 +1068,7 @@ function PromoCodesTab() {
     const code = newCode.trim()
     const stars = parseInt(newStars)
     const max = parseInt(newMax) || 1
-    if (!code || !stars || stars < 1) { setCreateError('Заповніть всі поля'); return }
+    if (!code || !stars || stars < 1) { setCreateError('Заполните все поля'); return }
     setCreating(true); setCreateError(null); setCreateOk(false)
     try {
       await adminApi.promoCreate(code, stars, max)
@@ -1095,29 +1095,29 @@ function PromoCodesTab() {
   return (
     <div>
       <div className="card" style={{ marginBottom: 14 }}>
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>🎟 Новий промокод</div>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>🎟 Новый промокод</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <input style={inputS} placeholder="Промокод (будь-які символи)" value={newCode}
+          <input style={inputS} placeholder="Промокод (любые символы)" value={newCode}
             onChange={e => setNewCode(e.target.value)} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <input style={inputS} type="number" min="1" placeholder="Зірок ⭐"
+            <input style={inputS} type="number" min="1" placeholder="Звёзд ⭐"
               value={newStars} onChange={e => setNewStars(e.target.value)} />
-            <input style={inputS} type="number" min="1" placeholder="Макс. активацій"
+            <input style={inputS} type="number" min="1" placeholder="Макс. активаций"
               value={newMax} onChange={e => setNewMax(e.target.value)} />
           </div>
           {createError && <div style={{ color: 'var(--red)', fontSize: 13 }}>❌ {createError}</div>}
-          {createOk    && <div style={{ color: '#4CAF72', fontSize: 13 }}>✅ Промокод створено!</div>}
+          {createOk    && <div style={{ color: '#4CAF72', fontSize: 13 }}>✅ Промокод создан!</div>}
           <button className="btn btn-primary" disabled={creating} onClick={create}>
-            {creating ? '⏳...' : '+ Створити промокод'}
+            {creating ? '⏳...' : '+ Создать промокод'}
           </button>
         </div>
       </div>
 
-      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>Список промокодів ({codes.length})</div>
+      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>Список промокодов ({codes.length})</div>
       {loading ? (
         <div className="card"><div className="skeleton" style={{ height: 100 }} /></div>
       ) : codes.length === 0 ? (
-        <div className="card" style={{ color: 'var(--muted)', textAlign: 'center', padding: 24 }}>Немає промокодів</div>
+        <div className="card" style={{ color: 'var(--muted)', textAlign: 'center', padding: 24 }}>Нет промокодов</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {codes.map(c => (
@@ -1129,7 +1129,7 @@ function PromoCodesTab() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 800, fontSize: 15, letterSpacing: 1 }}>{c.code}</div>
                   <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>
-                    ⭐{c.reward_stars} · {c.activations}/{c.max_activations} активацій · {fmt(c.created_at)}
+                    ⭐{c.reward_stars} · {c.activations}/{c.max_activations} активаций · {fmt(c.created_at)}
                     {c.activations > 0 && <span style={{ marginLeft: 4 }}>{expandedId === c.id ? '▲' : '▼'}</span>}
                   </div>
                 </div>
@@ -1138,14 +1138,14 @@ function PromoCodesTab() {
                   background: c.is_active ? 'rgba(76,175,114,.15)' : 'rgba(255,59,48,.1)',
                   color: c.is_active ? '#4CAF72' : 'var(--red)',
                 }}>
-                  {c.is_active ? 'Активний' : 'Вимкнено'}
+                  {c.is_active ? 'Активный' : 'Выключено'}
                 </div>
                 <button
                   className="btn btn-secondary"
                   style={{ width: 'auto', padding: '6px 12px', fontSize: 12 }}
                   onClick={e => { e.stopPropagation(); toggle(c.id) }}
                 >
-                  {c.is_active ? 'Вимкнути' : 'Увімкнути'}
+                  {c.is_active ? 'Выключить' : 'Включить'}
                 </button>
               </div>
               {expandedId === c.id && (
@@ -1163,11 +1163,11 @@ function PromoCodesTab() {
 
 // ── Earnings chart tab ──────────────────────────────────────────────────────
 const METHOD_META = {
-  stars:     { label: '⭐ Зірки',        color: '#ff6b2b' },
+  stars:     { label: '⭐ Звёзды',        color: '#ff6b2b' },
   cryptobot: { label: '💎 CryptoBot',    color: '#3ba3ff' },
   heleket:   { label: '🪙 Heleket',      color: '#818cf8' },
   sbp:       { label: '🏦 СБП',          color: '#14B88A' },
-  admin:     { label: '👤 Адмін (розіграші/реклама)', color: '#9a9a9a' },
+  admin:     { label: '👤 Админ (розыгрыши/реклама)', color: '#9a9a9a' },
 } as const
 type MethodKey = keyof typeof METHOD_META
 
@@ -1187,7 +1187,7 @@ interface Bucket {
 
 function groupDays(days: EarningsDay[], size: number): Bucket[] {
   const out: Bucket[] = []
-  // Групуємо з кінця, щоб останній (актуальний) стовпець був повним справа.
+  // Группируем з кінця, чтобы последний (актуальный) столбец був повним справа.
   for (let end = days.length; end > 0; end -= size) {
     const slice = days.slice(Math.max(0, end - size), end)
     const b: Bucket = { label: '', stars_usd: 0, cryptobot_usd: 0, heleket_usd: 0, sbp_usd: 0, admin_usd: 0, profit_usd: 0 }
@@ -1242,9 +1242,9 @@ function EarningsTab() {
   const sumRevenue = sum(d => d.revenue_usd)
   const sumTotal = buckets.reduce((a, b) => a + bTotal(b), 0)
 
-  const netOf = (b: Bucket) => Math.max(0, b.profit_usd)   // лінія = прибуток з продажів
+  const netOf = (b: Bucket) => Math.max(0, b.profit_usd)   // линия = прибыль с продаж
 
-  // ── Геометрія графіка (компактна, адаптивна ширина стовпців) ──
+  // ── Геометрия графика (компактна, адаптивна ширина столбцов) ──
   const AX = 28, TOP = 10, PLOT_H = 118, GAP = 9
   const nb = buckets.length || 1
   let barW = Math.floor((320 - GAP * (nb + 1)) / nb)
@@ -1261,7 +1261,7 @@ function EarningsTab() {
   const segMethods: MethodKey[] = ['stars', 'cryptobot', 'heleket', 'sbp', 'admin']
   const seg = (b: Bucket, k: MethodKey) => (b as any)[`${k}_usd`] as number
   const methodSum: Record<MethodKey, number> = { stars: sumStars, cryptobot: sumCryptobot, heleket: sumHeleket, sbp: sumSbp, admin: sumAdmin }
-  const SHORT: Record<MethodKey, string> = { stars: '⭐ Зірки', cryptobot: '💎 CryptoBot', heleket: '🪙 Heleket', sbp: '🏦 СБП', admin: '👤 Адмін' }
+  const SHORT: Record<MethodKey, string> = { stars: '⭐ Звёзды', cryptobot: '💎 CryptoBot', heleket: '🪙 Heleket', sbp: '🏦 СБП', admin: '👤 Админ' }
 
   const btnSeg = (active: boolean): React.CSSProperties => ({
     flex: 1, padding: '6px 4px', fontSize: 12, fontWeight: active ? 700 : 500,
@@ -1272,14 +1272,14 @@ function EarningsTab() {
   })
 
   const tiles = [
-    { l: '💵 Поповнення', v: sumTotal, c: 'var(--orange)' },
-    { l: '💰 Дохід', v: sumRevenue, c: '#3ba3ff' },
-    { l: '📈 Прибуток', v: sumProfit, c: '#4cff8f' },
+    { l: '💵 Пополнения', v: sumTotal, c: 'var(--orange)' },
+    { l: '💰 Доход', v: sumRevenue, c: '#3ba3ff' },
+    { l: '📈 Прибыль', v: sumProfit, c: '#4cff8f' },
   ]
 
   return (
     <div>
-      {/* Керування — компактно */}
+      {/* Управление — компактно */}
       <div className="card" style={{ marginBottom: 8, padding: '10px 12px' }}>
         <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
           {[7, 14, 30, 90].map(n => (
@@ -1294,7 +1294,7 @@ function EarningsTab() {
             style={{ flex: 1, background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 6px', color: 'var(--text)', fontSize: 12 }} />
         </div>
         <div style={{ display: 'flex', gap: 5 }}>
-          {([[1, 'День'], [3, '3 дні'], [7, 'Тиждень']] as const).map(([g, lbl]) => (
+          {([[1, 'День'], [3, '3 дня'], [7, 'Неделя']] as const).map(([g, lbl]) => (
             <button key={g} style={btnSeg(group === g)} onClick={() => setGroup(g)}>{lbl}</button>
           ))}
         </div>
@@ -1304,7 +1304,7 @@ function EarningsTab() {
         <div className="card"><div className="skeleton" style={{ height: 200 }} /></div>
       ) : (
         <>
-          {/* 3 компактні плитки */}
+          {/* 3 компактные плитки */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 8 }}>
             {tiles.map(t => (
               <div key={t.l} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '8px 8px' }}>
@@ -1314,10 +1314,10 @@ function EarningsTab() {
             ))}
           </div>
 
-          {/* Графік */}
+          {/* График */}
           <div className="card" style={{ padding: '10px 6px 8px' }}>
             {buckets.length === 0 ? (
-              <div className="muted" style={{ fontSize: 13, textAlign: 'center', padding: 20 }}>Немає даних за період</div>
+              <div className="muted" style={{ fontSize: 13, textAlign: 'center', padding: 20 }}>Нет данных за период</div>
             ) : (
               <div style={{ overflowX: nb <= 16 ? 'visible' : 'auto' }}>
                 <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`}
@@ -1365,7 +1365,7 @@ function EarningsTab() {
                 </svg>
               </div>
             )}
-            {/* Легенда-фільтр з сумами по методах */}
+            {/* Легенда-фильтр з суммами по методам */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
               {segMethods.map(k => (
                 <button key={k} onClick={() => toggleMethod(k)} style={{
@@ -1385,11 +1385,11 @@ function EarningsTab() {
                 color: showProfit ? 'var(--text)' : 'var(--muted)', opacity: showProfit ? 1 : 0.5,
               }}>
                 <span style={{ width: 11, height: 3, borderRadius: 2, background: '#4cff8f' }} />
-                📈 Прибуток
+                📈 Прибыль
               </button>
             </div>
             <div style={{ fontSize: 9, color: 'var(--muted)', textAlign: 'center', marginTop: 6 }}>
-              стовпці — поповнення за методами · <span style={{ color: '#4cff8f' }}>━</span> прибуток з продажів ($)
+              столбцы — пополнения по методам · <span style={{ color: '#4cff8f' }}>━</span> прибыль с продаж ($)
             </div>
           </div>
         </>
@@ -1477,7 +1477,7 @@ function NftAdminTab() {
             border: subTab === t ? '1px solid rgba(155,89,245,.4)' : '1px solid transparent',
             borderRadius: 8, cursor: 'pointer',
           }}>
-            {t === 'catalog' ? '📋 Каталог' : '📅 Оренди'}
+            {t === 'catalog' ? '📋 Каталог' : '📅 Аренды'}
           </button>
         ))}
       </div>
@@ -1486,7 +1486,7 @@ function NftAdminTab() {
         <>
           {/* Add form */}
           <div className="card" style={{ marginBottom: 14 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>➕ Додати юзернейм</div>
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>➕ Добавить юзернейм</div>
             <input
               placeholder="username (без @)"
               value={addUsername}
@@ -1494,7 +1494,7 @@ function NftAdminTab() {
               style={{ width: '100%', marginBottom: 8, padding: '9px 12px', borderRadius: 10, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }}
             />
             <textarea
-              placeholder="Опис (необов'язково)"
+              placeholder="Описание (необязательно)"
               value={addDesc}
               onChange={e => setAddDesc(e.target.value)}
               rows={2}
@@ -1502,24 +1502,24 @@ function NftAdminTab() {
             />
             <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Ціна ⭐</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Цена ⭐</div>
                 <input type="number" min={1} value={addPrice} onChange={e => setAddPrice(+e.target.value)}
                   style={{ width: '100%', padding: '9px 10px', borderRadius: 10, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }} />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Тривалість</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Длительность</div>
                 <select value={addDuration} onChange={e => setAddDuration(+e.target.value)}
                   style={{ width: '100%', padding: '9px 10px', borderRadius: 10, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }}>
-                  {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d} днів</option>)}
+                  {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d} дней</option>)}
                 </select>
               </div>
             </div>
             <button className="btn btn-primary" style={{ width: '100%' }} disabled={adding || !addUsername.trim()} onClick={handleAdd}>
-              {adding ? '⏳...' : 'Додати'}
+              {adding ? '⏳...' : 'Добавить'}
             </button>
           </div>
 
-          {loading && <div className="muted" style={{ textAlign: 'center', padding: 20 }}>Завантаження...</div>}
+          {loading && <div className="muted" style={{ textAlign: 'center', padding: 20 }}>Загрузка...</div>}
 
           {items.map(nft => (
             <div key={nft.id} className="card" style={{ marginBottom: 10 }}>
@@ -1529,19 +1529,19 @@ function NftAdminTab() {
                     placeholder="username"
                     style={{ width: '100%', marginBottom: 7, padding: '8px 11px', borderRadius: 9, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }} />
                   <textarea value={editForm.description ?? (nft.description || '')} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                    rows={2} placeholder="Опис"
+                    rows={2} placeholder="Описание"
                     style={{ width: '100%', marginBottom: 7, padding: '8px 11px', borderRadius: 9, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13, resize: 'none', boxSizing: 'border-box' }} />
                   <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                     <input type="number" value={editForm.price_stars ?? nft.price_stars} onChange={e => setEditForm(f => ({ ...f, price_stars: +e.target.value }))}
                       style={{ flex: 1, padding: '8px 10px', borderRadius: 9, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13 }} />
                     <select value={editForm.duration_days ?? nft.duration_days} onChange={e => setEditForm(f => ({ ...f, duration_days: +e.target.value }))}
                       style={{ flex: 1, padding: '8px 10px', borderRadius: 9, background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13 }}>
-                      {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d} днів</option>)}
+                      {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d} дней</option>)}
                     </select>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setEditingId(null); setEditForm({}) }}>Скасувати</button>
-                    <button className="btn btn-primary" style={{ flex: 2 }} onClick={() => handleEdit(nft.id)}>Зберегти</button>
+                    <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setEditingId(null); setEditForm({}) }}>Отменить</button>
+                    <button className="btn btn-primary" style={{ flex: 2 }} onClick={() => handleEdit(nft.id)}>Сохранить</button>
                   </div>
                 </div>
               ) : (
@@ -1549,37 +1549,37 @@ function NftAdminTab() {
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
                     <div>
                       <span style={{ fontWeight: 800, fontSize: 17, fontFamily: 'monospace', color: nft.is_available ? '#c084fc' : 'var(--muted)' }}>@{nft.username}</span>
-                      {!nft.is_available && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--muted)' }}>[прихований]</span>}
+                      {!nft.is_available && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--muted)' }}>[скрытый]</span>}
                     </div>
                     <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--orange)' }}>⭐{nft.price_stars}</span>
                   </div>
                   {nft.description && <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 6 }}>{nft.description}</div>}
-                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: nft.currently_rented ? 6 : 10 }}>⏳ {nft.duration_days} днів</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: nft.currently_rented ? 6 : 10 }}>⏳ {nft.duration_days} дней</div>
                   {nft.currently_rented && nft.expires_at && (
                     <div style={{ fontSize: 12, color: '#ff9090', marginBottom: 10, padding: '6px 10px', background: 'rgba(255,80,80,.08)', borderRadius: 8 }}>
-                      🔒 Орендовано до {new Date(nft.expires_at).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      🔒 Арендовано до {new Date(nft.expires_at).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button className="btn btn-secondary" style={{ flex: 1, fontSize: 12, padding: '7px 6px' }}
                       onClick={() => handleToggle(nft)}>
-                      {nft.is_available ? '🙈 Приховати' : '👁 Показати'}
+                      {nft.is_available ? '🙈 Скрыть' : '👁 Показать'}
                     </button>
                     <button className="btn btn-secondary" style={{ flex: 1, fontSize: 12, padding: '7px 6px' }}
                       onClick={() => { setEditingId(nft.id); setEditForm({ username: nft.username, description: nft.description || '', price_stars: nft.price_stars, duration_days: nft.duration_days }) }}>
-                      ✏️ Редагувати
+                      ✏️ Редактировать
                     </button>
                     {deleteConfirm === nft.id ? (
                       <div style={{ display: 'flex', gap: 4, flex: 1 }}>
-                        <button className="btn btn-secondary" style={{ flex: 1, fontSize: 11, padding: '7px 4px' }} onClick={() => setDeleteConfirm(null)}>Ні</button>
-                        <button className="btn" style={{ flex: 1, fontSize: 11, padding: '7px 4px', background: '#c0392b', color: '#fff' }} onClick={() => handleDelete(nft.id)}>Так</button>
+                        <button className="btn btn-secondary" style={{ flex: 1, fontSize: 11, padding: '7px 4px' }} onClick={() => setDeleteConfirm(null)}>Нет</button>
+                        <button className="btn" style={{ flex: 1, fontSize: 11, padding: '7px 4px', background: '#c0392b', color: '#fff' }} onClick={() => handleDelete(nft.id)}>Да</button>
                       </div>
                     ) : (
                       <button
                         className="btn btn-secondary" style={{ flex: 1, fontSize: 12, padding: '7px 6px', opacity: nft.currently_rented ? 0.4 : 1 }}
                         disabled={nft.currently_rented}
                         onClick={() => setDeleteConfirm(nft.id)}>
-                        🗑 Видалити
+                        🗑 Удалить
                       </button>
                     )}
                   </div>
@@ -1589,16 +1589,16 @@ function NftAdminTab() {
           ))}
 
           {!loading && items.length === 0 && (
-            <div className="muted" style={{ textAlign: 'center', padding: 30 }}>Немає юзернеймів</div>
+            <div className="muted" style={{ textAlign: 'center', padding: 30 }}>Нет юзернеймов</div>
           )}
         </>
       )}
 
       {subTab === 'rentals' && (
         <>
-          {loading && <div className="muted" style={{ textAlign: 'center', padding: 20 }}>Завантаження...</div>}
+          {loading && <div className="muted" style={{ textAlign: 'center', padding: 20 }}>Загрузка...</div>}
           {!loading && rentals.length === 0 && (
-            <div className="muted" style={{ textAlign: 'center', padding: 30 }}>Оренд немає</div>
+            <div className="muted" style={{ textAlign: 'center', padding: 30 }}>Аренд нет</div>
           )}
           {rentals.map(r => {
             const daysLeft = r.days_left
@@ -1611,7 +1611,7 @@ function NftAdminTab() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
                   <span style={{ fontWeight: 800, fontFamily: 'monospace', color: '#c084fc' }}>@{r.username}</span>
                   <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: `${rowColor}22`, color: rowColor, border: `1px solid ${rowColor}44` }}>
-                    {isExpired ? 'Закінчився' : `${daysLeft} дн. залишилось`}
+                    {isExpired ? 'Истёк' : `${daysLeft} дн. осталось`}
                   </span>
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 2 }}>
@@ -1639,7 +1639,7 @@ function FortuneAdminTab() {
   }, [])
 
   if (loading) return <div style={{ textAlign: 'center', padding: 32, color: 'var(--muted)' }}>⏳</div>
-  if (!data) return <div style={{ textAlign: 'center', padding: 32, color: 'var(--muted)' }}>Немає даних</div>
+  if (!data) return <div style={{ textAlign: 'center', padding: 32, color: 'var(--muted)' }}>Нет данных</div>
 
   const profit_usd = (data.total_admin_profit_stars * 0.013).toFixed(2)
   const prizes_usd = (data.total_prizes_stars * 0.013).toFixed(2)
@@ -1660,61 +1660,61 @@ function FortuneAdminTab() {
     <div>
       <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>🎲 Статистика кейса</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-        {stat('Всього прокрутів', `${data.total_spins}`, `~$${revenue_usd}`)}
-        {stat('Прибуток адміна', `⭐${data.total_admin_profit_stars}`, `~$${profit_usd}`)}
-        {stat('Поточний пул', `⭐${data.balance_stars}`, `~$${(data.balance_stars * 0.013).toFixed(2)}`)}
-        {stat('Виграшів', `${data.total_prizes_count}`, `⭐${data.total_prizes_stars} (~$${prizes_usd})`)}
+        {stat('Всего прокрутов', `${data.total_spins}`, `~$${revenue_usd}`)}
+        {stat('Прибыль админа', `⭐${data.total_admin_profit_stars}`, `~$${profit_usd}`)}
+        {stat('Текущий пул', `⭐${data.balance_stars}`, `~$${(data.balance_stars * 0.013).toFixed(2)}`)}
+        {stat('Выигрышей', `${data.total_prizes_count}`, `⭐${data.total_prizes_stars} (~$${prizes_usd})`)}
       </div>
 
       <div style={{
         background: 'rgba(255,107,43,.08)', border: '1px solid rgba(255,107,43,.2)',
         borderRadius: 14, padding: 14,
       }}>
-        <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>💰 Механіка маржі</div>
+        <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>💰 Механика маржи</div>
         <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>
-          Прокрут: 100⭐. Маржа = 100 − вартість акаунта в шопі.<br />
-          З маржі: 20% → адмін, 80% → пул.<br />
-          Дорогі акаунти (&gt;100⭐) — пул покриває різницю.
+          Прокрут: 100⭐. Маржа = 100 − стоимость аккаунта в шопе.<br />
+          З маржи: 20% → админ, 80% → пул.<br />
+          Дорогие аккаунты (&gt;100⭐) — пул покрывает разницу.
         </div>
         {data.total_spins > 0 && (
           <div style={{ fontSize: 13, marginTop: 6 }}>
-            Ефективний профіт адміна: {((data.total_admin_profit_stars / (data.total_spins * 100)) * 100).toFixed(1)}% від обороту
+            Эффективный профит админа: {((data.total_admin_profit_stars / (data.total_spins * 100)) * 100).toFixed(1)}% от оборота
           </div>
         )}
       </div>
 
-      {/* Дохід з ТГ-акаунтів, виданих через кейс */}
+      {/* Доход с ТГ-аккаунтов, выданных через кейс */}
       {(() => {
         const accClaims = data.acc_claims ?? 0
         const accCost = data.acc_cost_usd ?? 0
         const starsClaims = data.stars_claims ?? 0
-        const accRevenue = accClaims * 100 * 0.013  // прокрути, що завершились акаунтом
+        const accRevenue = accClaims * 100 * 0.013  // прокруты, что завершились аккаунтом
         const accNet = accRevenue - accCost
         return (
           <div style={{
             background: 'rgba(42,171,238,.08)', border: '1px solid rgba(42,171,238,.25)',
             borderRadius: 14, padding: 14, marginTop: 12,
           }}>
-            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>📱 Дохід з ТГ-акаунтів (через кейс)</div>
+            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>📱 Доход с ТГ-аккаунтов (через кейс)</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5, fontSize: 13 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--muted)' }}>Видано акаунтів</span>
+                <span style={{ color: 'var(--muted)' }}>Выдано аккаунтов</span>
                 <span style={{ fontWeight: 700 }}>{accClaims}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--muted)' }}>Виручка (прокрути→акк)</span>
+                <span style={{ color: 'var(--muted)' }}>Выручка (прокруты→акк)</span>
                 <span style={{ fontWeight: 700 }}>${accRevenue.toFixed(2)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--muted)' }}>Собівартість (Lolz)</span>
+                <span style={{ color: 'var(--muted)' }}>Себестоимость (Lolz)</span>
                 <span style={{ fontWeight: 700 }}>${accCost.toFixed(2)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 5, marginTop: 2 }}>
-                <span style={{ fontWeight: 700 }}>Чистий дохід</span>
+                <span style={{ fontWeight: 700 }}>Чистый доход</span>
                 <span style={{ fontWeight: 900, color: accNet >= 0 ? '#22c55e' : '#ef4444' }}>${accNet.toFixed(2)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-                <span>Вибрали зірки замість акк</span>
+                <span>Выбрали звёзды вместо акк</span>
                 <span>{starsClaims}</span>
               </div>
             </div>
@@ -1767,11 +1767,11 @@ function PartnersAdminTab() {
   }
 
   if (loading) return <div style={{ textAlign: 'center', padding: 32, color: 'var(--muted)' }}>⏳</div>
-  if (!data) return <div style={{ textAlign: 'center', padding: 32, color: 'var(--muted)' }}>Немає даних</div>
+  if (!data) return <div style={{ textAlign: 'center', padding: 32, color: 'var(--muted)' }}>Нет данных</div>
 
   return (
     <div>
-      <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 12 }}>🤝 Партнёри</div>
+      <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 12 }}>🤝 Партнёры</div>
 
       {/* Add partner */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
@@ -1826,18 +1826,18 @@ function PartnersAdminTab() {
 }
 
 const TABS: { id: AdminTab; label: string }[] = [
-  { id: 'overview',  label: '📊 Огляд' },
-  { id: 'users',     label: '👥 Юзери' },
-  { id: 'orders',    label: '📦 Замовл.' },
-  { id: 'topups',    label: '💰 Поповн.' },
-  { id: 'earnings',  label: '📈 Графік' },
-  { id: 'broadcast', label: '📢 Розсилка' },
+  { id: 'overview',  label: '📊 Обзор' },
+  { id: 'users',     label: '👥 Юзеры' },
+  { id: 'orders',    label: '📦 Заказы' },
+  { id: 'topups',    label: '💰 Пополн.' },
+  { id: 'earnings',  label: '📈 График' },
+  { id: 'broadcast', label: '📢 Рассылка' },
   { id: 'promo',     label: '⭐ Промо' },
-  { id: 'referrals', label: '👥 Рефи' },
-  { id: 'codes',     label: '🎟 Промокоди' },
-  { id: 'nft',       label: '🔤 NFT Юзи' },
+  { id: 'referrals', label: '👥 Рефы' },
+  { id: 'codes',     label: '🎟 Промокоды' },
+  { id: 'nft',       label: '🔤 NFT Юзы' },
   { id: 'fortune',   label: '🎲 Рандом акк' },
-  { id: 'partners',  label: '🤝 Партнёри' },
+  { id: 'partners',  label: '🤝 Партнёры' },
   { id: 'api',       label: '🔌 API' },
   { id: 'fragment',  label: '⭐ Fragment' },
 ]
@@ -1847,7 +1847,7 @@ export default function Admin() {
 
   return (
     <div className="page">
-      <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 12 }}>⚙️ Адмін-панель</div>
+      <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 12 }}>⚙️ Админ-панель</div>
 
       {/* Tab bar — chunked into rows of 3 */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 14 }}>
@@ -1904,15 +1904,15 @@ function FragmentCookiesTab() {
       const res = await adminApi.fragmentCookiesSet(input.trim())
       setStatus(res)
       setInput('')
-      setMsg({ ok: true, text: `Збережено ${res.count} кук: ${res.keys.join(', ')}` })
+      setMsg({ ok: true, text: `Сохранено ${res.count} кук: ${res.keys.join(', ')}` })
     } catch (e: any) {
-      setMsg({ ok: false, text: e?.message || 'Помилка збереження' })
+      setMsg({ ok: false, text: e?.message || 'Ошибка сохранения' })
     } finally { setSaving(false) }
   }
 
   async function clear() {
-    if (!confirm('Видалити збережені куки Fragment?')) return
-    try { const res = await adminApi.fragmentCookiesClear(); setStatus(res); setMsg({ ok: true, text: 'Куки видалено' }) } catch {}
+    if (!confirm('Удалить сохранённые куки Fragment?')) return
+    try { const res = await adminApi.fragmentCookiesClear(); setStatus(res); setMsg({ ok: true, text: 'Куки удалено' }) } catch {}
   }
 
   const box: React.CSSProperties = {
@@ -1924,33 +1924,33 @@ function FragmentCookiesTab() {
       <div style={box}>
         <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6 }}>⭐ Куки Fragment</div>
         <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
-          Куки для прямої оплати Stars/Premium. Бери їх у браузері: <b>fragment.com</b> (залогінений з гаманцем)
-          → F12 → Application → Cookies → скопіюй значення <code>stel_ssid</code>, <code>stel_token</code>,
+          Куки для прямой оплаты Stars/Premium. Бери их в браузере: <b>fragment.com</b> (залогинен с кошельком)
+          → F12 → Application → Cookies → скопируй значения <code>stel_ssid</code>, <code>stel_token</code>,
           <code>stel_dt</code>, <code>stel_ton_token</code>.
         </div>
       </div>
 
       {/* Статус */}
       <div style={box}>
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Поточний статус</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Текущий статус</div>
         {status ? (
           status.has ? (
             <div>
               <div style={{ fontWeight: 700, color: status.valid ? '#4CAF72' : 'var(--red)' }}>
-                {status.valid ? '✅ Куки валідні' : '❌ Куки невалідні'}
+                {status.valid ? '✅ Куки валидны' : '❌ Куки невалидны'}
               </div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
-                Ключі: {status.keys.join(', ') || '—'}<br />
-                Джерело: {status.source} · Оновлено: {status.updated_at ? new Date(status.updated_at).toLocaleString('uk-UA') : '—'}
+                Ключи: {status.keys.join(', ') || '—'}<br />
+                Источник: {status.source} · Обновлено: {status.updated_at ? new Date(status.updated_at).toLocaleString('ru-RU') : '—'}
               </div>
             </div>
-          ) : <div style={{ color: 'var(--red)', fontWeight: 700 }}>⚠️ Куки не задані</div>
+          ) : <div style={{ color: 'var(--red)', fontWeight: 700 }}>⚠️ Куки не заданы</div>
         ) : <div className="skeleton" style={{ height: 20 }} />}
       </div>
 
-      {/* Ввід */}
+      {/* Ввод */}
       <div style={box}>
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Вставити куки (рядок або по одній на рядок)</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Вставить куки (строкой или по одной на строку)</div>
         <textarea
           value={input} onChange={e => setInput(e.target.value)}
           placeholder="stel_ssid=...; stel_token=...; stel_dt=...; stel_ton_token=..."
@@ -1968,7 +1968,7 @@ function FragmentCookiesTab() {
         )}
         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
           <button className="btn btn-primary" disabled={!input.trim() || saving}
-            onClick={save} style={{ flex: 1 }}>{saving ? '⏳...' : '💾 Зберегти'}</button>
+            onClick={save} style={{ flex: 1 }}>{saving ? '⏳...' : '💾 Сохранить'}</button>
           {status?.has && (
             <button className="btn" onClick={clear}
               style={{ background: 'var(--card2)', border: '1px solid var(--border)', color: 'var(--red)' }}>🗑</button>
