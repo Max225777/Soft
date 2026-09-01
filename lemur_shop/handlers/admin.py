@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from decimal import Decimal
 
@@ -539,3 +540,100 @@ async def cmd_fragpremium(message: Message) -> None:
     icon = "✅" if res.ok else "❌"
     dry = " · DRY-RUN (реально не оплачено)" if res.dry_run else ""
     await message.answer(f"{icon} {res.detail}\n⛽ газ ~{res.total_ton:.4f} TON (оплата в USDT){dry}{price_txt}", parse_mode="HTML")
+
+
+# ─── Рассылка через чат: перешли/напиши → превью → подтверждение +/− ─────────────
+# Хранилище состояния по каждому админу: {"stage": ..., "chat_id":.., "message_id":..}
+_bcast_flow: dict[int, dict] = {}
+
+
+async def _run_copy_broadcast(bot, from_chat_id: int, message_id: int, admin_id: int) -> None:
+    """Копирует исходное сообщение (медиа/текст/форматирование точь-в-точь) всем
+    незаблокированным пользователям через copy_message."""
+    async with AsyncSessionLocal() as s:
+        uids = (await s.execute(select(User.id).where(User.is_banned == False))).scalars().all()
+    sent = failed = 0
+    for uid in uids:
+        try:
+            await bot.copy_message(chat_id=uid, from_chat_id=from_chat_id, message_id=message_id)
+            sent += 1
+        except Exception:
+            failed += 1
+        await asyncio.sleep(0.05)  # ~20 msg/s
+    log.info("CHAT BROADCAST done: sent=%s failed=%s total=%s", sent, failed, len(uids))
+    try:
+        await bot.send_message(
+            admin_id,
+            f"✅ <b>Рассылка завершена</b>\n\n"
+            f"📨 Отправлено: <b>{sent}</b>\n"
+            f"❌ Ошибки (заблокировали бота): {failed}\n"
+            f"👥 Всего в базе: {len(uids)}",
+            parse_mode="HTML",
+        )
+    except Exception:
+        pass
+
+
+@router.message(Command("post", "рассылка", "розсилка", "broadcast"), IsAdmin())
+async def cmd_post(message: Message) -> None:
+    _bcast_flow[message.from_user.id] = {"stage": "await_content"}
+    await message.answer(
+        "📢 <b>Рассылка</b>\n\n"
+        "Перешлите или напишите сюда сообщение для рассылки. Оно уйдёт всем "
+        "пользователям <b>точь-в-точь</b> — с медиа, ссылками и форматированием.\n\n"
+        "Отмена: /cancel",
+        parse_mode="HTML",
+    )
+
+
+@router.message(Command("cancel"), IsAdmin())
+async def cmd_cancel_bcast(message: Message) -> None:
+    if _bcast_flow.pop(message.from_user.id, None):
+        await message.answer("❌ Рассылка отменена.")
+
+
+class InBroadcastFlow(BaseFilter):
+    """Матчит только сообщения админа, который в процессе рассылки (и не команду)."""
+    async def __call__(self, message: Message) -> bool:
+        if not message.from_user or message.from_user.id not in _bcast_flow:
+            return False
+        if (message.text or "").startswith("/"):
+            return False  # команды (/cancel и т.п.) обрабатываются отдельно
+        return True
+
+
+@router.message(InBroadcastFlow())
+async def bcast_flow_handler(message: Message) -> None:
+    uid = message.from_user.id
+    st = _bcast_flow.get(uid)
+    if not st:
+        return
+
+    if st["stage"] == "await_content":
+        _bcast_flow[uid] = {"stage": "await_confirm", "chat_id": message.chat.id, "message_id": message.message_id}
+        # Превью — копия сообщения именно так, как его увидят пользователи
+        try:
+            await message.bot.copy_message(chat_id=message.chat.id, from_chat_id=message.chat.id, message_id=message.message_id)
+        except Exception as e:
+            _bcast_flow.pop(uid, None)
+            await message.answer(f"❌ Не удалось подготовить превью: {e}\nПопробуйте ещё раз: /post", parse_mode=None)
+            return
+        await message.answer(
+            "☝️ <b>Так будет выглядеть рассылка.</b>\n\n"
+            "Разослать всем пользователям?\n"
+            "Напишите <b>+</b> — отправить · <b>−</b> — отмена",
+            parse_mode="HTML",
+        )
+        return
+
+    if st["stage"] == "await_confirm":
+        txt = (message.text or "").strip().lower()
+        if txt in ("+", "➕", "да", "yes", "y"):
+            src = _bcast_flow.pop(uid)
+            await message.answer("🚀 Начинаю рассылку… пришлю отчёт по завершении.")
+            asyncio.create_task(_run_copy_broadcast(message.bot, src["chat_id"], src["message_id"], uid))
+        elif txt in ("-", "−", "–", "нет", "no", "n"):
+            _bcast_flow.pop(uid, None)
+            await message.answer("❌ Рассылка отменена.")
+        else:
+            await message.answer("Напишите <b>+</b> чтобы разослать всем, или <b>−</b> чтобы отменить.", parse_mode="HTML")
