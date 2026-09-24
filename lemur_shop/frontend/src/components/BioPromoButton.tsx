@@ -83,36 +83,39 @@ export default function BioPromoButton({ lang, variant = 'button' }: Props) {
   const L = {
     ru: {
       tabBio: '📝 Описание', tabName: '🏷 Фамилия',
-      nameTitle: 'Фамилия = @LEMUR_SHOP', nameDesc: 'Поставь в фамилию профиля только @LEMUR_SHOP — и получай +2⭐ каждый день.',
+      nameTitle: 'Фамилия = [@LEMUR_SHOP]', nameDesc: 'Поставь в фамилию профиля только [@LEMUR_SHOP] — и получай +2⭐ каждый день.',
       nameStep1: 'Открой «Редактировать профиль» в Telegram',
-      nameStep2: 'В поле «Фамилия» впиши ровно @LEMUR_SHOP',
+      nameStep2: 'В поле «Фамилия» впиши ровно [@LEMUR_SHOP]',
       nameStep3: 'Больше в фамилии ничего быть не должно',
-      nameWarn: '⚠️ В фамилии не должно быть ничего, кроме @LEMUR_SHOP — иначе не засчитается.',
+      nameWarn: '⚠️ В фамилии не должно быть ничего, кроме [@LEMUR_SHOP] — иначе не засчитается.',
       nameActive: '✅ Фамилия активна — +2⭐/день', nameInactive: '❌ Фамилия не найдена',
+      nameExample: 'Пример, как будет в Telegram:',
       earned: 'Заработано', copy: 'Скопировать', copied: '📋 Скопировано',
       ok: '✅ Засчитано!', notActive: '❌ Не найдено. Проверь профиль и попробуй снова.',
       check: 'Проверить', checking: '⏳ Проверяю…', recheck: 'Проверить снова',
     },
     ua: {
       tabBio: '📝 Опис', tabName: '🏷 Прізвище',
-      nameTitle: 'Прізвище = @LEMUR_SHOP', nameDesc: 'Постав у прізвище профілю тільки @LEMUR_SHOP — і отримуй +2⭐ щодня.',
+      nameTitle: 'Прізвище = [@LEMUR_SHOP]', nameDesc: 'Постав у прізвище профілю тільки [@LEMUR_SHOP] — і отримуй +2⭐ щодня.',
       nameStep1: 'Відкрий «Редагувати профіль» у Telegram',
-      nameStep2: 'У полі «Прізвище» впиши рівно @LEMUR_SHOP',
+      nameStep2: 'У полі «Прізвище» впиши рівно [@LEMUR_SHOP]',
       nameStep3: 'Більше в прізвищі нічого бути не повинно',
-      nameWarn: '⚠️ У прізвищі не має бути нічого, окрім @LEMUR_SHOP — інакше не зарахується.',
+      nameWarn: '⚠️ У прізвищі не має бути нічого, окрім [@LEMUR_SHOP] — інакше не зарахується.',
       nameActive: '✅ Прізвище активне — +2⭐/день', nameInactive: '❌ Прізвище не знайдено',
+      nameExample: 'Приклад, як буде в Telegram:',
       earned: 'Зароблено', copy: 'Скопіювати', copied: '📋 Скопійовано',
       ok: '✅ Зараховано!', notActive: '❌ Не знайдено. Перевір профіль і спробуй ще.',
       check: 'Перевірити', checking: '⏳ Перевіряю…', recheck: 'Перевірити ще раз',
     },
     en: {
       tabBio: '📝 Bio', tabName: '🏷 Last name',
-      nameTitle: 'Last name = @LEMUR_SHOP', nameDesc: 'Set your profile last name to just @LEMUR_SHOP and get +2⭐ every day.',
+      nameTitle: 'Last name = [@LEMUR_SHOP]', nameDesc: 'Set your profile last name to just [@LEMUR_SHOP] and get +2⭐ every day.',
       nameStep1: 'Open “Edit profile” in Telegram',
-      nameStep2: 'In the “Last name” field type exactly @LEMUR_SHOP',
+      nameStep2: 'In the “Last name” field type exactly [@LEMUR_SHOP]',
       nameStep3: 'Nothing else should be in the last name',
-      nameWarn: '⚠️ The last name must contain only @LEMUR_SHOP — otherwise it won’t count.',
+      nameWarn: '⚠️ The last name must contain only [@LEMUR_SHOP] — otherwise it won’t count.',
       nameActive: '✅ Last name active — +2⭐/day', nameInactive: '❌ Last name not found',
+      nameExample: 'Example how it looks in Telegram:',
       earned: 'Earned', copy: 'Copy', copied: '📋 Copied',
       ok: '✅ Counted!', notActive: '❌ Not found. Check your profile and try again.',
       check: 'Check', checking: '⏳ Checking…', recheck: 'Check again',
@@ -138,9 +141,9 @@ export default function BioPromoButton({ lang, variant = 'button' }: Props) {
   const tier   = promo?.reward_tier ?? 0
 
   const bannerTxt = {
-    ru: { t: '+2⭐ каждый день', s: 'за фразу в описании профиля', cta: active ? 'Активно ✓' : 'Как получить →' },
-    ua: { t: '+2⭐ щодня',       s: 'за фразу в описі профілю',     cta: active ? 'Активно ✓' : 'Як отримати →' },
-    en: { t: '+2⭐ every day',   s: 'for a phrase in your bio',     cta: active ? 'Active ✓' : 'How to get →' },
+    ru: { t: '+3⭐ каждый день', s: 'за фразу в описании и фамилии', cta: active ? 'Активно ✓' : 'Как получить →' },
+    ua: { t: '+3⭐ щодня',       s: 'за фразу в описі та прізвищі',   cta: active ? 'Активно ✓' : 'Як отримати →' },
+    en: { t: '+3⭐ every day',   s: 'for bio phrase + last name',     cta: active ? 'Active ✓' : 'How to get →' },
   }[lang]
 
   return (
@@ -370,10 +373,33 @@ export default function BioPromoButton({ lang, variant = 'button' }: Props) {
                 ))}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'rgba(255,179,71,.06)', border: '1.5px dashed rgba(255,179,71,.35)', borderRadius: 12, padding: '10px 12px', marginBottom: 10 }}>
-                <code style={{ fontSize: 15, fontWeight: 800, color: '#FFB347' }}>@LEMUR_SHOP</code>
-                <button onClick={() => { navigator.clipboard?.writeText('@LEMUR_SHOP'); setMsg(L.copied) }} style={{ background: 'rgba(255,179,71,.2)', border: '1px solid rgba(255,179,71,.4)', borderRadius: 7, padding: '7px 11px', cursor: 'pointer', color: '#FFB347', fontSize: 12, fontWeight: 700 }}>📋 {L.copy}</button>
+                <code style={{ fontSize: 15, fontWeight: 800, color: '#FFB347' }}>[@LEMUR_SHOP]</code>
+                <button onClick={() => { navigator.clipboard?.writeText('[@LEMUR_SHOP]'); setMsg(L.copied) }} style={{ background: 'rgba(255,179,71,.2)', border: '1px solid rgba(255,179,71,.4)', borderRadius: 7, padding: '7px 11px', cursor: 'pointer', color: '#FFB347', fontSize: 12, fontWeight: 700 }}>📋 {L.copy}</button>
               </div>
               <div style={{ fontSize: 11, color: '#ffb347', marginBottom: 12 }}>{L.nameWarn}</div>
+
+              {/* Приклад профілю Telegram */}
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8, letterSpacing: .5 }}>{L.nameExample}</div>
+              <div style={{ background: '#212121', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(255,255,255,.1)', marginBottom: 14, fontSize: 13 }}>
+                <div style={{ background: '#2b2b2b', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(255,255,255,.07)' }}>
+                  <div style={{ fontSize: 18, color: '#2AABEE' }}>‹</div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{lang === 'ru' ? 'Редактировать профиль' : lang === 'en' ? 'Edit Profile' : 'Редагувати профіль'}</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 10px' }}>
+                  <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'linear-gradient(135deg, #2AABEE, #1178B8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>🦎</div>
+                </div>
+                <div style={{ padding: '8px 14px', borderBottom: '1px solid rgba(255,255,255,.05)', display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#2AABEE', fontSize: 12 }}>{lang === 'ru' ? 'Имя' : lang === 'en' ? 'First name' : 'Ім\'я'}</span>
+                  <span style={{ color: '#fff', fontSize: 12 }}>LEMUR</span>
+                </div>
+                <div style={{ padding: '10px 14px', margin: '6px 8px 10px', background: 'rgba(255,179,71,.1)', border: '1.5px solid rgba(255,179,71,.5)', borderRadius: 8 }}>
+                  <div style={{ color: '#FFB347', fontSize: 11, marginBottom: 4, fontWeight: 700 }}>{lang === 'ru' ? 'Фамилия' : lang === 'en' ? 'Last name' : 'Прізвище'}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                    <code style={{ color: '#fff', fontSize: 14, fontWeight: 800 }}>[@LEMUR_SHOP]</code>
+                    <span style={{ color: '#FFB347', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{lang === 'ru' ? '← сюда' : lang === 'en' ? '← here' : '← сюди'}</span>
+                  </div>
+                </div>
+              </div>
               {promo?.joined && (
                 <div style={{ background: promo.name_active ? 'rgba(255,179,71,.1)' : 'rgba(255,80,80,.08)', border: `1px solid ${promo.name_active ? 'rgba(255,179,71,.35)' : 'rgba(255,80,80,.25)'}`, borderRadius: 14, padding: '12px 14px', marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ fontWeight: 700, fontSize: 13 }}>{promo.name_active ? L.nameActive : L.nameInactive}</div>
