@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { api, smmApi, type Category, type BuyResult, type Me, type SmmService, type NftItem } from '../api'
 import { getT, type Lang } from '../i18n'
 import LegalFooter from '../components/LegalFooter'
+import BioPromoButton from '../components/BioPromoButton'
 import FragmentStore from './FragmentStore'
 
 const REVIEWS_CHANNEL = 'LEMUR_SHOP_REP'
@@ -418,6 +419,9 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
         </div>
 
         <div style={{ height: 14 }} />
+
+        {/* Плашка промо-в-біо (над відгуками і стрічкою покупок) */}
+        <BioPromoButton lang={lang} variant="banner" />
 
         {/* Дві плашки поруч: чат з відгуками (ліва) і чат зі стрічкою покупок (права) */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>

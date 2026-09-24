@@ -9,7 +9,7 @@ const PHRASES: Record<'ua' | 'ru' | 'en', string> = {
   en: 'Cheap accounts and promotion only at @LEMUR_SHOP',
 }
 
-interface Props { lang: Lang }
+interface Props { lang: Lang; variant?: 'button' | 'banner' }
 
 function TgProfileMockup({ lang, variant }: { lang: Lang; variant: 1 | 2 }) {
   const label     = lang === 'ru' ? 'О себе' : lang === 'en' ? 'About' : 'Про себе'
@@ -68,7 +68,7 @@ function TgProfileMockup({ lang, variant }: { lang: Lang; variant: 1 | 2 }) {
   )
 }
 
-export default function BioPromoButton({ lang }: Props) {
+export default function BioPromoButton({ lang, variant = 'button' }: Props) {
   const T = getT(lang)
   const [promo, setPromo]       = useState<BioPromoStatus | null>(null)
   const [open, setOpen]         = useState(false)
@@ -102,9 +102,43 @@ export default function BioPromoButton({ lang }: Props) {
   const active = promo?.is_active
   const tier   = promo?.reward_tier ?? 0
 
+  const bannerTxt = {
+    ru: { t: '+2⭐ каждый день', s: 'за фразу в описании профиля', cta: active ? 'Активно ✓' : 'Как получить →' },
+    ua: { t: '+2⭐ щодня',       s: 'за фразу в описі профілю',     cta: active ? 'Активно ✓' : 'Як отримати →' },
+    en: { t: '+2⭐ every day',   s: 'for a phrase in your bio',     cta: active ? 'Active ✓' : 'How to get →' },
+  }[lang]
+
   return (
     <>
-      {/* Main button — always shows +2⭐ as max potential */}
+      {variant === 'banner' ? (
+        <button onClick={() => setOpen(true)} style={{
+          width: '100%', textAlign: 'left', cursor: 'pointer',
+          background: active
+            ? (tier === 2 ? 'linear-gradient(135deg, rgba(255,179,71,.22), rgba(200,120,0,.10))'
+                          : 'linear-gradient(135deg, rgba(95,186,71,.22), rgba(40,120,20,.10))')
+            : 'linear-gradient(135deg, rgba(255,179,71,.16), rgba(255,120,0,.06))',
+          border: `1.5px solid ${active ? (tier === 2 ? 'rgba(255,179,71,.55)' : 'rgba(95,186,71,.5)') : 'rgba(255,179,71,.4)'}`,
+          borderRadius: 18, padding: '14px 16px', marginBottom: 12,
+          display: 'flex', alignItems: 'center', gap: 14, position: 'relative', overflow: 'hidden',
+          boxShadow: '0 4px 18px rgba(255,150,40,.12)',
+        }}>
+          <div style={{
+            width: 46, height: 46, borderRadius: 14, flexShrink: 0,
+            background: 'linear-gradient(135deg, #FFB347, #e08600)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
+            boxShadow: '0 3px 12px rgba(255,179,71,.4)',
+          }}>🎁</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 800, fontSize: 16, color: '#FFB347' }}>{bannerTxt.t}</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{bannerTxt.s}</div>
+          </div>
+          <div style={{
+            fontSize: 12, fontWeight: 700, flexShrink: 0,
+            color: active ? (tier === 2 ? '#FFB347' : '#5fba47') : '#FFB347',
+          }}>{bannerTxt.cta}</div>
+        </button>
+      ) : (
+      /* Main button — always shows +1⭐ as base */
       <button
         onClick={() => setOpen(true)}
         style={{
@@ -141,6 +175,7 @@ export default function BioPromoButton({ lang }: Props) {
           {T.bio_promo_daily_sub}
         </span>
       </button>
+      )}
 
       {/* Modal — через портал у body, щоб вийти зі stacking-контексту .page
           (інакше нижня навігація перекриває низ модалки) */}

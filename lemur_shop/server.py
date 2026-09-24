@@ -2897,6 +2897,21 @@ async def api_admin_stats(
         cost_today      = await s.scalar(select(func.sum(Order.cost_usd)).where(Order.status == "delivered", Order.created_at >= today_start)) or 0
         topups_today    = await s.scalar(select(func.sum(TopUp.amount_usd)).where(TopUp.created_at >= today_start)) or 0
 
+        # Прибуток (виручка − собівартість) за вікна: 24 год / 7 дн / 30 дн / весь час
+        from datetime import timedelta as _td_p
+        _now = datetime.utcnow()
+        async def _profit_since(since):
+            filt = [Order.status == "delivered"]
+            if since is not None:
+                filt.append(Order.created_at >= since)
+            rev = await s.scalar(select(func.sum(Order.price_usd)).where(*filt)) or 0
+            cost = await s.scalar(select(func.sum(Order.cost_usd)).where(*filt)) or 0
+            return round(float(rev) - float(cost), 2)
+        profit_24h = await _profit_since(_now - _td_p(hours=24))
+        profit_7d  = await _profit_since(_now - _td_p(days=7))
+        profit_30d = await _profit_since(_now - _td_p(days=30))
+        profit_all = await _profit_since(None)
+
         # Партнёрські комісії (зменшують чистий прибуток)
         pe_filters = []
         if range_start:
@@ -2968,6 +2983,10 @@ async def api_admin_stats(
         "partner_cost_usd":    round(float(partner_cost_range), 2),
         "referral_cost_usd":   round(float(ref_cost_range), 2),
         "total_profit_usd":    round(total_profit, 2),
+        "profit_24h_usd":      profit_24h,
+        "profit_7d_usd":       profit_7d,
+        "profit_30d_usd":      profit_30d,
+        "profit_all_usd":      profit_all,
         "total_topups_usd":    float(total_topups),
         "total_stars_balance": total_stars_balance,
         "new_users_today":     new_users_today,
@@ -3562,6 +3581,39 @@ async def api_admin_bio_promo_list(
             "last_rewarded_at":promo.last_rewarded_at.isoformat() if promo.last_rewarded_at else None,
         })
     return {"items": items, "total": total, "page": page, "pages": max(1, ceil(total / limit))}
+
+
+class BioPromoSetBody(BaseModel):
+    query: str        # user_id або @username
+    tier: int         # 0 = вимкнути, 1 = +1⭐, 2 = +2⭐
+
+
+@app.post("/api/admin/bio-promo/set")
+async def api_admin_bio_promo_set(body: BioPromoSetBody, admin: User = Depends(require_admin)):
+    q = (body.query or "").strip().lstrip("@")
+    tier = int(body.tier)
+    if tier not in (0, 1, 2):
+        raise HTTPException(400, "bad_tier")
+    if not q:
+        raise HTTPException(400, "empty_query")
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            if q.isdigit():
+                user = await s.get(User, int(q))
+            else:
+                user = (await s.execute(select(User).where(User.username == q).limit(1))).scalar_one_or_none()
+            if not user:
+                raise HTTPException(404, "user_not_found")
+            promo = await s.get(BioPromo, user.id)
+            if not promo:
+                promo = BioPromo(user_id=user.id, is_active=tier > 0, reward_tier=max(1, tier))
+                s.add(promo)
+            promo.is_active = tier > 0
+            if tier > 0:
+                promo.reward_tier = tier
+            uname = user.username
+            uid = user.id
+    return {"ok": True, "user_id": uid, "username": uname, "is_active": tier > 0, "reward_tier": tier if tier > 0 else 0}
 
 
 @app.post("/api/admin/reset-stats")

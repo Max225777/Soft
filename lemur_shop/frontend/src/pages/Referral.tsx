@@ -24,9 +24,38 @@ export default function ReferralPage({ lang, botUsername }: Props) {
 
   const condTitle = lang === 'ru' ? 'Условия программы' : lang === 'ua' ? 'Умови програми' : 'Program conditions'
   const perBuyer  = lang === 'ru' ? 'за каждого приведённого друга, который купит TG-аккаунт' : lang === 'ua' ? 'за кожного приведеного друга, який купить TG-акаунт' : 'for every friend you bring who buys a TG account'
+  const heroTitle = lang === 'ru' ? 'Приглашай друзей' : lang === 'ua' ? 'Запрошуй друзів' : 'Invite friends'
+  const heroSub   = lang === 'ru' ? 'Делись ссылкой и получай ⭐ за покупки друзей' : lang === 'ua' ? 'Ділись посиланням і отримуй ⭐ за покупки друзів' : 'Share your link and earn ⭐ from friends’ purchases'
+  const shareLbl  = lang === 'ru' ? '📤 Поделиться' : lang === 'ua' ? '📤 Поділитися' : '📤 Share'
+  const shareText = lang === 'ru' ? 'Дешёвые Telegram-аккаунты и накрутка 🦎' : lang === 'ua' ? 'Дешеві Telegram-акаунти та накрутка 🦎' : 'Cheap Telegram accounts & boosting 🦎'
+
+  function share() {
+    const url = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareText)}`
+    if (window.Telegram?.WebApp?.openTelegramLink) window.Telegram.WebApp.openTelegramLink(url)
+    else window.open(url, '_blank')
+  }
 
   return (
     <div className="page" style={{ paddingTop: 12 }}>
+
+      {/* Hero */}
+      <div style={{
+        background: 'radial-gradient(120% 100% at 20% 0%, rgba(255,184,48,.16) 0%, transparent 55%), var(--card)',
+        border: '1px solid rgba(255,184,48,.25)',
+        borderRadius: 20, padding: '18px 18px', marginBottom: 14,
+        display: 'flex', alignItems: 'center', gap: 14, position: 'relative', overflow: 'hidden',
+      }}>
+        <div style={{
+          width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+          background: 'linear-gradient(135deg, #FFD700, #e0a000)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
+          boxShadow: '0 4px 14px rgba(255,184,48,.4)',
+        }}>🤝</div>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 18 }}>{heroTitle}</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2, lineHeight: 1.4 }}>{heroSub}</div>
+        </div>
+      </div>
 
       {/* Умови */}
       <div style={{
@@ -77,9 +106,14 @@ export default function ReferralPage({ lang, botUsername }: Props) {
         }}>
           {link}
         </div>
-        <button className="btn btn-primary" onClick={copy} style={{ fontSize: 14 }}>
+        <button className="btn btn-primary" onClick={copy} style={{ fontSize: 14, flex: 1 }}>
           {copied ? T.ref_copied : T.ref_copy}
         </button>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button className="btn" onClick={share} style={{
+            width: '100%', fontSize: 14, background: 'linear-gradient(135deg,#2AABEE,#1c8fd0)', color: '#fff',
+          }}>{shareLbl}</button>
+        </div>
       </div>
 
       {data.referrals.length > 0 && (

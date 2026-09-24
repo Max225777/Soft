@@ -215,6 +215,7 @@ export const adminApi = {
   broadcastStatus: () => req<BroadcastStatus>('/admin/broadcast/status'),
   resetStats:      () => req<{ ok: boolean }>('/admin/reset-stats', { method: 'POST' }),
   bioPromoList:    (page: number, limit = 30) => req<BioPromoParticipantsPage>(`/admin/bio-promo?page=${page}&limit=${limit}`),
+  bioPromoSet:     (query: string, tier: number) => req<{ ok: boolean; user_id: number; username: string | null; is_active: boolean; reward_tier: number }>('/admin/bio-promo/set', { method: 'POST', body: JSON.stringify({ query, tier }) }),
   referralStats:   () => req<AdminReferralStats>('/admin/referrals'),
   referralInvited: (referrerId: number) => req<AdminReferralInvitedUser[]>(`/admin/referrals/${referrerId}/invited`),
   partners:        () => req<AdminPartnersData>('/admin/partners'),
@@ -309,6 +310,7 @@ export interface AdminStats {
   total_orders: number; avg_order_usd: number
   total_revenue_usd: number; total_cost_usd: number; total_profit_usd: number
   partner_cost_usd: number; referral_cost_usd: number
+  profit_24h_usd: number; profit_7d_usd: number; profit_30d_usd: number; profit_all_usd: number
   total_topups_usd: number; total_stars_balance: number
   new_users_today: number; orders_today: number
   revenue_today: number; cost_today: number; profit_today: number; topups_today: number

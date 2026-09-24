@@ -224,6 +224,22 @@ function Overview() {
       {!loading && !stats && <div style={{ padding: 20, color: 'var(--red)' }}>Ошибка загрузки</div>}
       {!loading && stats && (<>
 
+        {/* ── ПРИБЫЛЬ ПО ПЕРИОДАМ (всегда сверху) ── */}
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: .6, marginBottom: 6 }}>💰 ПРИБЫЛЬ (продажи − себестоимость)</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 14 }}>
+          {([
+            ['24 часа', stats.profit_24h_usd],
+            ['7 дней',  stats.profit_7d_usd],
+            ['30 дней', stats.profit_30d_usd],
+            ['Всё время', stats.profit_all_usd],
+          ] as [string, number][]).map(([lbl, v]) => (
+            <div key={lbl} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '9px 6px', textAlign: 'center' }}>
+              <div style={{ fontSize: 9, color: 'var(--muted)', marginBottom: 3, whiteSpace: 'nowrap' }}>{lbl}</div>
+              <div style={{ fontWeight: 800, fontSize: 15, color: profitColor(v) }}>${fmtUsd(v)}</div>
+            </div>
+          ))}
+        </div>
+
         {/* ── СЕГОДНЯ ── */}
         {mode === 'today' && (<>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -364,6 +380,9 @@ function BioPromoTab() {
   const [page, setPage] = useState(1)
   const [data, setData] = useState<BioPromoParticipantsPage | null>(null)
   const [loading, setLoading] = useState(true)
+  const [q, setQ] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [setMsg, setSetMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   const load = useCallback((p: number) => {
     setLoading(true)
@@ -371,6 +390,19 @@ function BioPromoTab() {
   }, [])
 
   useEffect(() => { load(1) }, [load])
+
+  async function applyPromo(tier: number) {
+    if (!q.trim() || busy) return
+    setBusy(true); setSetMsg(null)
+    try {
+      const r = await adminApi.bioPromoSet(q.trim(), tier)
+      const who = r.username ? '@' + r.username : '#' + r.user_id
+      setSetMsg({ ok: true, text: tier > 0 ? `✅ ${who}: промо включено (+${r.reward_tier}⭐/день)` : `⛔ ${who}: промо выключено` })
+      setQ(''); load(page)
+    } catch (e: any) {
+      setSetMsg({ ok: false, text: e?.message === 'user_not_found' ? 'Юзер не найден' : 'Ошибка' })
+    } finally { setBusy(false) }
+  }
 
   function fmtDate(s: string | null) {
     if (!s) return '—'
@@ -384,6 +416,24 @@ function BioPromoTab() {
   return (
     <div style={{ padding: '14px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ fontWeight: 800, fontSize: 16 }}>⭐ Промо «Про себе»</div>
+
+      {/* Ручное управление участием */}
+      <div className="card" style={{ padding: '12px 14px' }}>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Вкл/выкл участие вручную</div>
+        <input
+          value={q} onChange={e => setQ(e.target.value)} placeholder="@username или ID"
+          style={{ width: '100%', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', color: 'var(--text)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+        />
+        <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+          <button className="btn" disabled={busy || !q.trim()} onClick={() => applyPromo(1)}
+            style={{ flex: 1, fontSize: 12, padding: '8px 4px', background: 'rgba(95,186,71,.15)', border: '1px solid rgba(95,186,71,.4)', color: '#5fba47' }}>+1⭐/день</button>
+          <button className="btn" disabled={busy || !q.trim()} onClick={() => applyPromo(2)}
+            style={{ flex: 1, fontSize: 12, padding: '8px 4px', background: 'rgba(255,179,71,.15)', border: '1px solid rgba(255,179,71,.4)', color: '#FFB347' }}>+2⭐/день</button>
+          <button className="btn" disabled={busy || !q.trim()} onClick={() => applyPromo(0)}
+            style={{ flex: 1, fontSize: 12, padding: '8px 4px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', color: '#ef4444' }}>Выключить</button>
+        </div>
+        {setMsg && <div style={{ marginTop: 8, fontSize: 12, color: setMsg.ok ? '#4CAF72' : 'var(--red)' }}>{setMsg.text}</div>}
+      </div>
 
       {/* Summary cards */}
       {data && (
@@ -1830,15 +1880,11 @@ const TABS: { id: AdminTab; label: string }[] = [
   { id: 'users',     label: '👥 Юзеры' },
   { id: 'orders',    label: '📦 Заказы' },
   { id: 'topups',    label: '💰 Пополн.' },
-  { id: 'earnings',  label: '📈 График' },
   { id: 'broadcast', label: '📢 Рассылка' },
   { id: 'promo',     label: '⭐ Промо' },
   { id: 'referrals', label: '👥 Рефы' },
   { id: 'codes',     label: '🎟 Промокоды' },
-  { id: 'nft',       label: '🔤 NFT Юзы' },
-  { id: 'fortune',   label: '🎲 Рандом акк' },
   { id: 'partners',  label: '🤝 Партнёры' },
-  { id: 'api',       label: '🔌 API' },
   { id: 'fragment',  label: '⭐ Fragment' },
 ]
 
