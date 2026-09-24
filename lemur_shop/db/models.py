@@ -177,6 +177,11 @@ class BioPromo(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
     total_rewarded: Mapped[int] = mapped_column(Integer, default=0)
     reward_tier: Mapped[int] = mapped_column(Integer, default=1)  # 1 = @username only, 2 = full phrase
+    # Промо «@LEMUR_SHOP у прізвищі» (окрема механіка, +2⭐/день)
+    name_active: Mapped[bool] = mapped_column(Boolean, default=False)
+    name_last_check_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    name_last_rewarded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    name_total_rewarded: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class PromoCode(Base):

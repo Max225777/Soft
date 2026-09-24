@@ -74,25 +74,60 @@ export default function BioPromoButton({ lang, variant = 'button' }: Props) {
   const [open, setOpen]         = useState(false)
   const [loading, setLoading]   = useState(false)
   const [msg, setMsg]           = useState('')
+  const [tab, setTab]           = useState<'bio' | 'name'>('bio')
 
   useEffect(() => {
     bioPromoApi.status().then(setPromo).catch(() => {})
   }, [])
 
-  async function doCheck() {
+  const L = {
+    ru: {
+      tabBio: '📝 Описание', tabName: '🏷 Фамилия',
+      nameTitle: 'Фамилия = @LEMUR_SHOP', nameDesc: 'Поставь в фамилию профиля только @LEMUR_SHOP — и получай +2⭐ каждый день.',
+      nameStep1: 'Открой «Редактировать профиль» в Telegram',
+      nameStep2: 'В поле «Фамилия» впиши ровно @LEMUR_SHOP',
+      nameStep3: 'Больше в фамилии ничего быть не должно',
+      nameWarn: '⚠️ В фамилии не должно быть ничего, кроме @LEMUR_SHOP — иначе не засчитается.',
+      nameActive: '✅ Фамилия активна — +2⭐/день', nameInactive: '❌ Фамилия не найдена',
+      earned: 'Заработано', copy: 'Скопировать', copied: '📋 Скопировано',
+      ok: '✅ Засчитано!', notActive: '❌ Не найдено. Проверь профиль и попробуй снова.',
+      check: 'Проверить', checking: '⏳ Проверяю…', recheck: 'Проверить снова',
+    },
+    ua: {
+      tabBio: '📝 Опис', tabName: '🏷 Прізвище',
+      nameTitle: 'Прізвище = @LEMUR_SHOP', nameDesc: 'Постав у прізвище профілю тільки @LEMUR_SHOP — і отримуй +2⭐ щодня.',
+      nameStep1: 'Відкрий «Редагувати профіль» у Telegram',
+      nameStep2: 'У полі «Прізвище» впиши рівно @LEMUR_SHOP',
+      nameStep3: 'Більше в прізвищі нічого бути не повинно',
+      nameWarn: '⚠️ У прізвищі не має бути нічого, окрім @LEMUR_SHOP — інакше не зарахується.',
+      nameActive: '✅ Прізвище активне — +2⭐/день', nameInactive: '❌ Прізвище не знайдено',
+      earned: 'Зароблено', copy: 'Скопіювати', copied: '📋 Скопійовано',
+      ok: '✅ Зараховано!', notActive: '❌ Не знайдено. Перевір профіль і спробуй ще.',
+      check: 'Перевірити', checking: '⏳ Перевіряю…', recheck: 'Перевірити ще раз',
+    },
+    en: {
+      tabBio: '📝 Bio', tabName: '🏷 Last name',
+      nameTitle: 'Last name = @LEMUR_SHOP', nameDesc: 'Set your profile last name to just @LEMUR_SHOP and get +2⭐ every day.',
+      nameStep1: 'Open “Edit profile” in Telegram',
+      nameStep2: 'In the “Last name” field type exactly @LEMUR_SHOP',
+      nameStep3: 'Nothing else should be in the last name',
+      nameWarn: '⚠️ The last name must contain only @LEMUR_SHOP — otherwise it won’t count.',
+      nameActive: '✅ Last name active — +2⭐/day', nameInactive: '❌ Last name not found',
+      earned: 'Earned', copy: 'Copy', copied: '📋 Copied',
+      ok: '✅ Counted!', notActive: '❌ Not found. Check your profile and try again.',
+      check: 'Check', checking: '⏳ Checking…', recheck: 'Check again',
+    },
+  }[lang]
+
+  async function doCheck(kind: 'bio' | 'name') {
     setLoading(true); setMsg('')
     try {
-      const res = await bioPromoApi.check()
-      setPromo(res)
-      if (res.rewarded) {
-        setMsg(res.reward_tier === 2 ? T.bio_promo_rewarded2 : T.bio_promo_rewarded)
-      } else if (!res.is_active) {
-        setMsg(T.bio_promo_not_active)
-      } else if ((res.hours_until_next ?? 0) > 0) {
-        setMsg(T.bio_promo_wait(res.hours_until_next!))
-      } else {
-        setMsg(res.reward_tier === 2 ? T.bio_promo_ok2 : T.bio_promo_ok)
-      }
+      const res = await bioPromoApi.check(kind)
+      bioPromoApi.status().then(setPromo).catch(() => {})   // повний статус (bio+прізвище)
+      if (res.rewarded) setMsg(`✅ +${res.stars_rewarded}⭐!`)
+      else if (!res.is_active) setMsg(L.notActive)
+      else if ((res.hours_until_next ?? 0) > 0) setMsg(T.bio_promo_wait(res.hours_until_next!))
+      else setMsg(L.ok)
     } catch { setMsg(T.bio_promo_error) }
     setLoading(false)
   }
@@ -212,6 +247,19 @@ export default function BioPromoButton({ lang, variant = 'button' }: Props) {
               {T.bio_promo_desc}
             </div>
 
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+              {(['bio', 'name'] as const).map(tk => (
+                <button key={tk} onClick={() => { setTab(tk); setMsg('') }} style={{
+                  flex: 1, padding: '9px 4px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: tab === tk ? 700 : 500,
+                  background: tab === tk ? 'rgba(255,179,71,.18)' : 'transparent',
+                  border: `1px solid ${tab === tk ? 'rgba(255,179,71,.5)' : 'var(--border)'}`,
+                  color: tab === tk ? '#FFB347' : 'var(--muted)',
+                }}>{tk === 'bio' ? L.tabBio : L.tabName}</button>
+              ))}
+            </div>
+
+            {tab === 'bio' && (<>
             {/* Copy section */}
             <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8, letterSpacing: .5 }}>{T.bio_promo_add_label}</div>
 
@@ -308,6 +356,34 @@ export default function BioPromoButton({ lang, variant = 'button' }: Props) {
                 </div>
               </div>
             )}
+            </>)}
+
+            {tab === 'name' && (<>
+              <div style={{ fontWeight: 800, fontSize: 16, textAlign: 'center', marginBottom: 6 }}>{L.nameTitle}</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', marginBottom: 14, lineHeight: 1.5 }}>{L.nameDesc}</div>
+              <div style={{ background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', borderRadius: 14, padding: '12px 14px', marginBottom: 12 }}>
+                {[L.nameStep1, L.nameStep2, L.nameStep3].map((t, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: i === 2 ? 0 : 8 }}>
+                    <div style={{ width: 22, height: 22, borderRadius: 8, background: 'rgba(255,179,71,.15)', border: '1px solid rgba(255,179,71,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#FFB347', flexShrink: 0 }}>{i + 1}</div>
+                    <div style={{ fontSize: 12, lineHeight: 1.4 }}>{t}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'rgba(255,179,71,.06)', border: '1.5px dashed rgba(255,179,71,.35)', borderRadius: 12, padding: '10px 12px', marginBottom: 10 }}>
+                <code style={{ fontSize: 15, fontWeight: 800, color: '#FFB347' }}>@LEMUR_SHOP</code>
+                <button onClick={() => { navigator.clipboard?.writeText('@LEMUR_SHOP'); setMsg(L.copied) }} style={{ background: 'rgba(255,179,71,.2)', border: '1px solid rgba(255,179,71,.4)', borderRadius: 7, padding: '7px 11px', cursor: 'pointer', color: '#FFB347', fontSize: 12, fontWeight: 700 }}>📋 {L.copy}</button>
+              </div>
+              <div style={{ fontSize: 11, color: '#ffb347', marginBottom: 12 }}>{L.nameWarn}</div>
+              {promo?.joined && (
+                <div style={{ background: promo.name_active ? 'rgba(255,179,71,.1)' : 'rgba(255,80,80,.08)', border: `1px solid ${promo.name_active ? 'rgba(255,179,71,.35)' : 'rgba(255,80,80,.25)'}`, borderRadius: 14, padding: '12px 14px', marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{promo.name_active ? L.nameActive : L.nameInactive}</div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--orange)' }}>⭐{promo.name_total_rewarded ?? 0}</div>
+                    <div style={{ fontSize: 10, color: 'var(--muted)' }}>{L.earned}</div>
+                  </div>
+                </div>
+              )}
+            </>)}
 
             {msg && (
               <div style={{
@@ -320,9 +396,9 @@ export default function BioPromoButton({ lang, variant = 'button' }: Props) {
               className="btn btn-primary"
               style={{ width: '100%', opacity: loading ? .6 : 1 }}
               disabled={loading}
-              onClick={doCheck}
+              onClick={() => doCheck(tab)}
             >
-              {loading ? T.bio_promo_checking : promo?.joined && promo?.is_active ? T.bio_promo_recheck : T.bio_promo_check_btn}
+              {loading ? L.checking : (tab === 'bio' ? (promo?.is_active ? L.recheck : L.check) : (promo?.name_active ? L.recheck : L.check))}
             </button>
           </div>
         </div>,

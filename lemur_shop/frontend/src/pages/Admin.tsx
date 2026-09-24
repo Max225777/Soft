@@ -412,6 +412,8 @@ function BioPromoTab() {
   const totalStars  = data?.items.reduce((s, p) => s + p.total_rewarded, 0) ?? 0
   const activeCount = data?.items.filter(p => p.is_active).length ?? 0
   const tier2Count  = data?.items.filter(p => p.is_active && p.reward_tier === 2).length ?? 0
+  const nameActiveCount = data?.items.filter(p => p.name_active).length ?? 0
+  const nameStars   = data?.items.reduce((s, p) => s + (p.name_total_rewarded ?? 0), 0) ?? 0
 
   return (
     <div style={{ padding: '14px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -433,6 +435,12 @@ function BioPromoTab() {
             style={{ flex: 1, fontSize: 12, padding: '8px 4px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', color: '#ef4444' }}>Выключить</button>
         </div>
         {setMsg && <div style={{ marginTop: 8, fontSize: 12, color: setMsg.ok ? '#4CAF72' : 'var(--red)' }}>{setMsg.text}</div>}
+      </div>
+
+      {/* Статистика по прізвищу @LEMUR_SHOP */}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <StatCard label="🏷 Фамилия активна" value={nameActiveCount} color="#FFB347" />
+        <StatCard label="🏷 Выдано (фамилия)" value={`⭐${nameStars}`} color="var(--gold)" />
       </div>
 
       {/* Summary cards */}

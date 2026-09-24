@@ -158,17 +158,19 @@ export interface BioPromoStatus {
   joined: boolean; is_active: boolean; reward_tier: number; total_rewarded: number
   hours_until_next: number | null; last_rewarded_at: string | null
   rewarded?: boolean; stars_rewarded?: number
+  name_active?: boolean; name_total_rewarded?: number; name_hours_until_next?: number | null
 }
 
 export const bioPromoApi = {
   status: () => req<BioPromoStatus>('/bio-promo/status'),
-  check:  () => req<BioPromoStatus>('/bio-promo/check', { method: 'POST' }),
+  check:  (kind: 'bio' | 'name' = 'bio') => req<BioPromoStatus & { kind?: string }>('/bio-promo/check', { method: 'POST', body: JSON.stringify({ kind }) }),
 }
 
 export interface BioPromoParticipant {
   user_id: number; name: string; username: string | null
   is_active: boolean; reward_tier: number; total_rewarded: number
   joined_at: string; last_check_at: string | null; last_rewarded_at: string | null
+  name_active?: boolean; name_total_rewarded?: number
 }
 export interface BioPromoParticipantsPage {
   items: BioPromoParticipant[]; total: number; page: number; pages: number

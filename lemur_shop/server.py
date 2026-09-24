@@ -372,13 +372,18 @@ def _normalize(text: str) -> str:
 
 
 async def _run_bio_promo_migration() -> None:
-    """Add reward_tier column if it doesn't exist (idempotent)."""
+    """Add reward_tier + name-promo columns if they don't exist (idempotent)."""
     from sqlalchemy import text as _text
     async with AsyncSessionLocal() as s:
         try:
-            await s.execute(_text(
-                "ALTER TABLE bio_promos ADD COLUMN IF NOT EXISTS reward_tier INTEGER NOT NULL DEFAULT 1"
-            ))
+            for sql in (
+                "ALTER TABLE bio_promos ADD COLUMN IF NOT EXISTS reward_tier INTEGER NOT NULL DEFAULT 1",
+                "ALTER TABLE bio_promos ADD COLUMN IF NOT EXISTS name_active BOOLEAN NOT NULL DEFAULT FALSE",
+                "ALTER TABLE bio_promos ADD COLUMN IF NOT EXISTS name_last_check_at TIMESTAMP",
+                "ALTER TABLE bio_promos ADD COLUMN IF NOT EXISTS name_last_rewarded_at TIMESTAMP",
+                "ALTER TABLE bio_promos ADD COLUMN IF NOT EXISTS name_total_rewarded INTEGER NOT NULL DEFAULT 0",
+            ):
+                await s.execute(_text(sql))
             await s.commit()
         except Exception as e:
             log.warning("bio_promo migration: %s", e)
@@ -430,6 +435,32 @@ async def _check_bio_has_promo(user_id: int) -> bool:
     return found
 
 
+async def _check_name(user_id: int) -> bool:
+    """True, якщо ПРІЗВИЩЕ користувача = рівно @LEMUR_SHOP (і нічого крім)."""
+    if not _bot:
+        return False
+    needle = _normalize(settings.CHANNEL_USERNAME.lstrip("@"))   # "lemurshop"
+    last_err: Exception | None = None
+    for attempt in range(3):
+        try:
+            if attempt:
+                await asyncio.sleep(2)
+            chat = await _bot.get_chat(user_id)
+            last_name = getattr(chat, "last_name", None) or ""
+            norm = _normalize(last_name)
+            ok = norm == needle
+            log.info("name_check attempt=%d user=%s last_name=%r norm=%r → %s",
+                     attempt + 1, user_id, last_name, norm, ok)
+            if ok:
+                return True
+        except Exception as e:
+            last_err = e
+            log.warning("name check attempt=%d failed for %s: %s", attempt + 1, user_id, e)
+    if last_err:
+        log.warning("name check exhausted retries for %s: %s", user_id, last_err)
+    return False
+
+
 def _hours_until_midnight() -> int:
     from datetime import timedelta
     now = datetime.utcnow()
@@ -455,12 +486,15 @@ async def _bio_promo_hourly_checker() -> None:
             for promo in promos:
                 try:
                     has_bio, tier = await _check_bio_tier(promo.user_id)
+                    has_name = await _check_name(promo.user_id)
                     async with AsyncSessionLocal() as s:
                         p = await s.get(BioPromo, promo.user_id)
                         if p:
                             p.is_active = has_bio
                             p.reward_tier = tier if tier >= 2 else (2 if has_bio else p.reward_tier)
+                            p.name_active = has_name
                             p.last_check_at = now
+                            p.name_last_check_at = now
                             await s.commit()
                 except Exception as e:
                     log.warning("bio_promo hourly check error user=%s: %s", promo.user_id, e)
@@ -489,7 +523,7 @@ async def _bio_promo_midnight_rewarder() -> None:
 
                 async with AsyncSessionLocal() as s:
                     promos = (await s.execute(
-                        select(BioPromo).where(BioPromo.is_active == True)
+                        select(BioPromo).where((BioPromo.is_active == True) | (BioPromo.name_active == True))
                     )).scalars().all()
 
                 log.info("bio_promo daily reward: %d active participants (date=%s)", len(promos), today)
@@ -502,29 +536,37 @@ async def _bio_promo_midnight_rewarder() -> None:
 
                 for promo in promos:
                     user_lang = "ru"
+                    given = 0
                     try:
                         async with AsyncSessionLocal() as s:
                             async with s.begin():
                                 p = (await s.execute(
                                     select(BioPromo).where(BioPromo.user_id == promo.user_id).with_for_update()
                                 )).scalar_one_or_none()
-                                if not p or not p.is_active:
-                                    continue
-                                # Skip if already rewarded today
-                                if p.last_rewarded_at and p.last_rewarded_at >= today_start:
+                                if not p:
                                     continue
                                 user = await s.get(User, p.user_id)
                                 if not user or user.is_banned:
                                     continue
-                                stars = 1  # фіксована добова нагорода — 1⭐/день
-                                user.balance_stars += stars
-                                user.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD)) * stars
-                                p.last_rewarded_at = now
-                                p.total_rewarded += stars
+                                # Промо в біо/описанні — 1⭐/день
+                                if p.is_active and not (p.last_rewarded_at and p.last_rewarded_at >= today_start):
+                                    bio_stars = 1
+                                    user.balance_stars += bio_stars
+                                    user.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD)) * bio_stars
+                                    p.last_rewarded_at = now
+                                    p.total_rewarded += bio_stars
+                                    given += bio_stars
+                                # Промо @LEMUR_SHOP у прізвищі — 2⭐/день
+                                if p.name_active and not (p.name_last_rewarded_at and p.name_last_rewarded_at >= today_start):
+                                    name_stars = 2
+                                    user.balance_stars += name_stars
+                                    user.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD)) * name_stars
+                                    p.name_last_rewarded_at = now
+                                    p.name_total_rewarded += name_stars
+                                    given += name_stars
                                 user_lang = user.lang or "ru"
-                        if _bot:
-                            stars_given = 1
-                            txt = _DAILY_REWARD_MSG.get(user_lang, _DAILY_REWARD_MSG["ua"]).format(stars=stars_given)
+                        if _bot and given > 0:
+                            txt = _DAILY_REWARD_MSG.get(user_lang, _DAILY_REWARD_MSG["ua"]).format(stars=given)
                             try:
                                 await _bot.send_message(promo.user_id, txt, parse_mode="HTML")
                             except Exception:
@@ -3579,6 +3621,8 @@ async def api_admin_bio_promo_list(
             "joined_at":       promo.joined_at.isoformat() if promo.joined_at else None,
             "last_check_at":   promo.last_check_at.isoformat() if promo.last_check_at else None,
             "last_rewarded_at":promo.last_rewarded_at.isoformat() if promo.last_rewarded_at else None,
+            "name_active":     promo.name_active,
+            "name_total_rewarded": promo.name_total_rewarded,
         })
     return {"items": items, "total": total, "page": page, "pages": max(1, ceil(total / limit))}
 
@@ -3999,7 +4043,9 @@ async def bio_promo_status(user: User = Depends(get_current_user)):
     async with AsyncSessionLocal() as s:
         promo = await s.get(BioPromo, user.id)
     if not promo:
-        return {"joined": False, "is_active": False, "reward_tier": 0, "total_rewarded": 0, "hours_until_next": None}
+        return {"joined": False, "is_active": False, "reward_tier": 0, "total_rewarded": 0,
+                "hours_until_next": None, "name_active": False, "name_total_rewarded": 0,
+                "name_hours_until_next": None}
     return {
         "joined": True,
         "is_active": promo.is_active,
@@ -4007,17 +4053,57 @@ async def bio_promo_status(user: User = Depends(get_current_user)):
         "total_rewarded": promo.total_rewarded,
         "last_rewarded_at": promo.last_rewarded_at.isoformat() if promo.last_rewarded_at else None,
         "hours_until_next": _hours_until_midnight() if promo.is_active else None,
+        "name_active": promo.name_active,
+        "name_total_rewarded": promo.name_total_rewarded,
+        "name_hours_until_next": _hours_until_midnight() if promo.name_active else None,
     }
 
 
+class BioPromoCheckBody(BaseModel):
+    kind: str = "bio"   # 'bio' | 'name'
+
+
 @app.post("/api/bio-promo/check")
-async def bio_promo_check(user: User = Depends(get_current_user)):
-    """User-triggered check.
-    - Tier 1 (username only): +1⭐ on connect (24h anti-abuse), +1⭐ at midnight.
-    - Tier 2 (full phrase):   +2⭐ on connect (24h anti-abuse), +2⭐ at midnight.
-    """
+async def bio_promo_check(body: BioPromoCheckBody | None = None, user: User = Depends(get_current_user)):
+    """User-triggered check. kind='bio' — фраза в описі; kind='name' — @LEMUR_SHOP у прізвищі (+2⭐)."""
     from sqlalchemy import select as _sel
     now = datetime.utcnow()
+    kind = (body.kind if body else "bio") or "bio"
+
+    if kind == "name":
+        has_name = await _check_name(user.id)
+        stars_amount = 2
+        rewarded = False
+        async with AsyncSessionLocal() as s:
+            async with s.begin():
+                promo = (await s.execute(
+                    _sel(BioPromo).where(BioPromo.user_id == user.id).with_for_update()
+                )).scalar_one_or_none()
+                if not promo:
+                    promo = BioPromo(user_id=user.id)
+                    s.add(promo)
+                promo.name_active = has_name
+                promo.name_last_check_at = now
+                can_reward = has_name and (
+                    promo.name_last_rewarded_at is None
+                    or (now - promo.name_last_rewarded_at).total_seconds() >= 86400
+                )
+                if can_reward:
+                    u = await s.get(User, user.id, with_for_update=True)
+                    if u and not u.is_banned:
+                        u.balance_stars += stars_amount
+                        u.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD)) * stars_amount
+                        promo.name_last_rewarded_at = now
+                        promo.name_total_rewarded += stars_amount
+                        rewarded = True
+        return {
+            "joined": True, "kind": "name",
+            "is_active": has_name,
+            "rewarded": rewarded,
+            "stars_rewarded": stars_amount if rewarded else 0,
+            "total_rewarded": promo.name_total_rewarded,
+            "hours_until_next": _hours_until_midnight() if has_name else None,
+        }
 
     has_bio, tier = await _check_bio_tier(user.id)  # outside transaction
     stars_amount = tier  # 0, 1, or 2
@@ -4051,7 +4137,7 @@ async def bio_promo_check(user: User = Depends(get_current_user)):
                     rewarded = True
 
     return {
-        "joined": True,
+        "joined": True, "kind": "bio",
         "is_active": has_bio,
         "reward_tier": tier,
         "rewarded": rewarded,
