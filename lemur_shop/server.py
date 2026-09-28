@@ -923,7 +923,7 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
                 f"👤 Покупець: <code>{user.id}</code>"
                 + (f" (@{user.username})" if user.username else "") + "\n"
                 f"🌍 Категорія: <b>{cat_label}</b>\n"
-                f"❌ Помилка: <code>{str(e)[:300]}</code>"
+                f"❌ Помилка: <code>{str(e)[:600]}</code>"
             )
             for admin_id in settings.ADMIN_IDS:
                 try:
@@ -1887,7 +1887,7 @@ async def credit_referral_bonus(user: User, order_id: int, category_label: str) 
                         f"⚠️ <b>Реферальна виплата НЕ пройшла!</b>\n\n"
                         f"👤 Реферал: <code>{user.id}</code>\n"
                         f"📦 Замовлення: <code>{order_id}</code>\n"
-                        f"❌ Помилка: <code>{str(e)[:300]}</code>",
+                        f"❌ Помилка: <code>{str(e)[:600]}</code>",
                         parse_mode="HTML",
                     )
                 except Exception:

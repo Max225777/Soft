@@ -22,7 +22,7 @@ CATEGORIES: dict[str, dict] = {
         "price_usd": 0.65,
         "discount_stars": 25,
         "macro": True, "pmax": 0.50, "pmin_start": None,
-        "macro_steps": 8, "micro_attempts": 15,
+        "pmin_fallbacks": [0.30, 0.35], "micro_attempts": 15,
     },
     "mm": {
         "country": "MM", "title": "Myanmar", "title_ru": "Мьянма", "title_ua": "М'янма",
@@ -30,7 +30,7 @@ CATEGORIES: dict[str, dict] = {
         "price_usd": 0.65,
         "discount_stars": 25,
         "macro": True, "pmax": 0.40, "pmin_start": 0.20,
-        "macro_steps": 8, "micro_attempts": 15,
+        "pmin_fallbacks": [0.30, 0.35], "micro_attempts": 15,
     },
     "co": {
         "country": "CO", "title": "Colombia", "title_ru": "Колумбия", "title_ua": "Колумбія",
@@ -156,19 +156,32 @@ async def _try_buy_batch(
 
 async def _macro_buy(cat: dict) -> tuple[str, int, float]:
     """Macro-цикл для категорій з macro=True (USA, Myanmar тощо).
-    Ітеративно підвищує pmin при помилках чорного списку.
+
+    Йдемо по ступенях мінімальної ціни (pmin): спершу без нижньої межі,
+    потім — явні "підлоги" з ``pmin_fallbacks`` (напр. 0.30, потім 0.35).
+    Найдешевші акаунти найчастіше в чорному списку / не купуються, тож якщо
+    з поточним pmin купити не вдалося — піднімаємо поріг і беремо трохи
+    дорожчі, "живіші" акаунти. Кожна ступінь фіксується у звіті, який
+    потрапляє в Telegram-алерт адміну.
     """
-    country      = cat["country"]
-    pmax         = cat["pmax"]
-    macro_steps  = cat.get("macro_steps", 8)
-    micro_att    = cat.get("micro_attempts", 15)
-    pmin: float | None = cat.get("pmin_start")
+    country   = cat["country"]
+    pmax      = cat["pmax"]
+    micro_att = cat.get("micro_attempts", 15)
 
-    seen_total       = 0            # скільки item-ів взагалі повернув пошук
-    cheapest_overall = float("inf") # найдешевший знайдений (для діагностики)
+    # Ступені нижньої межі: старт (може бути None = без межі) + явні фолбеки.
+    pmin_tiers: list[float | None] = [cat.get("pmin_start")] + list(cat.get("pmin_fallbacks", []))
 
-    for macro in range(macro_steps):
-        items = []
+    seen_total       = 0             # скільки item-ів взагалі повернув пошук
+    cheapest_overall = float("inf")  # найдешевший знайдений (для діагностики)
+    report: list[str] = []           # порядок дій — піде адміну в алерт
+
+    for step, pmin in enumerate(pmin_tiers):
+        # pmin, що перевищує pmax, робити немає сенсу
+        if pmin is not None and pmin >= pmax:
+            report.append(f"pmin≥${pmin:.2f}: пропущено (≥ ліміту ${pmax:.2f})")
+            continue
+
+        items: list[dict] = []
         for attempt in range(3):
             try:
                 items = await lolz.search_telegram(
@@ -177,49 +190,48 @@ async def _macro_buy(cat: dict) -> tuple[str, int, float]:
                 )
                 break
             except (LolzApiError, httpx.TimeoutException) as e:
-                log.warning("%s macro %d search attempt %d failed: %s (%s)", country, macro, attempt + 1, type(e).__name__, e)
+                log.warning("%s step %d search attempt %d failed: %s (%s)",
+                            country, step, attempt + 1, type(e).__name__, e)
                 if attempt < 2:
                     await asyncio.sleep(2)
 
+        pmin_lbl = f"${pmin:.2f}" if pmin is not None else "—"
         if not items:
-            log.info("%s macro %d: no items at pmin=%s pmax=%.2f", country, macro, pmin, pmax)
-            break
+            log.info("%s step %d: no items at pmin=%s pmax=%.2f", country, step, pmin, pmax)
+            report.append(f"pmin={pmin_lbl}: знайдено 0")
+            continue
 
         items_sorted = sorted(items, key=lambda x: float(x.get("price") or x.get("price_usd") or 999))
-
         seen_total += len(items_sorted)
         _cheapest = float(items_sorted[0].get("price") or items_sorted[0].get("price_usd") or 0)
         cheapest_overall = min(cheapest_overall, _cheapest)
 
-        log.info("%s macro %d: %d items, cheapest=%.2f (pmin=%s pmax=%.2f)",
-                 country, macro, len(items_sorted), _cheapest, pmin, pmax)
+        log.info("%s step %d: %d items, cheapest=%.2f (pmin=%s pmax=%.2f)",
+                 country, step, len(items_sorted), _cheapest, pmin, pmax)
 
         result, max_bl_price = await _try_buy_batch(items_sorted, max_cost=pmax, micro_limit=micro_att)
         if result:
             return result
 
-        if max_bl_price > 0:
-            new_pmin = round(max_bl_price + 0.02, 2)
-            pmin = max(pmin or 0.0, new_pmin)
-            log.info("%s macro %d: blacklisted up to %.2f → pmin=%.2f", country, macro, max_bl_price, pmin)
-        else:
-            last_price = float(items_sorted[-1].get("price") or items_sorted[-1].get("price_usd") or 0)
-            pmin = round(last_price + 0.01, 2)
-            log.info("%s macro %d exhausted, bumping pmin to %.2f", country, macro, pmin)
+        report.append(
+            f"pmin={pmin_lbl}: {len(items_sorted)} шт (від ${_cheapest:.2f}) — купити не вдалося"
+        )
+        log.info("%s step %d: %d items but none purchasable (blacklist up to %.2f)",
+                 country, step, len(items_sorted), max_bl_price)
 
-    # Діагностичне повідомлення — потрапляє в Telegram-алерт адміну, щоб одразу
-    # було видно ПРИЧИНУ: пошук нічого не повернув vs знайшли, але не купили.
+    # Всі ступені вичерпані — формуємо звіт для адміна.
+    report_txt = "; ".join(report) if report else "спроб не було"
     if seen_total == 0:
         raise LolzApiError(
-            f"Пошук не повернув жодного акаунта для {country} "
+            f"Пошук не повернув жодного акаунта {country} "
             f"(pmax=${pmax:.2f}, origin=autoreg+self_registration, spam=no, password=no). "
-            f"Ймовірно, в наявності немає акаунтів цих origin у цій ціні — "
-            f"варто підняти pmax або розширити origin."
+            f"Схоже, в наявності немає акаунтів цих origin за цією ціною — "
+            f"варто підняти pmax або розширити origin. Ступені: {report_txt}"
         )
     raise LolzApiError(
-        f"Знайдено {seen_total} акаунтів {country} (найдешевший ${cheapest_overall:.2f} "
-        f"при ліміті ${pmax:.2f}), але жоден не вдалося купити "
-        f"(чорний список / 403 / вже продано)."
+        f"Знайдено {seen_total} акаунтів {country} (найдешевший ${cheapest_overall:.2f}, "
+        f"ліміт ${pmax:.2f}), але жоден не вдалося купити (чорний список / 403 / продано). "
+        f"Ступені: {report_txt}"
     )
 
 
