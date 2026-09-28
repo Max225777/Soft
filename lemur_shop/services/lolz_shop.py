@@ -164,13 +164,16 @@ async def _macro_buy(cat: dict) -> tuple[str, int, float]:
     micro_att    = cat.get("micro_attempts", 15)
     pmin: float | None = cat.get("pmin_start")
 
+    seen_total       = 0            # скільки item-ів взагалі повернув пошук
+    cheapest_overall = float("inf") # найдешевший знайдений (для діагностики)
+
     for macro in range(macro_steps):
         items = []
         for attempt in range(3):
             try:
                 items = await lolz.search_telegram(
                     country=country, pmax=pmax, pmin=pmin, count=50,
-                    spam="no", password=None,
+                    spam="no", password="no",
                 )
                 break
             except (LolzApiError, httpx.TimeoutException) as e:
@@ -184,8 +187,12 @@ async def _macro_buy(cat: dict) -> tuple[str, int, float]:
 
         items_sorted = sorted(items, key=lambda x: float(x.get("price") or x.get("price_usd") or 999))
 
-        log.info("%s macro %d: %d items, cheapest=%.2f", country, macro, len(items_sorted),
-                 float(items_sorted[0].get("price") or items_sorted[0].get("price_usd") or 0))
+        seen_total += len(items_sorted)
+        _cheapest = float(items_sorted[0].get("price") or items_sorted[0].get("price_usd") or 0)
+        cheapest_overall = min(cheapest_overall, _cheapest)
+
+        log.info("%s macro %d: %d items, cheapest=%.2f (pmin=%s pmax=%.2f)",
+                 country, macro, len(items_sorted), _cheapest, pmin, pmax)
 
         result, max_bl_price = await _try_buy_batch(items_sorted, max_cost=pmax, micro_limit=micro_att)
         if result:
@@ -200,7 +207,20 @@ async def _macro_buy(cat: dict) -> tuple[str, int, float]:
             pmin = round(last_price + 0.01, 2)
             log.info("%s macro %d exhausted, bumping pmin to %.2f", country, macro, pmin)
 
-    raise LolzApiError("No purchasable accounts found after trying all candidates")
+    # Діагностичне повідомлення — потрапляє в Telegram-алерт адміну, щоб одразу
+    # було видно ПРИЧИНУ: пошук нічого не повернув vs знайшли, але не купили.
+    if seen_total == 0:
+        raise LolzApiError(
+            f"Пошук не повернув жодного акаунта для {country} "
+            f"(pmax=${pmax:.2f}, origin=autoreg+self_registration, spam=no, password=no). "
+            f"Ймовірно, в наявності немає акаунтів цих origin у цій ціні — "
+            f"варто підняти pmax або розширити origin."
+        )
+    raise LolzApiError(
+        f"Знайдено {seen_total} акаунтів {country} (найдешевший ${cheapest_overall:.2f} "
+        f"при ліміті ${pmax:.2f}), але жоден не вдалося купити "
+        f"(чорний список / 403 / вже продано)."
+    )
 
 
 async def auto_buy_category(category: str) -> tuple[str, int, float]:
