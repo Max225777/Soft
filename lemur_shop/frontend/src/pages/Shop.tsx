@@ -681,7 +681,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
                 background: 'rgba(46,124,246,.1)', border: '1px solid rgba(46,124,246,.28)',
                 borderRadius: 12, padding: '9px 14px', textAlign: 'center', marginBottom: 10,
               }}>
-                🎉 Акция открытия магазина — скидки на все аккаунты
+                🎉 Акция в честь 4 месяцев работы магазина — скидки на аккаунты
               </div>
             )}
             {shown.length === 0 && (
