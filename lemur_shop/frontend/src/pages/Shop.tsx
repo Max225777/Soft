@@ -135,6 +135,10 @@ function ConfirmModal({ cat, me, lang, onConfirm, onCancel }: ConfirmProps) {
           <span style={{ fontWeight: 700, fontSize: 15 }}>{T.final_price}</span>
           {cat.discount_stars ? (
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{
+                fontSize: 12, fontWeight: 800, color: '#fff', background: 'linear-gradient(135deg,#ff3b30,#c0392b)',
+                borderRadius: 7, padding: '3px 8px',
+              }}>−{Math.round((1 - cat.discount_stars / cat.price_stars) * 100)}%</span>
               <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontSize: 16 }}>⭐{cat.price_stars}</span>
               <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                 <span style={{ fontWeight: 800, fontSize: 24, color: 'var(--orange2)', lineHeight: 1 }}>⭐{cat.discount_stars}</span>
@@ -712,6 +716,10 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
                           <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontSize: 11 }}>⭐{cat.price_stars}</span>
                           <span style={{ fontWeight: 800, color: 'var(--orange2)', fontSize: 14 }}>⭐{cat.discount_stars}</span>
                           <span style={{ color: 'var(--muted)', fontSize: 11 }}>({fmtRub(starsToRub(cat.discount_stars))} ₽)</span>
+                          <span style={{
+                            fontSize: 10, fontWeight: 800, color: '#fff', background: 'linear-gradient(135deg,#ff3b30,#c0392b)',
+                            borderRadius: 6, padding: '2px 6px', marginLeft: 2,
+                          }}>−{Math.round((1 - cat.discount_stars / cat.price_stars) * 100)}%</span>
                         </span>
                       ) : (
                         <span style={{ color: 'var(--orange2)' }}>{localPrice(cat.price_stars, cat.price_usd)}</span>
