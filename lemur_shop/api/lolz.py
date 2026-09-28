@@ -45,7 +45,7 @@ class LolzClient:
         return r.json()
 
     async def search_telegram(self, country: str, pmax: float = 2.0, pmin: float | None = None,
-                              count: int = 10, spam: str | None = "no", password: str | None = None) -> list[dict]:
+                              count: int = 10, spam: str | None = "no", password: str | None = "no") -> list[dict]:
         """Пошук TG-акаунтів за країною. Повертає список item-об'єктів."""
         params: dict[str, Any] = {
             "origin[]":  ["autoreg", "self_registration"],
