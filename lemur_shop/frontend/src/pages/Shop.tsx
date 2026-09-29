@@ -1358,8 +1358,14 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
         <div style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text2)' }}>
           Здравствуйте! Это инструкция по использованию TG-аккаунтов.
           <div style={{ marginTop: 12, fontWeight: 700, color: '#4ade80' }}>✅ В первые 24 часа после входа можно:</div>
-          <div style={{ marginTop: 4 }}>1. Ставить 2FA (двухфакторную защиту)</div>
-          <div>2. Привязывать почту для входа</div>
+          <div style={{ marginTop: 4 }}>
+            1. Ставить 2FA (двухфакторную защиту)
+            <span style={{ display: 'inline-block', marginLeft: 6, padding: '1px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: 'rgba(255,180,40,.15)', color: '#FFD166', border: '1px solid rgba(255,180,40,.3)' }}>обязательно</span>
+          </div>
+          <div style={{ marginTop: 2 }}>
+            2. Привязывать почту для входа
+            <span style={{ display: 'inline-block', marginLeft: 6, padding: '1px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: 'rgba(148,163,184,.15)', color: '#94a3b8', border: '1px solid rgba(148,163,184,.3)' }}>необязательно</span>
+          </div>
           <div style={{ marginTop: 12, fontWeight: 700, color: '#ef4444' }}>⛔ Нельзя:</div>
           <div style={{ marginTop: 4 }}>1. Ставить аватарки, юзернеймы, имена — вообще менять данные аккаунта</div>
           <div>2. Писать кому-то первым или вести подозрительную активность</div>
