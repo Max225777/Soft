@@ -240,6 +240,23 @@ export const adminApi = {
   fragmentCookiesGet:   () => req<FragmentCookieStatus>('/admin/fragment/cookies'),
   fragmentCookiesSet:   (cookies: string) => req<FragmentCookieStatus & { ok: boolean; count: number }>('/admin/fragment/cookies', { method: 'POST', body: JSON.stringify({ cookies }) }),
   fragmentCookiesClear: () => req<FragmentCookieStatus & { ok: boolean }>('/admin/fragment/cookies', { method: 'DELETE' }),
+  categories:      () => req<AdminCategory[]>('/admin/categories'),
+  categorySet:     (category: string, pmin: number | null, pmax: number | null, price_stars: number | null) =>
+                     req<{ ok: boolean; override: Record<string, number>; effective: { pmin: number | null; pmax: number | null; price_stars: number } }>('/admin/categories/set', { method: 'POST', body: JSON.stringify({ category, pmin, pmax, price_stars }) }),
+  categoryCheck:   (category: string, pmin: number | null, pmax: number | null) =>
+                     req<AdminCategoryCheck>('/admin/categories/check', { method: 'POST', body: JSON.stringify({ category, pmin, pmax }) }),
+}
+
+export interface AdminCategory {
+  category: string; flag: string; title_ru: string; country: string
+  macro: boolean; disabled: boolean; cost_usd: number | null
+  default:   { pmin: number | null; pmax: number | null; price_stars: number }
+  effective: { pmin: number | null; pmax: number | null; price_stars: number }
+  override:  { pmin: number | null; pmax: number | null; price_stars: number | null }
+}
+export interface AdminCategoryCheck {
+  ok: boolean; country: string; pmin: number | null; pmax: number | null
+  count: number; cheapest: number | null; most_expensive: number | null; sample: number[]
 }
 
 export interface FragmentCookieStatus {

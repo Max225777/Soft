@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { api, adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminReferralInvitedUser, type AdminPromoCode, type AdminPromoActivation, type EarningsChart, type EarningsDay, type AdminNftItem, type AdminNftRental, type FortunePoolInfo, type AdminPartnersData, type AdminRecentPurchase, type FragmentCookieStatus } from '../api'
+import { api, adminApi, type AdminStats, type StatsGroup, type AdminUser, type AdminUserDetail, type AdminOrderRow, type AdminTopupRow, type TopupMethodStat, type BroadcastStatus, type BioPromoParticipant, type BioPromoParticipantsPage, type AdminReferralStats, type AdminReferralInvitedUser, type AdminPromoCode, type AdminPromoActivation, type EarningsChart, type EarningsDay, type AdminNftItem, type AdminNftRental, type FortunePoolInfo, type AdminPartnersData, type AdminRecentPurchase, type FragmentCookieStatus, type AdminCategory, type AdminCategoryCheck } from '../api'
 
 type DateMode = 'today' | 'all' | 'custom'
 
@@ -14,7 +14,7 @@ function useOverviewStats(dateFrom: string, dateTo: string) {
   return { stats, loading, reload }
 }
 
-type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'earnings' | 'broadcast' | 'promo' | 'referrals' | 'codes' | 'nft' | 'fortune' | 'partners' | 'api' | 'fragment'
+type AdminTab = 'overview' | 'users' | 'orders' | 'topups' | 'earnings' | 'broadcast' | 'promo' | 'referrals' | 'codes' | 'nft' | 'fortune' | 'partners' | 'api' | 'fragment' | 'accounts'
 
 const CATEGORY_FLAGS: Record<string, string> = { us: '🇺🇸', ua: '🇺🇦', kz: '🇰🇿' }
 
@@ -1893,6 +1893,7 @@ const TABS: { id: AdminTab; label: string }[] = [
   { id: 'referrals', label: '👥 Рефы' },
   { id: 'codes',     label: '🎟 Промокоды' },
   { id: 'partners',  label: '🤝 Партнёры' },
+  { id: 'accounts',  label: '🛒 Закупка' },
   { id: 'fragment',  label: '⭐ Fragment' },
 ]
 
@@ -1936,8 +1937,153 @@ export default function Admin() {
       {tab === 'nft'       && <NftAdminTab />}
       {tab === 'fortune'   && <FortuneAdminTab />}
       {tab === 'partners'  && <PartnersAdminTab />}
+      {tab === 'accounts'  && <AccountsBuyTab />}
       {tab === 'api'       && <ApiStatsTab />}
       {tab === 'fragment'  && <FragmentCookiesTab />}
+    </div>
+  )
+}
+
+function AccountsBuyTab() {
+  const [cats, setCats] = useState<AdminCategory[] | null>(null)
+  const load = useCallback(() => { adminApi.categories().then(setCats).catch(() => {}) }, [])
+  useEffect(() => { load() }, [load])
+
+  const box: React.CSSProperties = {
+    background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: 14, marginBottom: 12,
+  }
+
+  return (
+    <div>
+      <div style={box}>
+        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6 }}>🛒 Закупка и цены аккаунтов</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+          Для каждой страны задай <b>мин.</b> и <b>макс.</b> цену закупки на Lolz ($) и <b>цену продажи</b> покупателю (⭐).
+          Кнопка <b>«Проверить»</b> покажет, сколько аккаунтов сейчас в наличии по этим фильтрам.
+          Пусто = значение по умолчанию.
+        </div>
+      </div>
+      {!cats ? <div className="skeleton" style={{ height: 120 }} /> : cats.map(c => (
+        <CatCard key={c.category} c={c} onSaved={load} />
+      ))}
+    </div>
+  )
+}
+
+function CatCard({ c, onSaved }: { c: AdminCategory; onSaved: () => void }) {
+  const [pmin, setPmin]   = useState(c.effective.pmin != null ? String(c.effective.pmin) : '')
+  const [pmax, setPmax]   = useState(c.effective.pmax != null ? String(c.effective.pmax) : '')
+  const [price, setPrice] = useState(c.effective.price_stars != null ? String(c.effective.price_stars) : '')
+  const [saving, setSaving]     = useState(false)
+  const [checking, setChecking] = useState(false)
+  const [chk, setChk] = useState<AdminCategoryCheck | null>(null)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  const num = (s: string): number | null => { const t = s.trim(); if (t === '') return null; const n = Number(t); return isNaN(n) ? null : n }
+  const hasOverride = c.override.pmin != null || c.override.pmax != null || c.override.price_stars != null
+
+  async function doCheck() {
+    if (checking) return
+    setChecking(true); setMsg(null); setChk(null)
+    try { setChk(await adminApi.categoryCheck(c.category, num(pmin), num(pmax))) }
+    catch (e: any) { setMsg({ ok: false, text: e?.message || 'Ошибка проверки' }) }
+    finally { setChecking(false) }
+  }
+  async function save() {
+    if (saving) return
+    setSaving(true); setMsg(null)
+    try {
+      const p = num(price)
+      const r = await adminApi.categorySet(c.category, num(pmin), num(pmax), p == null ? null : Math.round(p))
+      setMsg({ ok: true, text: `Сохранено · продажа ⭐${r.effective.price_stars}` })
+      onSaved()
+    } catch (e: any) { setMsg({ ok: false, text: e?.message || 'Ошибка сохранения' }) }
+    finally { setSaving(false) }
+  }
+  async function reset() {
+    if (saving) return
+    setSaving(true); setMsg(null)
+    try {
+      await adminApi.categorySet(c.category, null, null, null)
+      setPmin(c.default.pmin != null ? String(c.default.pmin) : '')
+      setPmax(c.default.pmax != null ? String(c.default.pmax) : '')
+      setPrice(c.default.price_stars != null ? String(c.default.price_stars) : '')
+      setMsg({ ok: true, text: 'Сброшено к значениям по умолчанию' })
+      onSaved()
+    } catch (e: any) { setMsg({ ok: false, text: e?.message || 'Ошибка' }) }
+    finally { setSaving(false) }
+  }
+
+  const box: React.CSSProperties = {
+    background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: 14, marginBottom: 12,
+  }
+  const inp: React.CSSProperties = {
+    width: '100%', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8,
+    padding: '8px 10px', color: 'var(--text)', fontSize: 14, outline: 'none', boxSizing: 'border-box',
+  }
+  const lbl: React.CSSProperties = { fontSize: 11, color: 'var(--muted)', marginBottom: 4, display: 'block' }
+
+  return (
+    <div style={box}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <span style={{ fontSize: 20 }}>{c.flag}</span>
+        <span style={{ fontWeight: 800, fontSize: 15 }}>{c.title_ru}</span>
+        <span style={{ fontSize: 11, color: 'var(--muted)' }}>({c.country})</span>
+        {c.macro && <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 8, background: 'rgba(42,171,238,.15)', color: '#2AABEE', border: '1px solid rgba(42,171,238,.3)' }}>авто-подбор</span>}
+        {c.disabled && <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 8, background: 'rgba(255,107,43,.15)', color: 'var(--orange)' }}>скрыта</span>}
+        {hasOverride && <span style={{ marginLeft: 'auto', fontSize: 10, padding: '1px 7px', borderRadius: 8, background: 'rgba(76,175,114,.15)', color: '#4CAF72' }}>изменено</span>}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+        <div>
+          <label style={lbl}>Мин. цена $ (pmin)</label>
+          <input style={inp} value={pmin} onChange={e => setPmin(e.target.value)} placeholder="любая" inputMode="decimal" />
+        </div>
+        <div>
+          <label style={lbl}>Макс. цена $ (pmax)</label>
+          <input style={inp} value={pmax} onChange={e => setPmax(e.target.value)} placeholder={c.default.pmax != null ? String(c.default.pmax) : '—'} inputMode="decimal" />
+        </div>
+        <div>
+          <label style={lbl}>Продажа ⭐</label>
+          <input style={inp} value={price} onChange={e => setPrice(e.target.value)} placeholder={String(c.default.price_stars)} inputMode="numeric" />
+        </div>
+      </div>
+
+      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
+        По умолчанию: закупка ${c.default.pmin ?? '0'}–${c.default.pmax ?? '—'} · продажа ⭐{c.default.price_stars}
+        {c.cost_usd != null && <> · прайс-ориентир ${c.cost_usd}</>}
+      </div>
+
+      {chk && (
+        <div style={{
+          marginTop: 10, padding: '10px 12px', borderRadius: 10,
+          background: chk.count > 0 ? 'rgba(76,175,114,.1)' : 'rgba(255,107,43,.1)',
+          border: `1px solid ${chk.count > 0 ? 'rgba(76,175,114,.3)' : 'rgba(255,107,43,.3)'}`,
+          fontSize: 13, color: 'var(--text)',
+        }}>
+          {chk.count > 0 ? (
+            <>
+              🟢 В наличии: <b>{chk.count}</b> шт{chk.count >= 100 ? '+' : ''} · дешевле всего <b>${chk.cheapest}</b>, дороже всего <b>${chk.most_expensive}</b>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Первые цены: {chk.sample.map(p => `$${p}`).join(', ')}</div>
+            </>
+          ) : <>🔴 По этим фильтрам аккаунтов <b>не найдено</b>. Подними макс. цену или убери мин.</>}
+        </div>
+      )}
+      {msg && <div style={{ marginTop: 8, fontSize: 13, color: msg.ok ? '#4CAF72' : 'var(--red)' }}>{msg.ok ? '✅ ' : '❌ '}{msg.text}</div>}
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+        <button className="btn" disabled={checking} onClick={doCheck}
+          style={{ flex: 1, background: 'var(--card2)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+          {checking ? '⏳...' : '🔍 Проверить'}
+        </button>
+        <button className="btn btn-primary" disabled={saving} onClick={save} style={{ flex: 1 }}>
+          {saving ? '⏳...' : '💾 Сохранить'}
+        </button>
+        {hasOverride && (
+          <button className="btn" disabled={saving} onClick={reset}
+            style={{ background: 'var(--card2)', border: '1px solid var(--border)', color: 'var(--muted)', padding: '0 12px' }}>↺</button>
+        )}
+      </div>
     </div>
   )
 }

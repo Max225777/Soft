@@ -32,7 +32,11 @@ from lemur_shop.db.models import BioPromo, FortuneSpin, FortunePool, NftRental, 
 from lemur_shop.db.session import AsyncSessionLocal
 from decimal import Decimal
 
-from lemur_shop.services.lolz_shop import CATEGORIES, DISABLED_CATEGORIES, auto_buy_category
+from lemur_shop.services.lolz_shop import (
+    CATEGORIES, DISABLED_CATEGORIES, auto_buy_category,
+    effective_category, sell_price_stars, category_defaults, effective_bounds,
+    check_stock, save_category_override, load_overrides, get_overrides,
+)
 from lemur_shop.utils.currency import get_rate
 
 log = logging.getLogger(__name__)
@@ -681,6 +685,10 @@ async def lifespan(app: FastAPI):
 
     await _run_bio_promo_migration()
     try:
+        await load_overrides()
+    except Exception as e:
+        log.warning("load_overrides at startup failed: %s", e)
+    try:
         await _revert_partner_referral_payouts()
     except Exception as e:
         log.warning("partner ref-payout revert failed: %s", e)
@@ -865,7 +873,7 @@ async def api_categories(user: User = Depends(get_current_user)):
             "title_ua":       info.get("title_ua", info["title"]),
             "phone_prefix":   info.get("phone_prefix", ""),
             "price_usd":      info["price_usd"],
-            "price_stars":    round(info["price_usd"] / settings.STAR_DISPLAY_USD),
+            "price_stars":    sell_price_stars(cat),
             "discount_stars": info.get("discount_stars"),
         }
         for cat, info in CATEGORIES.items()
@@ -879,12 +887,8 @@ async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
     if not cat_info or body.category in DISABLED_CATEGORIES:
         raise HTTPException(status_code=400, detail="Unknown category")
 
-    base_price_usd = cat_info["price_usd"]
-    discount_stars = cat_info.get("discount_stars")
-    if discount_stars:
-        shop_price_stars = discount_stars
-    else:
-        shop_price_stars = round(base_price_usd / settings.STAR_DISPLAY_USD)
+    # Ціна продажу у ⭐ (з урахуванням оверайда адміна / знижки)
+    shop_price_stars = sell_price_stars(body.category)
     # price_usd завжди = реальна зірочна оплата, а не прайсова ціна
     shop_price_usd = Decimal(str(round(shop_price_stars * settings.STAR_DISPLAY_USD, 4)))
 
@@ -1196,6 +1200,84 @@ async def api_admin_fragment_cookies_clear(admin: User = Depends(require_admin))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  АДМІН: керування закупкою акаунтів (pmin/pmax/ціна продажу) + перевірка стоку
+# ═══════════════════════════════════════════════════════════════════════════════
+class CategorySetBody(BaseModel):
+    category: str
+    pmin: float | None = None
+    pmax: float | None = None
+    price_stars: int | None = None
+
+
+class CategoryCheckBody(BaseModel):
+    category: str
+    pmin: float | None = None
+    pmax: float | None = None
+
+
+@app.get("/api/admin/categories")
+async def api_admin_categories(admin: User = Depends(require_admin)):
+    ov = get_overrides()
+    out = []
+    for code, info in CATEGORIES.items():
+        o = ov.get(code) or {}
+        out.append({
+            "category":   code,
+            "flag":       info["flag"],
+            "title_ru":   info.get("title_ru", info["title"]),
+            "country":    info["country"],
+            "macro":      bool(info.get("macro")),
+            "disabled":   code in DISABLED_CATEGORIES,
+            "cost_usd":   info.get("price_usd"),
+            "default":    category_defaults(code),
+            "effective":  {**effective_bounds(code), "price_stars": sell_price_stars(code)},
+            "override":   {"pmin": o.get("pmin"), "pmax": o.get("pmax"), "price_stars": o.get("price_stars")},
+        })
+    return out
+
+
+@app.post("/api/admin/categories/set")
+async def api_admin_categories_set(body: CategorySetBody, admin: User = Depends(require_admin)):
+    if body.category not in CATEGORIES:
+        raise HTTPException(status_code=400, detail="unknown_category")
+    # Санітизація діапазонів
+    pmin = body.pmin
+    pmax = body.pmax
+    if pmin is not None and pmin < 0:
+        raise HTTPException(status_code=400, detail="pmin must be >= 0")
+    if pmax is not None and pmax <= 0:
+        raise HTTPException(status_code=400, detail="pmax must be > 0")
+    if pmin is not None and pmax is not None and pmin >= pmax:
+        raise HTTPException(status_code=400, detail="pmin must be < pmax")
+    if body.price_stars is not None and body.price_stars < 1:
+        raise HTTPException(status_code=400, detail="price_stars must be >= 1")
+    try:
+        saved = await save_category_override(body.category, pmin=pmin, pmax=pmax, price_stars=body.price_stars)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {
+        "ok": True,
+        "override": saved,
+        "effective": {**effective_bounds(body.category), "price_stars": sell_price_stars(body.category)},
+    }
+
+
+@app.post("/api/admin/categories/check")
+async def api_admin_categories_check(body: CategoryCheckBody, admin: User = Depends(require_admin)):
+    info = CATEGORIES.get(body.category)
+    if not info:
+        raise HTTPException(status_code=400, detail="unknown_category")
+    d = category_defaults(body.category)
+    pmax = body.pmax if body.pmax is not None else d["pmax"]
+    pmin = body.pmin if body.pmin is not None else None
+    try:
+        res = await check_stock(info["country"], float(pmax or 2.5), pmin)
+    except (LolzApiError, httpx.TimeoutException) as e:
+        raise HTTPException(status_code=502, detail=str(e)[:300])
+    return {"ok": True, "country": info["country"], "pmin": pmin, "pmax": pmax, **res}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  ПАРТНЁРСЬКИЙ API  (програмні покупки TG-акаунтів за API-ключем)
 #  – автентифікація за ключем (Authorization: Bearer <key> або X-API-Key)
 #  – rate-limiting per-key і per-IP (захист від DDoS/абузу)
@@ -1253,7 +1335,7 @@ async def api_v1_categories(partner: User = Depends(get_api_partner)):
             "flag":         info["flag"],
             "title":        info.get("title_ru", info["title"]),
             "phone_prefix": info.get("phone_prefix", ""),
-            "price_stars":  info.get("discount_stars") or round(info["price_usd"] / settings.STAR_DISPLAY_USD),
+            "price_stars":  sell_price_stars(cat),
         }
         for cat, info in CATEGORIES.items()
         if cat not in DISABLED_CATEGORIES
@@ -1278,8 +1360,7 @@ async def api_v1_buy(body: ApiBuyRequest, request: Request, partner: User = Depe
     if not cat_info or body.category in DISABLED_CATEGORIES:
         raise HTTPException(status_code=400, detail="unknown_category")
 
-    discount_stars = cat_info.get("discount_stars")
-    price_stars = discount_stars or round(cat_info["price_usd"] / settings.STAR_DISPLAY_USD)
+    price_stars = sell_price_stars(body.category)
     price_usd = Decimal(str(round(price_stars * settings.STAR_DISPLAY_USD, 4)))
 
     if partner.balance_stars < price_stars:

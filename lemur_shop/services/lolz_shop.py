@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import httpx
 import logging
 
 from lemur_shop.api.lolz import LolzApiError, lolz
+from lemur_shop.config import settings
 
 log = logging.getLogger(__name__)
 
@@ -40,7 +42,8 @@ CATEGORIES: dict[str, dict] = {
         "country": "DE", "title": "Germany", "title_ru": "Германия", "title_ua": "Німеччина",
         "flag": "🇩🇪", "phone_prefix": "+49",
         "price_usd": 1.95,
-        "pmax_tiers": [1.50],
+        "macro": True, "pmax": 1.50, "pmin_start": None,
+        "pmin_fallbacks": [1.00, 1.25], "micro_attempts": 15,
     },
     "ua": {
         "country": "UA", "title": "Ukraine", "title_ru": "Украина", "title_ua": "Україна",
@@ -62,6 +65,143 @@ CATEGORIES: dict[str, dict] = {
 DISABLED_CATEGORIES: set[str] = {"ua"}
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ОВЕРАЙДИ КАТЕГОРІЙ (керуються з адмін-панелі, зберігаються в БД)
+#  Для кожної категорії адмін може задати:
+#    pmin        — мінімальна ціна закупки на lolz (нижня межа пошуку)
+#    pmax        — максимальна ціна закупки на lolz (верхня межа / ліміт)
+#    price_stars — ціна продажу користувачу (у ⭐)
+#  Порожнє значення (None) = використовувати дефолт із CATEGORIES.
+# ═══════════════════════════════════════════════════════════════════════════════
+_OVERRIDES_KEY = "category_overrides"
+_OVERRIDES: dict[str, dict] = {}
+
+
+async def load_overrides() -> None:
+    """Завантажує оверайди з БД у памʼять. Викликається на старті та після зміни."""
+    global _OVERRIDES
+    try:
+        from lemur_shop.db.models import AppSetting
+        from lemur_shop.db.session import AsyncSessionLocal
+        async with AsyncSessionLocal() as s:
+            row = await s.get(AppSetting, _OVERRIDES_KEY)
+        if row and row.value:
+            data = json.loads(row.value)
+            if isinstance(data, dict):
+                _OVERRIDES = {k: v for k, v in data.items() if isinstance(v, dict)}
+                log.info("Category overrides loaded: %s", list(_OVERRIDES) or "none")
+                return
+    except Exception as e:
+        log.warning("load_overrides failed: %s", e)
+    _OVERRIDES = {}
+
+
+def get_overrides() -> dict[str, dict]:
+    return _OVERRIDES
+
+
+async def save_category_override(code: str, *, pmin, pmax, price_stars) -> dict:
+    """Зберігає/очищає оверайди категорії. None у полі → прибрати оверайд цього поля."""
+    if code not in CATEGORIES:
+        raise ValueError("unknown category")
+    cur = dict(_OVERRIDES.get(code) or {})
+    for field, val in (("pmin", pmin), ("pmax", pmax), ("price_stars", price_stars)):
+        if val is None:
+            cur.pop(field, None)
+        else:
+            cur[field] = val
+    data = {k: dict(v) for k, v in _OVERRIDES.items()}
+    if cur:
+        data[code] = cur
+    else:
+        data.pop(code, None)
+
+    from lemur_shop.db.models import AppSetting
+    from lemur_shop.db.session import AsyncSessionLocal
+    payload = json.dumps(data)
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            row = await s.get(AppSetting, _OVERRIDES_KEY)
+            if row:
+                row.value = payload
+            else:
+                s.add(AppSetting(key=_OVERRIDES_KEY, value=payload))
+    await load_overrides()
+    log.info("Category override saved for %s: %s", code, cur or "cleared")
+    return _OVERRIDES.get(code, {})
+
+
+def effective_category(code: str) -> dict | None:
+    """Базовий конфіг категорії з накладеними оверайдами адміна."""
+    base = CATEGORIES.get(code)
+    if not base:
+        return None
+    eff = dict(base)
+    ov = _OVERRIDES.get(code) or {}
+    pmax = ov.get("pmax")
+    pmin = ov.get("pmin")
+    if pmax is not None:
+        eff["pmax"] = pmax
+        if "pmax_tiers" in eff:
+            eff["pmax_tiers"] = [pmax]
+    if pmin is not None:
+        if eff.get("macro"):
+            eff["pmin_start"] = pmin
+        else:
+            eff["pmin"] = pmin
+    if ov.get("price_stars") is not None:
+        eff["price_stars_override"] = ov["price_stars"]
+    return eff
+
+
+def sell_price_stars(code: str) -> int:
+    """Ціна продажу користувачу у ⭐ з урахуванням оверайда/знижки."""
+    eff = effective_category(code)
+    if not eff:
+        return 0
+    if eff.get("price_stars_override") is not None:
+        return int(eff["price_stars_override"])
+    if eff.get("discount_stars"):
+        return int(eff["discount_stars"])
+    return round(eff["price_usd"] / settings.STAR_DISPLAY_USD)
+
+
+def category_defaults(code: str) -> dict:
+    """Кодові (дефолтні) значення pmin/pmax/price_stars — для показу в адмінці."""
+    base = CATEGORIES.get(code) or {}
+    if base.get("macro"):
+        d_pmin = base.get("pmin_start")
+        d_pmax = base.get("pmax")
+    else:
+        d_pmin = base.get("pmin")
+        d_pmax = (base.get("pmax_tiers") or [None])[0]
+    d_price = base.get("discount_stars") or round(base.get("price_usd", 0) / settings.STAR_DISPLAY_USD)
+    return {"pmin": d_pmin, "pmax": d_pmax, "price_stars": d_price}
+
+
+def effective_bounds(code: str) -> dict:
+    """Поточні діючі pmin/pmax (з оверайдами) — для показу в адмінці."""
+    eff = effective_category(code) or {}
+    if eff.get("macro"):
+        return {"pmin": eff.get("pmin_start"), "pmax": eff.get("pmax")}
+    return {"pmin": eff.get("pmin"), "pmax": (eff.get("pmax_tiers") or [None])[0]}
+
+
+async def check_stock(country: str, pmax: float, pmin: float | None) -> dict:
+    """Живий пошук для адмін-кнопки «Перевірити». Скільки акаунтів знайдено зараз."""
+    items = await lolz.search_telegram(
+        country=country, pmax=pmax, pmin=pmin, count=100,
+        spam="no", password="no",
+    )
+    prices = sorted(float(i.get("price") or i.get("price_usd") or 0) for i in items)
+    return {
+        "count": len(items),
+        "cheapest": round(prices[0], 2) if prices else None,
+        "most_expensive": round(prices[-1], 2) if prices else None,
+        "sample": [round(p, 2) for p in prices[:6]],
+    }
+
+
 async def _search_with_pmax(country: str, pmax: float, limit: int = 10) -> list[dict]:
     try:
         return await lolz.search_telegram(country=country, pmax=pmax, count=limit)
@@ -70,7 +210,7 @@ async def _search_with_pmax(country: str, pmax: float, limit: int = 10) -> list[
 
 
 async def search_accounts(category: str, limit: int = 8) -> list[dict]:
-    cat = CATEGORIES.get(category)
+    cat = effective_category(category)
     if not cat:
         return []
     country = cat["country"]
@@ -167,7 +307,10 @@ async def _macro_buy(cat: dict) -> tuple[str, int, float]:
     micro_att = cat.get("micro_attempts", 15)
 
     # Ступені нижньої межі: старт (може бути None = без межі) + явні фолбеки.
-    pmin_tiers: list[float | None] = [cat.get("pmin_start")] + list(cat.get("pmin_fallbacks", []))
+    # Фолбеки нижче стартового порога відкидаємо (напр. якщо адмін підняв pmin).
+    _start = cat.get("pmin_start")
+    _fallbacks = [f for f in cat.get("pmin_fallbacks", []) if _start is None or f > _start]
+    pmin_tiers: list[float | None] = [_start] + _fallbacks
 
     seen_total       = 0             # скільки item-ів взагалі повернув пошук
     cheapest_overall = float("inf")  # найдешевший знайдений (для діагностики)
@@ -234,7 +377,7 @@ async def _macro_buy(cat: dict) -> tuple[str, int, float]:
 
 
 async def auto_buy_category(category: str) -> tuple[str, int, float]:
-    cat = CATEGORIES.get(category)
+    cat = effective_category(category)
     if not cat:
         raise LolzApiError("Unknown category")
 
