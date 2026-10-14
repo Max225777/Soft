@@ -177,6 +177,25 @@ function Overview() {
 
   const { stats, loading, reload } = useOverviewStats(dateFrom, dateTo)
   const [resetting, setResetting] = useState(false)
+  const [reconciling, setReconciling] = useState(false)
+  const [reconMsg, setReconMsg] = useState<string | null>(null)
+
+  async function handleReconcile() {
+    setReconciling(true); setReconMsg(null)
+    try {
+      const r = await adminApi.starsReconcile()
+      if (!r.ok) { setReconMsg(`❌ Ошибка: ${r.error || 'неизвестно'}`); return }
+      if (r.credited_count > 0) {
+        setReconMsg(`✅ Дозачислено ${r.credited_count} платёж(ей): ` +
+          r.credited.map(c => `ID ${c.user_id} +${c.stars}⭐`).join(', '))
+        reload()
+      } else {
+        setReconMsg(`ℹ️ Новых платежей нет (просмотрено ${r.scanned}, уже зачислено ${r.already})`)
+      }
+    } catch (e: any) {
+      setReconMsg(`❌ ${e?.message || 'Ошибка'}`)
+    } finally { setReconciling(false) }
+  }
 
   async function handleReset() {
     if (!confirm('Сбросить ВСЕ балансы, заказы и пополнения? Это необратимо!')) return
@@ -337,6 +356,23 @@ function Overview() {
             </button>
           </div>
         )}
+
+        {/* ── Сверка Stars-платежей ── */}
+        <div style={{
+          background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px',
+        }}>
+          <div style={{ fontSize: 12, color: '#2AABEE', fontWeight: 700, marginBottom: 6 }}>⭐ Сверка Stars-платежей</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 8 }}>
+            Если кто-то оплатил звёздами, но баланс не зачислился (платёж потерялся при деплое/сбое) —
+            нажми: подтянется история транзакций из Telegram и недостающие пополнения зачислятся. Повторный
+            запуск ничего не задваивает.
+          </div>
+          <button className="btn" disabled={reconciling} onClick={handleReconcile}
+            style={{ background: 'rgba(42,171,238,.15)', color: '#2AABEE', border: '1px solid rgba(42,171,238,.3)', fontSize: 13 }}>
+            {reconciling ? '⏳ Сверяю...' : '🔄 Сверить и дозачислить'}
+          </button>
+          {reconMsg && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text)' }}>{reconMsg}</div>}
+        </div>
 
         <RecentPurchases />
 
