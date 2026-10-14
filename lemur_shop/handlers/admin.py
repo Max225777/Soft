@@ -351,36 +351,6 @@ async def cmd_platega_check(message: Message) -> None:
         await message.answer(f"⚠️ {msg}", parse_mode="HTML")
 
 
-@router.message(Command("stars_check", "starscheck"), IsAdmin())
-async def cmd_stars_check(message: Message) -> None:
-    """Звірка Stars-платежів: тягне історію транзакцій бота з Telegram і дозаховує
-    поповнення, які не зарахувались (апдейт загубився під час деплою/збою вебхука).
-    Ідемпотентно — повторний запуск нічого не дублює. /stars_check [N] (скільки
-    останніх транзакцій переглянути, за замовчуванням 100)."""
-    parts = (message.text or "").split()
-    limit = 100
-    if len(parts) == 2 and parts[1].isdigit():
-        limit = max(1, min(int(parts[1]), 1000))
-    from lemur_shop.server import reconcile_star_payments
-    await message.answer("🔄 Звіряю Stars-платежі з Telegram…")
-    res = await reconcile_star_payments(limit_scan=limit)
-    if not res.get("ok"):
-        await message.answer(f"❌ Помилка звірки: <code>{res.get('error')}</code>", parse_mode="HTML")
-        return
-    cred = res.get("credited") or []
-    if cred:
-        lines = "\n".join(f"• <code>{c['user_id']}</code>: +{c['stars']}⭐" for c in cred)
-        await message.answer(
-            f"✅ Дозараховано {len(cred)} платіж(ів):\n{lines}\n\n"
-            f"Переглянуто: {res.get('scanned')} · вже було: {res.get('already')}",
-            parse_mode="HTML")
-    else:
-        await message.answer(
-            f"ℹ️ Нових платежів для зарахування немає.\n"
-            f"Переглянуто: {res.get('scanned')} · уже зараховано раніше: {res.get('already')}",
-            parse_mode="HTML")
-
-
 # ─── Партнёрська програма ───────────────────────────────────────────────────────
 
 @router.message(Command("partner_add"), IsAdmin())

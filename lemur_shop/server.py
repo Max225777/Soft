@@ -663,13 +663,9 @@ async def lifespan(app: FastAPI):
     if webapp_url.startswith("https://"):
         try:
             allowed = _dp.resolve_used_update_types()
-            # drop_pending_updates=False — НЕ викидаємо чергу оновлень при рестарті/деплої.
-            # Інакше платіж (successful_payment), що прийшов під час деплою, губиться
-            # назавжди: зірки списано, а баланс не зараховано. Telegram передасть його
-            # повторно після старту.
             await _bot.set_webhook(
                 webapp_url + "/webhook",
-                drop_pending_updates=False,
+                drop_pending_updates=True,
                 allowed_updates=allowed,
             )
             use_webhook = True
@@ -2814,105 +2810,6 @@ async def platega_notify(request: Request):
 # Prevents duplicate invoices when user reloads page before paying
 _pending_star_invoices: dict[int, tuple[float, str, int]] = {}
 _INVOICE_TTL = 600  # seconds — invoice is valid 10 min, matches Telegram default
-
-
-async def _credit_stars_by_charge(user_id: int, stars: int, charge_id: str) -> str:
-    """Ідемпотентне зарахування Stars-поповнення (спільне для вебхука і звірки).
-    Повертає: 'credited', 'already' або 'no_user'."""
-    amount_usd = Decimal(str(round(stars * settings.STAR_DISPLAY_USD, 4)))
-    try:
-        async with AsyncSessionLocal() as s:
-            async with s.begin():
-                user = await s.get(User, user_id, with_for_update=True)
-                if not user:
-                    return "no_user"
-                user.balance_stars = user.balance_stars + stars
-                user.balance_usd   = user.balance_usd + amount_usd
-                s.add(TopUp(
-                    user_id=user_id, amount_usd=amount_usd, amount_stars=stars,
-                    admin_id=0, method="stars", charge_id=charge_id,
-                ))
-    except IntegrityError:
-        return "already"
-    return "credited"
-
-
-async def reconcile_star_payments(limit_scan: int = 100) -> dict:
-    """Звіряє історію Stars-транзакцій бота з БД і дозаховує втрачені поповнення.
-    Рятує випадок, коли successful_payment-апдейт не дійшов (вебхук впав / деплой).
-    Зарахування ідемпотентне за charge_id (== id транзакції у Telegram)."""
-    if _bot is None:
-        return {"ok": False, "error": "bot_not_ready"}
-    credited: list[dict] = []
-    already = 0
-    scanned = 0
-    offset = 0
-    try:
-        while scanned < limit_scan:
-            batch = min(100, limit_scan - scanned)
-            res = await _bot.get_star_transactions(offset=offset, limit=batch)
-            txns = list(getattr(res, "transactions", None) or [])
-            if not txns:
-                break
-            for t in txns:
-                scanned += 1
-                # Вхідні поповнення: заповнений source (гроші від користувача боту).
-                src = getattr(t, "source", None)
-                if src is None:
-                    continue  # вихідні (виводи/рефанди) — пропускаємо
-                payload = getattr(src, "invoice_payload", None)
-                if not payload or not str(payload).startswith("stars_topup:"):
-                    continue
-                try:
-                    uid = int(str(payload).split(":")[1])
-                except Exception:
-                    continue
-                stars = int(getattr(t, "amount", 0) or 0)
-                charge_id = str(getattr(t, "id", "") or "")
-                if not charge_id or stars <= 0:
-                    continue
-                r = await _credit_stars_by_charge(uid, stars, charge_id)
-                if r == "already":
-                    already += 1
-                elif r == "credited":
-                    credited.append({"user_id": uid, "stars": stars, "charge_id": charge_id})
-                    log.info("Stars RECONCILE credited user=%s stars=%s charge=%s", uid, stars, charge_id)
-            offset += len(txns)
-    except Exception as e:
-        log.warning("reconcile_star_payments error: %s", e)
-        return {"ok": False, "error": str(e)[:300], "credited": credited,
-                "already": already, "scanned": scanned}
-
-    # Повідомити адмінів про дозараховані платежі + юзерам
-    if credited and _bot:
-        for c in credited:
-            try:
-                await _bot.send_message(
-                    c["user_id"],
-                    f"✅ Баланс поповнено!\n\n⭐ +{c['stars']} зірок\n"
-                    f"(відновлено автоматичною звіркою платежів)",
-                    parse_mode="HTML",
-                )
-            except Exception:
-                pass
-        if settings.ADMIN_IDS:
-            lines = "\n".join(f"• <code>{c['user_id']}</code>: +{c['stars']}⭐" for c in credited)
-            for admin_id in settings.ADMIN_IDS:
-                try:
-                    await _bot.send_message(
-                        admin_id,
-                        f"🔄 <b>Звірка Stars:</b> дозараховано {len(credited)} платіж(ів)\n{lines}",
-                        parse_mode="HTML",
-                    )
-                except Exception:
-                    pass
-    return {"ok": True, "credited": credited, "credited_count": len(credited),
-            "already": already, "scanned": scanned}
-
-
-@app.post("/api/admin/stars/reconcile")
-async def api_admin_stars_reconcile(admin: User = Depends(require_admin)):
-    return await reconcile_star_payments()
 
 
 @app.get("/api/stars/rate")
