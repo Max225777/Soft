@@ -397,7 +397,7 @@ function BioPromoTab() {
     try {
       const r = await adminApi.bioPromoSet(q.trim(), tier)
       const who = r.username ? '@' + r.username : '#' + r.user_id
-      setSetMsg({ ok: true, text: tier > 0 ? `✅ ${who}: промо включено (+${r.reward_tier}⭐/день)` : `⛔ ${who}: промо выключено` })
+      setSetMsg({ ok: true, text: tier > 0 ? `✅ ${who}: промо включено (+1⭐/день за био)` : `⛔ ${who}: промо выключено` })
       setQ(''); load(page)
     } catch (e: any) {
       setSetMsg({ ok: false, text: e?.message === 'user_not_found' ? 'Юзер не найден' : 'Ошибка' })
@@ -411,7 +411,6 @@ function BioPromoTab() {
 
   const totalStars  = data?.items.reduce((s, p) => s + p.total_rewarded, 0) ?? 0
   const activeCount = data?.items.filter(p => p.is_active).length ?? 0
-  const tier2Count  = data?.items.filter(p => p.is_active && p.reward_tier === 2).length ?? 0
   const nameActiveCount = data?.items.filter(p => p.name_active).length ?? 0
   const nameStars   = data?.items.reduce((s, p) => s + (p.name_total_rewarded ?? 0), 0) ?? 0
 
@@ -428,35 +427,24 @@ function BioPromoTab() {
         />
         <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
           <button className="btn" disabled={busy || !q.trim()} onClick={() => applyPromo(1)}
-            style={{ flex: 1, fontSize: 12, padding: '8px 4px', background: 'rgba(95,186,71,.15)', border: '1px solid rgba(95,186,71,.4)', color: '#5fba47' }}>+1⭐/день</button>
-          <button className="btn" disabled={busy || !q.trim()} onClick={() => applyPromo(2)}
-            style={{ flex: 1, fontSize: 12, padding: '8px 4px', background: 'rgba(255,179,71,.15)', border: '1px solid rgba(255,179,71,.4)', color: '#FFB347' }}>+2⭐/день</button>
+            style={{ flex: 1, fontSize: 12, padding: '8px 4px', background: 'rgba(95,186,71,.15)', border: '1px solid rgba(95,186,71,.4)', color: '#5fba47' }}>Включить (+1⭐/день)</button>
           <button className="btn" disabled={busy || !q.trim()} onClick={() => applyPromo(0)}
             style={{ flex: 1, fontSize: 12, padding: '8px 4px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)', color: '#ef4444' }}>Выключить</button>
         </div>
         {setMsg && <div style={{ marginTop: 8, fontSize: 12, color: setMsg.ok ? '#4CAF72' : 'var(--red)' }}>{setMsg.text}</div>}
       </div>
 
-      {/* Статистика по прізвищу @LEMUR_SHOP */}
+      {/* Статистика: био (+1⭐) и фамилия (+1⭐) раздельно */}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <StatCard label="📝 Био активно" value={activeCount} color="#5fba47" />
+        <StatCard label="📝 Выдано (био)" value={`⭐${totalStars}`} color="var(--gold)" />
+      </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <StatCard label="🏷 Фамилия активна" value={nameActiveCount} color="#FFB347" />
         <StatCard label="🏷 Выдано (фамилия)" value={`⭐${nameStars}`} color="var(--gold)" />
       </div>
-
-      {/* Summary cards */}
       {data && (
-        <>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <StatCard label="Всего участников" value={data.total} color="#5fba47" />
-            <StatCard label="Активных (+1⭐)" value={activeCount - tier2Count} color="#5fba47" />
-            <StatCard label="Активных (+2⭐)" value={tier2Count} color="#FFB347" />
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <StatCard label="Звёзд выдано" value={`⭐${totalStars}`} color="var(--gold)" />
-            <StatCard label="С полной фразой" value={`${tier2Count} / ${activeCount}`}
-              sub={activeCount ? `${Math.round(tier2Count / activeCount * 100)}%` : '0%'} color="#FFB347" />
-          </div>
-        </>
+        <StatCard label="Всего участников промо" value={data.total} color="#5fba47" />
       )}
 
       {loading && <div style={{ fontSize: 13, color: 'var(--muted)' }}>Загрузка...</div>}
@@ -487,10 +475,15 @@ function BioPromoTab() {
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontWeight: 800, color: 'var(--gold)', fontSize: 16 }}>⭐{p.total_rewarded}</div>
+                  <div style={{ fontWeight: 800, color: 'var(--gold)', fontSize: 16 }}>⭐{p.total_rewarded + (p.name_total_rewarded ?? 0)}</div>
                   <div style={{ fontSize: 10, marginTop: 1,
-                    color: p.is_active ? (p.reward_tier === 2 ? '#FFB347' : '#5fba47') : 'var(--muted)' }}>
-                    {p.is_active ? (p.reward_tier === 2 ? '+2⭐/день' : '+1⭐/день') : 'неактивный'}
+                    color: (p.is_active || p.name_active) ? '#5fba47' : 'var(--muted)' }}>
+                    {(() => {
+                      const parts: string[] = []
+                      if (p.is_active) parts.push('био')
+                      if (p.name_active) parts.push('фамилия')
+                      return parts.length ? `+${parts.length}⭐/день (${parts.join(' + ')})` : 'неактивный'
+                    })()}
                   </div>
                 </div>
               </div>

@@ -83,12 +83,12 @@ export default function BioPromoButton({ lang, variant = 'button' }: Props) {
   const L = {
     ru: {
       tabBio: '📝 Описание', tabName: '🏷 Фамилия',
-      nameTitle: 'Фамилия = [@LEMUR_SHOP]', nameDesc: 'Поставь в фамилию профиля только [@LEMUR_SHOP] — и получай +2⭐ каждый день.',
+      nameTitle: 'Фамилия = [@LEMUR_SHOP]', nameDesc: 'Поставь в фамилию профиля только [@LEMUR_SHOP] — и получай +1⭐ каждый день.',
       nameStep1: 'Открой «Редактировать профиль» в Telegram',
       nameStep2: 'В поле «Фамилия» впиши ровно [@LEMUR_SHOP]',
       nameStep3: 'Больше в фамилии ничего быть не должно',
       nameWarn: '⚠️ В фамилии не должно быть ничего, кроме [@LEMUR_SHOP] — иначе не засчитается.',
-      nameActive: '✅ Фамилия активна — +2⭐/день', nameInactive: '❌ Фамилия не найдена',
+      nameActive: '✅ Фамилия активна — +1⭐/день', nameInactive: '❌ Фамилия не найдена',
       nameExample: 'Пример, как будет в Telegram:',
       earned: 'Заработано', copy: 'Скопировать', copied: '📋 Скопировано',
       ok: '✅ Засчитано!', notActive: '❌ Не найдено. Проверь профиль и попробуй снова.',
@@ -96,12 +96,12 @@ export default function BioPromoButton({ lang, variant = 'button' }: Props) {
     },
     ua: {
       tabBio: '📝 Опис', tabName: '🏷 Прізвище',
-      nameTitle: 'Прізвище = [@LEMUR_SHOP]', nameDesc: 'Постав у прізвище профілю тільки [@LEMUR_SHOP] — і отримуй +2⭐ щодня.',
+      nameTitle: 'Прізвище = [@LEMUR_SHOP]', nameDesc: 'Постав у прізвище профілю тільки [@LEMUR_SHOP] — і отримуй +1⭐ щодня.',
       nameStep1: 'Відкрий «Редагувати профіль» у Telegram',
       nameStep2: 'У полі «Прізвище» впиши рівно [@LEMUR_SHOP]',
       nameStep3: 'Більше в прізвищі нічого бути не повинно',
       nameWarn: '⚠️ У прізвищі не має бути нічого, окрім [@LEMUR_SHOP] — інакше не зарахується.',
-      nameActive: '✅ Прізвище активне — +2⭐/день', nameInactive: '❌ Прізвище не знайдено',
+      nameActive: '✅ Прізвище активне — +1⭐/день', nameInactive: '❌ Прізвище не знайдено',
       nameExample: 'Приклад, як буде в Telegram:',
       earned: 'Зароблено', copy: 'Скопіювати', copied: '📋 Скопійовано',
       ok: '✅ Зараховано!', notActive: '❌ Не знайдено. Перевір профіль і спробуй ще.',
@@ -109,12 +109,12 @@ export default function BioPromoButton({ lang, variant = 'button' }: Props) {
     },
     en: {
       tabBio: '📝 Bio', tabName: '🏷 Last name',
-      nameTitle: 'Last name = [@LEMUR_SHOP]', nameDesc: 'Set your profile last name to just [@LEMUR_SHOP] and get +2⭐ every day.',
+      nameTitle: 'Last name = [@LEMUR_SHOP]', nameDesc: 'Set your profile last name to just [@LEMUR_SHOP] and get +1⭐ every day.',
       nameStep1: 'Open “Edit profile” in Telegram',
       nameStep2: 'In the “Last name” field type exactly [@LEMUR_SHOP]',
       nameStep3: 'Nothing else should be in the last name',
       nameWarn: '⚠️ The last name must contain only [@LEMUR_SHOP] — otherwise it won’t count.',
-      nameActive: '✅ Last name active — +2⭐/day', nameInactive: '❌ Last name not found',
+      nameActive: '✅ Last name active — +1⭐/day', nameInactive: '❌ Last name not found',
       nameExample: 'Example how it looks in Telegram:',
       earned: 'Earned', copy: 'Copy', copied: '📋 Copied',
       ok: '✅ Counted!', notActive: '❌ Not found. Check your profile and try again.',
@@ -141,9 +141,9 @@ export default function BioPromoButton({ lang, variant = 'button' }: Props) {
   const tier   = promo?.reward_tier ?? 0
 
   const bannerTxt = {
-    ru: { t: '+3⭐ каждый день', s: 'за фразу в описании и фамилии', cta: active ? 'Активно ✓' : 'Как получить →' },
-    ua: { t: '+3⭐ щодня',       s: 'за фразу в описі та прізвищі',   cta: active ? 'Активно ✓' : 'Як отримати →' },
-    en: { t: '+3⭐ every day',   s: 'for bio phrase + last name',     cta: active ? 'Active ✓' : 'How to get →' },
+    ru: { t: '+2⭐ каждый день', s: 'по +1⭐ за фразу в описании и в фамилии', cta: active ? 'Активно ✓' : 'Как получить →' },
+    ua: { t: '+2⭐ щодня',       s: 'по +1⭐ за фразу в описі та в прізвищі',   cta: active ? 'Активно ✓' : 'Як отримати →' },
+    en: { t: '+2⭐ every day',   s: '+1⭐ each for bio phrase and last name',   cta: active ? 'Active ✓' : 'How to get →' },
   }[lang]
 
   return (

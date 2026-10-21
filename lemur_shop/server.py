@@ -533,14 +533,22 @@ async def _bio_promo_midnight_rewarder() -> None:
                 log.info("bio_promo daily reward: %d active participants (date=%s)", len(promos), today)
 
                 _DAILY_REWARD_MSG = {
-                    "ru": "⭐ <b>+{stars}⭐!</b>\n\nЕжедневная награда за фразу в профиле.",
-                    "ua": "⭐ <b>+{stars}⭐!</b>\n\nДобова нагорода за фразу в профілі.",
-                    "en": "⭐ <b>+{stars}⭐!</b>\n\nDaily reward for the phrase in your profile.",
+                    "ru": "⭐ <b>+{stars}⭐!</b>\n\nЕжедневная награда за промо в профиле.",
+                    "ua": "⭐ <b>+{stars}⭐!</b>\n\nДобова нагорода за промо в профілі.",
+                    "en": "⭐ <b>+{stars}⭐!</b>\n\nDaily reward for the promo in your profile.",
                 }
+
+                # Лічильники для щоденного звіту адміну
+                rewarded_users = 0   # скільки користувачів отримали хоч щось
+                bio_rewarded   = 0   # з них — за фразу в біо
+                name_rewarded  = 0   # з них — за @LEMUR_SHOP у прізвищі
+                total_given    = 0   # усього нараховано ⭐
 
                 for promo in promos:
                     user_lang = "ru"
                     given = 0
+                    gave_bio = False
+                    gave_name = False
                     try:
                         async with AsyncSessionLocal() as s:
                             async with s.begin():
@@ -560,15 +568,24 @@ async def _bio_promo_midnight_rewarder() -> None:
                                     p.last_rewarded_at = now
                                     p.total_rewarded += bio_stars
                                     given += bio_stars
-                                # Промо @LEMUR_SHOP у прізвищі — 2⭐/день
+                                    gave_bio = True
+                                # Промо @LEMUR_SHOP у прізвищі — 1⭐/день
                                 if p.name_active and not (p.name_last_rewarded_at and p.name_last_rewarded_at >= today_start):
-                                    name_stars = 2
+                                    name_stars = 1
                                     user.balance_stars += name_stars
                                     user.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD)) * name_stars
                                     p.name_last_rewarded_at = now
                                     p.name_total_rewarded += name_stars
                                     given += name_stars
+                                    gave_name = True
                                 user_lang = user.lang or "ru"
+                        if given > 0:
+                            rewarded_users += 1
+                            total_given += given
+                            if gave_bio:
+                                bio_rewarded += 1
+                            if gave_name:
+                                name_rewarded += 1
                         if _bot and given > 0:
                             txt = _DAILY_REWARD_MSG.get(user_lang, _DAILY_REWARD_MSG["ua"]).format(stars=given)
                             try:
@@ -579,8 +596,26 @@ async def _bio_promo_midnight_rewarder() -> None:
                         log.warning("bio_promo daily reward error user=%s: %s", promo.user_id, e)
                     await asyncio.sleep(0.3)
 
+                # Щоденний звіт адмінам: скільки людей і скільки нараховано
+                if _bot and settings.ADMIN_IDS:
+                    channel = settings.CHANNEL_USERNAME.lstrip("@")
+                    report = (
+                        f"📊 <b>Ежедневная промо-выплата</b>\n\n"
+                        f"👥 Пользователей начислено: <b>{rewarded_users}</b>\n"
+                        f"📝 За фразу в био: <b>{bio_rewarded}</b> (×1⭐)\n"
+                        f"🏷 За @{channel} в фамилии: <b>{name_rewarded}</b> (×1⭐)\n"
+                        f"⭐ Всего начислено: <b>{total_given}⭐</b>\n"
+                        f"📅 {today}"
+                    )
+                    for admin_id in settings.ADMIN_IDS:
+                        try:
+                            await _bot.send_message(admin_id, report, parse_mode="HTML")
+                        except Exception:
+                            pass
+
                 _last_run_date = today
-                log.info("bio_promo daily reward done for %s", today)
+                log.info("bio_promo daily reward done for %s: users=%d bio=%d name=%d total=%d⭐",
+                         today, rewarded_users, bio_rewarded, name_rewarded, total_given)
         except asyncio.CancelledError:
             raise
         except Exception as e:
