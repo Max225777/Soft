@@ -353,26 +353,24 @@ async def cmd_platega_check(message: Message) -> None:
 
 @router.message(Command("promocheck", "promo_check", "checkpromo"), IsAdmin())
 async def cmd_promo_check(message: Message) -> None:
-    """Ручна перевірка всіх учасників промо (біо + прізвище) + звіт у чат:
-    скільки додалось і скільки відвалилось по тексту в біо і по ніку."""
-    from lemur_shop.server import run_promo_recheck
-    await message.answer("🔄 Проверяю всех участников промо (био + фамилия)… это займёт немного времени.")
-    r = await run_promo_recheck()
-    txt = (
-        f"📊 <b>Проверка промо завершена</b>\n\n"
-        f"👥 Проверено участников: <b>{r['total']}</b>\n\n"
-        f"📝 <b>Био (фраза в описании):</b>\n"
-        f"   ✅ стало активно: +{r['bio_activated']}\n"
-        f"   ❌ отвалилось: −{r['bio_deactivated']}\n"
-        f"   🟢 сейчас активно: <b>{r['bio_active_now']}</b>\n\n"
-        f"🏷 <b>Фамилия (@LEMUR_SHOP):</b>\n"
-        f"   ✅ стало активно: +{r['name_activated']}\n"
-        f"   ❌ отвалилось: −{r['name_deactivated']}\n"
-        f"   🟢 сейчас активно: <b>{r['name_active_now']}</b>"
-    )
-    if r.get("errors"):
-        txt += f"\n\n⚠️ Не удалось проверить: {r['errors']}"
-    await message.answer(txt, parse_mode="HTML")
+    """Ручна перевірка всіх учасників промо (біо + прізвище) У ФОНІ + звіт у чат.
+    Не блокує бота; повторний запуск ігнорується, поки триває поточний."""
+    from lemur_shop.server import start_promo_recheck
+    started = await start_promo_recheck(message.bot, message.chat.id)
+    if started:
+        await message.answer("🔄 Запустил проверку промо в фоне. Пришлю отчёт, когда закончу.\nОстановить: /promostop")
+    else:
+        await message.answer("⏳ Проверка уже идёт. Дождись отчёта или останови: /promostop")
+
+
+@router.message(Command("promostop", "promo_stop", "stoppromo"), IsAdmin())
+async def cmd_promo_stop(message: Message) -> None:
+    """Зупиняє фонову перевірку промо."""
+    from lemur_shop.server import stop_promo_recheck
+    if stop_promo_recheck():
+        await message.answer("🛑 Останавливаю проверку… пришлю частичный отчёт.")
+    else:
+        await message.answer("ℹ️ Сейчас никакая проверка не выполняется.")
 
 
 # ─── Партнёрська програма ───────────────────────────────────────────────────────

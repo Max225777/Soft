@@ -367,6 +367,10 @@ _keepalive_task: asyncio.Task | None = None
 _bio_promo_task: asyncio.Task | None = None
 _bio_promo_midnight_task: asyncio.Task | None = None
 
+# Ручна перевірка промо (/promocheck): один прохід за раз + можливість зупинити
+_promo_recheck_running: bool = False
+_promo_recheck_cancel: bool = False
+
 
 import re as _re
 
@@ -510,24 +514,49 @@ async def _bio_promo_hourly_checker() -> None:
         await asyncio.sleep(3600)
 
 
+async def _fetch_profile_flags(user_id: int) -> tuple[bool, int, bool]:
+    """Одноразовий (без ретраїв) витяг прапорців промо — для масової перевірки.
+    Один get_chat на юзера замість шести. Повертає (has_bio, tier, has_name)."""
+    if not _bot:
+        return False, 0, False
+    chat = await _bot.get_chat(user_id)
+    bio   = chat.bio or ""
+    first = chat.first_name or ""
+    last  = getattr(chat, "last_name", None) or ""
+    needle = _normalize(settings.CHANNEL_USERNAME.lstrip("@"))
+    phrase_kws = [_normalize(kw) for kw in settings.BIO_PROMO_PHRASE_KEYWORDS]
+    combined = _normalize(f"{bio} {first} {last}")
+    found = needle in combined
+    has_phrase = any(kw in combined for kw in phrase_kws)
+    tier = 2 if (found and has_phrase) else (1 if found else 0)
+    has_name = _normalize(last) == needle
+    return found, tier, has_name
+
+
 async def run_promo_recheck() -> dict:
     """Ручна перевірка ВСІХ учасників промо (біо + прізвище) прямо зараз.
     Оновлює is_active / name_active і рахує зміни відносно попереднього стану,
-    щоб адмін побачив, скільки додалось і скільки відвалилось. Нагород НЕ видає."""
+    щоб адмін побачив, скільки додалось і скільки відвалилось. Нагород НЕ видає.
+    Перериваємо, якщо виставлено _promo_recheck_cancel."""
+    global _promo_recheck_cancel
     now = datetime.utcnow()
     async with AsyncSessionLocal() as s:
         promos = (await s.execute(select(BioPromo))).scalars().all()
 
     total = len(promos)
+    checked = 0
     bio_activated = bio_deactivated = 0
     name_activated = name_deactivated = 0
     bio_active_now = name_active_now = 0
     errors = 0
+    cancelled = False
 
     for promo in promos:
+        if _promo_recheck_cancel:
+            cancelled = True
+            break
         try:
-            has_bio, tier = await _check_bio_tier(promo.user_id)
-            has_name = await _check_name(promo.user_id)
+            has_bio, tier, has_name = await _fetch_profile_flags(promo.user_id)
             async with AsyncSessionLocal() as s:
                 p = await s.get(BioPromo, promo.user_id)
                 if not p:
@@ -552,20 +581,79 @@ async def run_promo_recheck() -> dict:
                 if has_name:
                     name_active_now += 1
                 await s.commit()
+            checked += 1
         except Exception as e:
             errors += 1
             log.warning("promo recheck error user=%s: %s", promo.user_id, e)
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(0.2)
 
-    log.info("promo recheck done: total=%d bio +%d/-%d (now %d), name +%d/-%d (now %d), errors=%d",
-             total, bio_activated, bio_deactivated, bio_active_now,
+    log.info("promo recheck done: total=%d checked=%d cancelled=%s bio +%d/-%d (now %d), name +%d/-%d (now %d), errors=%d",
+             total, checked, cancelled, bio_activated, bio_deactivated, bio_active_now,
              name_activated, name_deactivated, name_active_now, errors)
     return {
-        "total": total,
+        "total": total, "checked": checked, "cancelled": cancelled,
         "bio_activated": bio_activated, "bio_deactivated": bio_deactivated, "bio_active_now": bio_active_now,
         "name_activated": name_activated, "name_deactivated": name_deactivated, "name_active_now": name_active_now,
         "errors": errors,
     }
+
+
+def _promo_report_text(r: dict) -> str:
+    head = "📊 <b>Проверка промо завершена</b>" if not r.get("cancelled") else "🛑 <b>Проверка промо остановлена</b>"
+    txt = (
+        f"{head}\n\n"
+        f"👥 Проверено: <b>{r.get('checked', 0)}</b> из {r.get('total', 0)}\n\n"
+        f"📝 <b>Био (фраза в описании):</b>\n"
+        f"   ✅ стало активно: +{r['bio_activated']}\n"
+        f"   ❌ отвалилось: −{r['bio_deactivated']}\n"
+        f"   🟢 сейчас активно: <b>{r['bio_active_now']}</b>\n\n"
+        f"🏷 <b>Фамилия (@LEMUR_SHOP):</b>\n"
+        f"   ✅ стало активно: +{r['name_activated']}\n"
+        f"   ❌ отвалилось: −{r['name_deactivated']}\n"
+        f"   🟢 сейчас активно: <b>{r['name_active_now']}</b>"
+    )
+    if r.get("errors"):
+        txt += f"\n\n⚠️ Не удалось проверить: {r['errors']}"
+    return txt
+
+
+async def start_promo_recheck(bot, chat_id: int) -> bool:
+    """Запускає перевірку промо у фоні й шле звіт у chat_id після завершення.
+    Повертає False, якщо перевірка вже йде (щоб не плодити дублі)."""
+    global _promo_recheck_running, _promo_recheck_cancel
+    if _promo_recheck_running:
+        return False
+    _promo_recheck_running = True
+    _promo_recheck_cancel = False
+
+    async def _worker():
+        global _promo_recheck_running
+        try:
+            r = await run_promo_recheck()
+            try:
+                await bot.send_message(chat_id, _promo_report_text(r), parse_mode="HTML")
+            except Exception:
+                pass
+        except Exception as e:
+            log.warning("start_promo_recheck worker error: %s", e)
+            try:
+                await bot.send_message(chat_id, f"❌ Ошибка проверки промо: <code>{str(e)[:300]}</code>", parse_mode="HTML")
+            except Exception:
+                pass
+        finally:
+            _promo_recheck_running = False
+
+    asyncio.create_task(_worker())
+    return True
+
+
+def stop_promo_recheck() -> bool:
+    """Просить фонову перевірку зупинитися. False, якщо нічого не виконується."""
+    global _promo_recheck_cancel
+    if not _promo_recheck_running:
+        return False
+    _promo_recheck_cancel = True
+    return True
 
 
 async def _bio_promo_midnight_rewarder() -> None:
