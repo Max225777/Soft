@@ -510,6 +510,64 @@ async def _bio_promo_hourly_checker() -> None:
         await asyncio.sleep(3600)
 
 
+async def run_promo_recheck() -> dict:
+    """Ручна перевірка ВСІХ учасників промо (біо + прізвище) прямо зараз.
+    Оновлює is_active / name_active і рахує зміни відносно попереднього стану,
+    щоб адмін побачив, скільки додалось і скільки відвалилось. Нагород НЕ видає."""
+    now = datetime.utcnow()
+    async with AsyncSessionLocal() as s:
+        promos = (await s.execute(select(BioPromo))).scalars().all()
+
+    total = len(promos)
+    bio_activated = bio_deactivated = 0
+    name_activated = name_deactivated = 0
+    bio_active_now = name_active_now = 0
+    errors = 0
+
+    for promo in promos:
+        try:
+            has_bio, tier = await _check_bio_tier(promo.user_id)
+            has_name = await _check_name(promo.user_id)
+            async with AsyncSessionLocal() as s:
+                p = await s.get(BioPromo, promo.user_id)
+                if not p:
+                    continue
+                was_bio = bool(p.is_active)
+                was_name = bool(p.name_active)
+                if has_bio and not was_bio:
+                    bio_activated += 1
+                elif was_bio and not has_bio:
+                    bio_deactivated += 1
+                if has_name and not was_name:
+                    name_activated += 1
+                elif was_name and not has_name:
+                    name_deactivated += 1
+                p.is_active = has_bio
+                p.reward_tier = tier if tier >= 2 else (2 if has_bio else p.reward_tier)
+                p.name_active = has_name
+                p.last_check_at = now
+                p.name_last_check_at = now
+                if has_bio:
+                    bio_active_now += 1
+                if has_name:
+                    name_active_now += 1
+                await s.commit()
+        except Exception as e:
+            errors += 1
+            log.warning("promo recheck error user=%s: %s", promo.user_id, e)
+        await asyncio.sleep(0.3)
+
+    log.info("promo recheck done: total=%d bio +%d/-%d (now %d), name +%d/-%d (now %d), errors=%d",
+             total, bio_activated, bio_deactivated, bio_active_now,
+             name_activated, name_deactivated, name_active_now, errors)
+    return {
+        "total": total,
+        "bio_activated": bio_activated, "bio_deactivated": bio_deactivated, "bio_active_now": bio_active_now,
+        "name_activated": name_activated, "name_deactivated": name_deactivated, "name_active_now": name_active_now,
+        "errors": errors,
+    }
+
+
 async def _bio_promo_midnight_rewarder() -> None:
     """Once per UTC calendar day: reward ⭐ to every user whose bio is active.
     Polls every 60 s so server restarts never miss a day (no long sleep until midnight).
@@ -679,6 +737,7 @@ async def lifespan(app: FastAPI):
         BotCommand(command="ban",      description="🚫 Заблокувати"),
         BotCommand(command="unban",    description="✅ Розблокувати"),
         BotCommand(command="stats",    description="📊 Статистика"),
+        BotCommand(command="promocheck", description="🔄 Перевірити промо (біо+нік)"),
         BotCommand(command="myid",     description="🪪 Мій ID"),
     ]
 

@@ -351,6 +351,30 @@ async def cmd_platega_check(message: Message) -> None:
         await message.answer(f"⚠️ {msg}", parse_mode="HTML")
 
 
+@router.message(Command("promocheck", "promo_check", "checkpromo"), IsAdmin())
+async def cmd_promo_check(message: Message) -> None:
+    """Ручна перевірка всіх учасників промо (біо + прізвище) + звіт у чат:
+    скільки додалось і скільки відвалилось по тексту в біо і по ніку."""
+    from lemur_shop.server import run_promo_recheck
+    await message.answer("🔄 Проверяю всех участников промо (био + фамилия)… это займёт немного времени.")
+    r = await run_promo_recheck()
+    txt = (
+        f"📊 <b>Проверка промо завершена</b>\n\n"
+        f"👥 Проверено участников: <b>{r['total']}</b>\n\n"
+        f"📝 <b>Био (фраза в описании):</b>\n"
+        f"   ✅ стало активно: +{r['bio_activated']}\n"
+        f"   ❌ отвалилось: −{r['bio_deactivated']}\n"
+        f"   🟢 сейчас активно: <b>{r['bio_active_now']}</b>\n\n"
+        f"🏷 <b>Фамилия (@LEMUR_SHOP):</b>\n"
+        f"   ✅ стало активно: +{r['name_activated']}\n"
+        f"   ❌ отвалилось: −{r['name_deactivated']}\n"
+        f"   🟢 сейчас активно: <b>{r['name_active_now']}</b>"
+    )
+    if r.get("errors"):
+        txt += f"\n\n⚠️ Не удалось проверить: {r['errors']}"
+    await message.answer(txt, parse_mode="HTML")
+
+
 # ─── Партнёрська програма ───────────────────────────────────────────────────────
 
 @router.message(Command("partner_add"), IsAdmin())
