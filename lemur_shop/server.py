@@ -390,6 +390,7 @@ async def _run_bio_promo_migration() -> None:
                 "ALTER TABLE bio_promos ADD COLUMN IF NOT EXISTS name_last_check_at TIMESTAMP",
                 "ALTER TABLE bio_promos ADD COLUMN IF NOT EXISTS name_last_rewarded_at TIMESTAMP",
                 "ALTER TABLE bio_promos ADD COLUMN IF NOT EXISTS name_total_rewarded INTEGER NOT NULL DEFAULT 0",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS ref_qualified BOOLEAN NOT NULL DEFAULT FALSE",
             ):
                 await s.execute(_text(sql))
             await s.commit()
@@ -880,6 +881,7 @@ async def lifespan(app: FastAPI):
         log.warning("referral backfill failed: %s", e)
     _bio_promo_task = asyncio.create_task(_bio_promo_hourly_checker())
     _bio_promo_midnight_task = asyncio.create_task(_bio_promo_midnight_rewarder())
+    asyncio.create_task(_backfill_referral_qualification())
 
     log.info("🦎 Лемур бот запущено (%s)", "webhook" if use_webhook else "polling")
     yield
@@ -1785,25 +1787,98 @@ async def api_get_code(order_id: int, user: User = Depends(get_current_user)):
     return {"code": code}
 
 
-@app.get("/api/check-sub")
-async def api_check_sub(user: User = Depends(get_current_user)):
+async def _is_subscribed(user_id: int) -> bool:
+    """Чи підписаний юзер на канал. Лояльно: якщо бот не може перевірити
+    (помилка API / не адмін каналу) — повертаємо True, як і раніше в check-sub."""
     if not _bot or not settings.CHANNEL_USERNAME:
-        return {"subscribed": True}
+        return True
     try:
         from aiogram.enums import ChatMemberStatus
-        member = await _bot.get_chat_member(
-            chat_id=settings.CHANNEL_USERNAME, user_id=user.id
-        )
-        log.info("check-sub user=%s status=%r type=%s", user.id, member.status, type(member).__name__)
-        subscribed = member.status in (
+        member = await _bot.get_chat_member(chat_id=settings.CHANNEL_USERNAME, user_id=user_id)
+        return member.status in (
             ChatMemberStatus.CREATOR,
             ChatMemberStatus.ADMINISTRATOR,
             ChatMemberStatus.MEMBER,
             ChatMemberStatus.RESTRICTED,
         )
     except Exception as e:
-        log.warning("check-sub error for user=%s: %s — letting through", user.id, e)
-        subscribed = True
+        log.warning("sub check error for user=%s: %s — lenient True", user_id, e)
+        return True
+
+
+async def qualify_referral_if_eligible(user_id: int) -> bool:
+    """Позначає реферала як «зарахованого» для таблиці лідерів, якщо він:
+    (1) прийшов по реф-лінці, (2) підписаний на канал, (3) поповнив баланс
+    хоч на 1⭐ будь-яким способом. Викликати після поповнення / перевірки
+    підписки. Ідемпотентно. На виплати 25⭐ за покупку НЕ впливає."""
+    try:
+        async with AsyncSessionLocal() as s:
+            u = await s.get(User, user_id)
+            if not u or not u.referred_by_id or u.ref_qualified:
+                return False
+            has_topup = await s.scalar(
+                select(func.count()).select_from(TopUp).where(
+                    TopUp.user_id == user_id, TopUp.amount_stars >= 1
+                )
+            ) or 0
+        if not has_topup:
+            return False
+        if not await _is_subscribed(user_id):
+            return False
+        async with AsyncSessionLocal() as s:
+            async with s.begin():
+                u = await s.get(User, user_id, with_for_update=True)
+                if not u or not u.referred_by_id or u.ref_qualified:
+                    return False
+                u.ref_qualified = True
+                referrer_id = u.referred_by_id
+        log.info("referral QUALIFIED: user=%s referrer=%s", user_id, referrer_id)
+        return True
+    except Exception as e:
+        log.warning("qualify_referral_if_eligible error user=%s: %s", user_id, e)
+        return False
+
+
+async def _backfill_referral_qualification() -> None:
+    """Одноразово (у фоні на старті): зараховуємо вже наявних рефералів, які
+    мають поповнення + підписку, щоб таблиця лідерів одразу була коректною."""
+    await asyncio.sleep(150)
+    try:
+        async with AsyncSessionLocal() as s:
+            rows = await s.execute(
+                select(User.id).where(
+                    User.referred_by_id.isnot(None),
+                    User.ref_qualified == False,
+                    select(TopUp.id).where(
+                        TopUp.user_id == User.id, TopUp.amount_stars >= 1
+                    ).exists(),
+                )
+            )
+            candidates = [r[0] for r in rows]
+        log.info("referral qualification backfill: %d candidates", len(candidates))
+        done = 0
+        for uid in candidates:
+            try:
+                if await qualify_referral_if_eligible(uid):
+                    done += 1
+            except Exception as e:
+                log.warning("ref qualification backfill error user=%s: %s", uid, e)
+            await asyncio.sleep(0.3)
+        log.info("referral qualification backfill done: %d newly qualified", done)
+    except Exception as e:
+        log.warning("referral qualification backfill failed: %s", e)
+
+
+@app.get("/api/check-sub")
+async def api_check_sub(user: User = Depends(get_current_user)):
+    subscribed = await _is_subscribed(user.id)
+    log.info("check-sub user=%s → %s", user.id, subscribed)
+    # Якщо підписався — спробувати зарахувати як реферала (міг уже поповнити)
+    if subscribed:
+        try:
+            await qualify_referral_if_eligible(user.id)
+        except Exception:
+            pass
     return {"subscribed": subscribed}
 
 
@@ -1877,7 +1952,10 @@ async def api_leaderboard(user: User = Depends(get_current_user), period: str = 
 async def api_leaderboard_referrals(user: User = Depends(get_current_user), period: str = "all"):
     async with AsyncSessionLocal() as s:
         # кількість запрошених по referrer_id
-        invited_q = select(User.referred_by_id, func.count(User.id).label("invited_count")).where(User.referred_by_id.isnot(None))
+        # Рахуємо лише ЗАРАХОВАНИХ рефералів (перейшов+підписався+поповнив)
+        invited_q = select(User.referred_by_id, func.count(User.id).label("invited_count")).where(
+            User.referred_by_id.isnot(None), User.ref_qualified == True
+        )
         earned_q = select(ReferralPayout.referrer_id, func.sum(ReferralPayout.amount_stars).label("earned_stars"))
         if period == "today":
             today_start = today_start_utc()
@@ -2237,6 +2315,10 @@ async def api_referral(user: User = Depends(get_current_user)):
         ref_count = await s.scalar(
             select(func.count()).where(User.referred_by_id == user.id)
         ) or 0
+        # Скільки з них ЗАРАХОВАНО (підписка + поповнення) — рахуються в таблиці лідерів
+        qualified_count = await s.scalar(
+            select(func.count()).where(User.referred_by_id == user.id, User.ref_qualified == True)
+        ) or 0
         # «Покупець» = купив TG-АКАУНТ (за накрутку реф-бонусу немає, тож і не рахуємо)
         _acc_cats = list(CATEGORIES.keys())
         buyers_count = await s.scalar(
@@ -2269,9 +2351,10 @@ async def api_referral(user: User = Depends(get_current_user)):
 
         referrals_list = [
             {
-                "name":     r.full_name or r.username or str(r.id),
-                "username": r.username,
-                "is_buyer": r.id in buyer_ids,
+                "name":      r.full_name or r.username or str(r.id),
+                "username":  r.username,
+                "is_buyer":  r.id in buyer_ids,
+                "qualified": bool(r.ref_qualified),
             }
             for r in refs
         ]
@@ -2279,6 +2362,7 @@ async def api_referral(user: User = Depends(get_current_user)):
     return {
         "referral_code":   user.referral_code,
         "ref_count":       ref_count,
+        "qualified_count": int(qualified_count),
         "buyers_count":    buyers_count,
         "earned_stars":    int(earned_stars),
         "referrals":       referrals_list,
@@ -2670,6 +2754,7 @@ async def crypto_notify(request: Request):
         except Exception:
             pass
 
+    await qualify_referral_if_eligible(user_id)
     return Response(content="ok")
 
 
@@ -2804,6 +2889,7 @@ async def heleket_notify(request: Request):
         except Exception:
             pass
 
+    await qualify_referral_if_eligible(user_id)
     return Response(content="ok")
 
 
@@ -2944,6 +3030,7 @@ async def _platega_credit(tx_id: str, payload: str) -> tuple[bool, str]:
             )
         except Exception:
             pass
+    await qualify_referral_if_eligible(user_id)
     return True, f"credited ⭐{stars_credited} to user {user_id}"
 
 

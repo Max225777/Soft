@@ -21,10 +21,12 @@ export interface ReferralUser {
   name: string
   username: string | null
   is_buyer: boolean
+  qualified: boolean
 }
 export interface Referral {
   referral_code: string
   ref_count: number
+  qualified_count: number
   buyers_count: number
   earned_stars: number
   referrals: ReferralUser[]

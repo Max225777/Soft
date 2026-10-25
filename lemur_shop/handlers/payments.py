@@ -100,6 +100,13 @@ async def successful_payment(message: Message) -> None:
         parse_mode="HTML"
     )
 
+    # Реферал міг стати «зарахованим» після цього поповнення
+    try:
+        from lemur_shop.server import qualify_referral_if_eligible
+        await qualify_referral_if_eligible(user_id)
+    except Exception:
+        pass
+
     from lemur_shop.server import _bot
     if _bot and settings.ADMIN_IDS:
         txt = (

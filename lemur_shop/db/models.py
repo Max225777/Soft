@@ -30,6 +30,10 @@ class User(Base):
     )
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_banned: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Реферал «зарахований» для таблиці лідерів: перейшов по лінці + підписаний
+    # на канал + поповнив баланс хоча б на 1⭐ (будь-яким способом). Виплати 25⭐
+    # за покупку акаунта це НЕ стосується — вони працюють як і раніше.
+    ref_qualified: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     # Партнёрський API-ключ (для програмних покупок TG-акаунтів)

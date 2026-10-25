@@ -28,6 +28,12 @@ export default function ReferralPage({ lang, botUsername }: Props) {
   const heroSub   = lang === 'ru' ? 'Делись ссылкой и получай ⭐ за покупки друзей' : lang === 'ua' ? 'Ділись посиланням і отримуй ⭐ за покупки друзів' : 'Share your link and earn ⭐ from friends’ purchases'
   const shareLbl  = lang === 'ru' ? '📤 Поделиться' : lang === 'ua' ? '📤 Поділитися' : '📤 Share'
   const shareText = lang === 'ru' ? 'Дешёвые Telegram-аккаунты и накрутка 🦎' : lang === 'ua' ? 'Дешеві Telegram-акаунти та накрутка 🦎' : 'Cheap Telegram accounts & boosting 🦎'
+  const qualSub   = lang === 'ru' ? `из ${data.ref_count} всего` : lang === 'ua' ? `з ${data.ref_count} усього` : `of ${data.ref_count} total`
+  const qualNote  = lang === 'ru'
+    ? 'Реферал засчитывается, когда перешёл по ссылке, подписался на канал и пополнил баланс хотя бы на 1⭐ (любым способом).'
+    : lang === 'ua'
+    ? 'Реферал зараховується, коли перейшов по посиланню, підписався на канал і поповнив баланс хоча б на 1⭐ (будь-яким способом).'
+    : 'A referral counts once they join via your link, subscribe to the channel and top up at least 1⭐ (any method).'
 
   function share() {
     const url = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareText)}`
@@ -85,7 +91,8 @@ export default function ReferralPage({ lang, botUsername }: Props) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
         <div className="card" style={{ textAlign: 'center', padding: '12px 8px' }}>
           <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>{T.ref_joined}</div>
-          <div style={{ fontWeight: 800, fontSize: 26, color: 'var(--orange)' }}>{data.ref_count}</div>
+          <div style={{ fontWeight: 800, fontSize: 26, color: 'var(--orange)' }}>{data.qualified_count}</div>
+          <div className="muted" style={{ fontSize: 10, marginTop: 2 }}>{qualSub}</div>
         </div>
         <div className="card" style={{ textAlign: 'center', padding: '12px 8px' }}>
           <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>{T.ref_buyers}</div>
@@ -95,6 +102,10 @@ export default function ReferralPage({ lang, botUsername }: Props) {
           <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>{T.ref_earned}</div>
           <div style={{ fontWeight: 800, fontSize: 22, color: '#FFD700' }}>⭐{data.earned_stars}</div>
         </div>
+      </div>
+
+      <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.5, marginTop: -8, marginBottom: 16 }}>
+        ℹ️ {qualNote}
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
@@ -131,24 +142,33 @@ export default function ReferralPage({ lang, botUsername }: Props) {
 }
 
 function RefRow({ r }: { r: ReferralUser }) {
+  const tint = r.is_buyer
+    ? { bg: 'rgba(46,124,246,.12)', bd: 'rgba(46,124,246,.35)', fg: '#7DB4FF' }
+    : r.qualified
+    ? { bg: 'rgba(95,186,71,.12)', bd: 'rgba(95,186,71,.35)', fg: '#8fe07a' }
+    : { bg: 'rgba(255,255,255,.04)', bd: 'var(--border)', fg: 'var(--text)' }
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '8px 10px', borderRadius: 10,
-      background: r.is_buyer ? 'rgba(46,124,246,.12)' : 'rgba(255,255,255,.04)',
-      border: `1px solid ${r.is_buyer ? 'rgba(46,124,246,.35)' : 'var(--border)'}`,
+      background: tint.bg, border: `1px solid ${tint.bd}`,
     }}>
-      <div>
-        <span style={{ fontWeight: 600, fontSize: 14, color: r.is_buyer ? '#7DB4FF' : 'var(--text)' }}>
+      <div style={{ minWidth: 0 }}>
+        <span style={{ fontWeight: 600, fontSize: 14, color: tint.fg }}>
           {r.name}
         </span>
         {r.username && (
           <span className="muted" style={{ fontSize: 12, marginLeft: 6 }}>@{r.username}</span>
         )}
       </div>
-      {r.is_buyer && (
-        <span style={{ fontSize: 12, color: '#FFD700', fontWeight: 700 }}>⭐+25</span>
-      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <span style={{ fontSize: 13 }} title={r.qualified ? 'засчитан' : 'ждёт подписку + пополнение'}>
+          {r.qualified ? '✅' : '⏳'}
+        </span>
+        {r.is_buyer && (
+          <span style={{ fontSize: 12, color: '#FFD700', fontWeight: 700 }}>⭐+25</span>
+        )}
+      </div>
     </div>
   )
 }
