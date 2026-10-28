@@ -975,10 +975,25 @@ function ReferralsTab() {
   const [data, setData] = useState<AdminReferralStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [auditing, setAuditing] = useState(false)
+  const [auditMsg, setAuditMsg] = useState<string | null>(null)
 
   useEffect(() => {
     adminApi.referralStats().then(setData).finally(() => setLoading(false))
   }, [])
+
+  async function runAudit() {
+    if (auditing) return
+    setAuditing(true); setAuditMsg(null)
+    try {
+      const r = await adminApi.referralsReaudit()
+      setAuditMsg(`✅ Проверено ${r.total} · снято накрутки −${r.removed} · добавлено +${r.added}` +
+        (r.skipped ? ` · пропущено ${r.skipped}` : ''))
+      adminApi.referralStats().then(setData).catch(() => {})
+    } catch (e: any) {
+      setAuditMsg(e?.message === 'already_running' ? '⏳ Аудит уже идёт' : `❌ ${e?.message || 'Ошибка'}`)
+    } finally { setAuditing(false) }
+  }
 
   if (loading) return <p className="muted">Загрузка...</p>
   if (!data) return <p className="muted">Ошибка загрузки</p>
@@ -995,6 +1010,19 @@ function ReferralsTab() {
           <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>Всего через реф</div>
           <div style={{ fontWeight: 800, fontSize: 28, color: 'var(--orange)' }}>{data.invited_total}</div>
         </div>
+      </div>
+
+      {/* Аудит рефералов (чистка накрутки в таблице лидеров) */}
+      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px' }}>
+        <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 8 }}>
+          🔎 Пересчитать зачёт рефералов для таблицы лидеров. В зачёт идут только: подписка на канал + реальное
+          пополнение ≥1⭐. Промо-звёзды, промокоды, бонусы и админ-выдачи <b>не считаются</b>.
+        </div>
+        <button className="btn" disabled={auditing} onClick={runAudit}
+          style={{ background: 'rgba(42,171,238,.15)', color: '#2AABEE', border: '1px solid rgba(42,171,238,.3)', fontSize: 13 }}>
+          {auditing ? '⏳ Пересчитываю…' : '🔎 Аудит рефералов'}
+        </button>
+        {auditMsg && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text)' }}>{auditMsg}</div>}
       </div>
 
       {/* Статистика выплат */}

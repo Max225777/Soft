@@ -221,6 +221,7 @@ export const adminApi = {
   bioPromoList:    (page: number, limit = 30) => req<BioPromoParticipantsPage>(`/admin/bio-promo?page=${page}&limit=${limit}`),
   bioPromoSet:     (query: string, tier: number) => req<{ ok: boolean; user_id: number; username: string | null; is_active: boolean; reward_tier: number }>('/admin/bio-promo/set', { method: 'POST', body: JSON.stringify({ query, tier }) }),
   referralStats:   () => req<AdminReferralStats>('/admin/referrals'),
+  referralsReaudit:() => req<{ ok: boolean; total: number; added: number; removed: number; kept: number; skipped: number }>('/admin/referrals/reaudit', { method: 'POST' }),
   referralInvited: (referrerId: number) => req<AdminReferralInvitedUser[]>(`/admin/referrals/${referrerId}/invited`),
   partners:        () => req<AdminPartnersData>('/admin/partners'),
   recentPurchases: () => req<AdminRecentPurchase[]>('/admin/recent-purchases'),

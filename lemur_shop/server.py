@@ -4052,6 +4052,21 @@ async def api_admin_referrals(admin: User = Depends(require_admin)):
     }
 
 
+@app.post("/api/admin/referrals/reaudit")
+async def api_admin_referrals_reaudit(admin: User = Depends(require_admin)):
+    """Перерахунок зарахованих рефералів з панелі. Знімає накрутку: лишаються
+    тільки ті, хто підписаний на канал + реально поповнив ≥1⭐ (не промо/бонуси)."""
+    global _ref_audit_running
+    if _ref_audit_running:
+        raise HTTPException(status_code=409, detail="already_running")
+    _ref_audit_running = True
+    try:
+        res = await reaudit_referrals()
+    finally:
+        _ref_audit_running = False
+    return {"ok": True, **res}
+
+
 @app.get("/api/admin/referrals/{referrer_id}/invited")
 async def api_admin_referral_invited(referrer_id: int, admin: User = Depends(require_admin)):
     async with AsyncSessionLocal() as s:
