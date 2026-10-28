@@ -1969,11 +1969,25 @@ function CatCard({ c, onSaved }: { c: AdminCategory; onSaved: () => void }) {
   const [price, setPrice] = useState(c.effective.price_stars != null ? String(c.effective.price_stars) : '')
   const [saving, setSaving]     = useState(false)
   const [checking, setChecking] = useState(false)
+  const [toggling, setToggling] = useState(false)
+  const [disabled, setDisabled] = useState(c.disabled)
   const [chk, setChk] = useState<AdminCategoryCheck | null>(null)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   const num = (s: string): number | null => { const t = s.trim(); if (t === '') return null; const n = Number(t); return isNaN(n) ? null : n }
   const hasOverride = c.override.pmin != null || c.override.pmax != null || c.override.price_stars != null
+
+  async function toggleEnabled() {
+    if (toggling) return
+    setToggling(true); setMsg(null)
+    try {
+      const r = await adminApi.categoryToggle(c.category, disabled) // disabled=true → включаем
+      setDisabled(r.disabled)
+      setMsg({ ok: true, text: r.disabled ? 'Категория скрыта из продажи' : 'Категория включена в продажу' })
+      onSaved()
+    } catch (e: any) { setMsg({ ok: false, text: e?.message || 'Ошибка' }) }
+    finally { setToggling(false) }
+  }
 
   async function doCheck() {
     if (checking) return
@@ -2023,11 +2037,22 @@ function CatCard({ c, onSaved }: { c: AdminCategory; onSaved: () => void }) {
         <span style={{ fontWeight: 800, fontSize: 15 }}>{c.title_ru}</span>
         <span style={{ fontSize: 11, color: 'var(--muted)' }}>({c.country})</span>
         {c.macro && <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 8, background: 'rgba(42,171,238,.15)', color: '#2AABEE', border: '1px solid rgba(42,171,238,.3)' }}>авто-подбор</span>}
-        {c.disabled && <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 8, background: 'rgba(255,107,43,.15)', color: 'var(--orange)' }}>скрыта</span>}
+        {disabled && <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 8, background: 'rgba(255,107,43,.15)', color: 'var(--orange)' }}>скрыта</span>}
         {hasOverride && <span style={{ marginLeft: 'auto', fontSize: 10, padding: '1px 7px', borderRadius: 8, background: 'rgba(76,175,114,.15)', color: '#4CAF72' }}>изменено</span>}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+      {/* Переключатель: в продаже / скрыта */}
+      <button className="btn" disabled={toggling} onClick={toggleEnabled}
+        style={{
+          width: '100%', marginBottom: 10, fontSize: 13, fontWeight: 700,
+          background: disabled ? 'rgba(239,68,68,.12)' : 'rgba(76,175,114,.15)',
+          border: `1px solid ${disabled ? 'rgba(239,68,68,.35)' : 'rgba(76,175,114,.4)'}`,
+          color: disabled ? '#ef4444' : '#4CAF72',
+        }}>
+        {toggling ? '⏳…' : disabled ? '⛔ Скрыта из продажи · Включить' : '✅ В продаже · Выключить'}
+      </button>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, opacity: disabled ? 0.55 : 1 }}>
         <div>
           <label style={lbl}>Мин. цена $ (pmin)</label>
           <input style={inp} value={pmin} onChange={e => setPmin(e.target.value)} placeholder="любая" inputMode="decimal" />

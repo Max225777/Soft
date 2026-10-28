@@ -36,6 +36,7 @@ from lemur_shop.services.lolz_shop import (
     CATEGORIES, DISABLED_CATEGORIES, auto_buy_category,
     effective_category, sell_price_stars, category_defaults, effective_bounds,
     check_stock, save_category_override, load_overrides, get_overrides,
+    is_category_disabled, set_category_enabled,
 )
 from lemur_shop.utils.currency import get_rate
 
@@ -1061,14 +1062,14 @@ async def api_categories(user: User = Depends(get_current_user)):
             "discount_stars": info.get("discount_stars"),
         }
         for cat, info in CATEGORIES.items()
-        if cat not in DISABLED_CATEGORIES
+        if not is_category_disabled(cat)
     ]
 
 
 @app.post("/api/buy")
 async def api_buy(body: BuyRequest, user: User = Depends(get_current_user)):
     cat_info = CATEGORIES.get(body.category)
-    if not cat_info or body.category in DISABLED_CATEGORIES:
+    if not cat_info or is_category_disabled(body.category):
         raise HTTPException(status_code=400, detail="Unknown category")
 
     # Ціна продажу у ⭐ (з урахуванням оверайда адміна / знижки)
@@ -1411,7 +1412,7 @@ async def api_admin_categories(admin: User = Depends(require_admin)):
             "title_ru":   info.get("title_ru", info["title"]),
             "country":    info["country"],
             "macro":      bool(info.get("macro")),
-            "disabled":   code in DISABLED_CATEGORIES,
+            "disabled":   is_category_disabled(code),
             "cost_usd":   info.get("price_usd"),
             "default":    category_defaults(code),
             "effective":  {**effective_bounds(code), "price_stars": sell_price_stars(code)},
@@ -1459,6 +1460,23 @@ async def api_admin_categories_check(body: CategoryCheckBody, admin: User = Depe
     except (LolzApiError, httpx.TimeoutException) as e:
         raise HTTPException(status_code=502, detail=str(e)[:300])
     return {"ok": True, "country": info["country"], "pmin": pmin, "pmax": pmax, **res}
+
+
+class CategoryToggleBody(BaseModel):
+    category: str
+    enabled: bool
+
+
+@app.post("/api/admin/categories/toggle")
+async def api_admin_categories_toggle(body: CategoryToggleBody, admin: User = Depends(require_admin)):
+    """Вмикає/вимикає категорію з продажу (показ у магазині + можливість купити)."""
+    if body.category not in CATEGORIES:
+        raise HTTPException(status_code=400, detail="unknown_category")
+    try:
+        enabled = await set_category_enabled(body.category, body.enabled)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True, "category": body.category, "disabled": not enabled}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1522,7 +1540,7 @@ async def api_v1_categories(partner: User = Depends(get_api_partner)):
             "price_stars":  sell_price_stars(cat),
         }
         for cat, info in CATEGORIES.items()
-        if cat not in DISABLED_CATEGORIES
+        if not is_category_disabled(cat)
     ]
 
 
@@ -1541,7 +1559,7 @@ async def api_v1_buy(body: ApiBuyRequest, request: Request, partner: User = Depe
         raise HTTPException(status_code=429, detail="rate_limited")
 
     cat_info = CATEGORIES.get(body.category)
-    if not cat_info or body.category in DISABLED_CATEGORIES:
+    if not cat_info or is_category_disabled(body.category):
         raise HTTPException(status_code=400, detail="unknown_category")
 
     price_stars = sell_price_stars(body.category)

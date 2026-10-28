@@ -100,8 +100,24 @@ def get_overrides() -> dict[str, dict]:
     return _OVERRIDES
 
 
+async def _persist_overrides(data: dict) -> None:
+    """Записує весь словник оверайдів у БД і перечитує кеш у памʼять."""
+    from lemur_shop.db.models import AppSetting
+    from lemur_shop.db.session import AsyncSessionLocal
+    payload = json.dumps(data)
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            row = await s.get(AppSetting, _OVERRIDES_KEY)
+            if row:
+                row.value = payload
+            else:
+                s.add(AppSetting(key=_OVERRIDES_KEY, value=payload))
+    await load_overrides()
+
+
 async def save_category_override(code: str, *, pmin, pmax, price_stars) -> dict:
-    """Зберігає/очищає оверайди категорії. None у полі → прибрати оверайд цього поля."""
+    """Зберігає/очищає оверайди категорії. None у полі → прибрати оверайд цього поля.
+    Прапорець disabled (вкл/викл з продажу) не чіпаємо — ним керує set_category_enabled."""
     if code not in CATEGORIES:
         raise ValueError("unknown category")
     cur = dict(_OVERRIDES.get(code) or {})
@@ -115,20 +131,43 @@ async def save_category_override(code: str, *, pmin, pmax, price_stars) -> dict:
         data[code] = cur
     else:
         data.pop(code, None)
-
-    from lemur_shop.db.models import AppSetting
-    from lemur_shop.db.session import AsyncSessionLocal
-    payload = json.dumps(data)
-    async with AsyncSessionLocal() as s:
-        async with s.begin():
-            row = await s.get(AppSetting, _OVERRIDES_KEY)
-            if row:
-                row.value = payload
-            else:
-                s.add(AppSetting(key=_OVERRIDES_KEY, value=payload))
-    await load_overrides()
+    await _persist_overrides(data)
     log.info("Category override saved for %s: %s", code, cur or "cleared")
     return _OVERRIDES.get(code, {})
+
+
+def is_category_disabled(code: str) -> bool:
+    """Чи вимкнена категорія з продажу (з урахуванням оверайда адміна)."""
+    ov = _OVERRIDES.get(code) or {}
+    if "disabled" in ov:
+        return bool(ov["disabled"])
+    return code in DISABLED_CATEGORIES
+
+
+def effective_disabled_categories() -> set[str]:
+    return {c for c in CATEGORIES if is_category_disabled(c)}
+
+
+async def set_category_enabled(code: str, enabled: bool) -> bool:
+    """Вмикає/вимикає категорію з продажу. Повертає підсумковий стан (True=увімкнена).
+    Якщо значення збігається з дефолтом — прибираємо оверайд (щоб не засмічувати)."""
+    if code not in CATEGORIES:
+        raise ValueError("unknown category")
+    cur = dict(_OVERRIDES.get(code) or {})
+    default_disabled = code in DISABLED_CATEGORIES
+    want_disabled = not enabled
+    if want_disabled == default_disabled:
+        cur.pop("disabled", None)      # збігається з дефолтом → без оверайда
+    else:
+        cur["disabled"] = want_disabled
+    data = {k: dict(v) for k, v in _OVERRIDES.items()}
+    if cur:
+        data[code] = cur
+    else:
+        data.pop(code, None)
+    await _persist_overrides(data)
+    log.info("Category %s %s for sale", code, "ENABLED" if enabled else "DISABLED")
+    return not is_category_disabled(code)
 
 
 def effective_category(code: str) -> dict | None:

@@ -247,6 +247,8 @@ export const adminApi = {
                      req<{ ok: boolean; override: Record<string, number>; effective: { pmin: number | null; pmax: number | null; price_stars: number } }>('/admin/categories/set', { method: 'POST', body: JSON.stringify({ category, pmin, pmax, price_stars }) }),
   categoryCheck:   (category: string, pmin: number | null, pmax: number | null) =>
                      req<AdminCategoryCheck>('/admin/categories/check', { method: 'POST', body: JSON.stringify({ category, pmin, pmax }) }),
+  categoryToggle:  (category: string, enabled: boolean) =>
+                     req<{ ok: boolean; category: string; disabled: boolean }>('/admin/categories/toggle', { method: 'POST', body: JSON.stringify({ category, enabled }) }),
 }
 
 export interface AdminCategory {
