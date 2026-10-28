@@ -220,7 +220,7 @@ export const adminApi = {
   resetStats:      () => req<{ ok: boolean }>('/admin/reset-stats', { method: 'POST' }),
   bioPromoList:    (page: number, limit = 30) => req<BioPromoParticipantsPage>(`/admin/bio-promo?page=${page}&limit=${limit}`),
   bioPromoSet:     (query: string, tier: number) => req<{ ok: boolean; user_id: number; username: string | null; is_active: boolean; reward_tier: number }>('/admin/bio-promo/set', { method: 'POST', body: JSON.stringify({ query, tier }) }),
-  referralStats:   () => req<AdminReferralStats>('/admin/referrals'),
+  referralStats:   (period: 'all' | 'today' = 'all') => req<AdminReferralStats>(`/admin/referrals?period=${period}`),
   referralsReaudit:() => req<{ ok: boolean; total: number; added: number; removed: number; kept: number; skipped: number }>('/admin/referrals/reaudit', { method: 'POST' }),
   referralInvited: (referrerId: number) => req<AdminReferralInvitedUser[]>(`/admin/referrals/${referrerId}/invited`),
   partners:        () => req<AdminPartnersData>('/admin/partners'),
@@ -403,6 +403,8 @@ export interface AdminReferrerRow {
 }
 export interface AdminReferralStats {
   invited_today: number; invited_total: number
+  qualified_today: number; qualified_total: number
+  period: 'today' | 'all'
   referrers: AdminReferrerRow[]
   payouts: { total_count: number; total_stars: number; today_count: number; today_stars: number }
 }

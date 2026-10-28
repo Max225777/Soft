@@ -974,13 +974,16 @@ function ReferralInvitedList({ referrerId }: { referrerId: number }) {
 function ReferralsTab() {
   const [data, setData] = useState<AdminReferralStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [period, setPeriod] = useState<'today' | 'all'>('all')
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [auditing, setAuditing] = useState(false)
   const [auditMsg, setAuditMsg] = useState<string | null>(null)
 
-  useEffect(() => {
-    adminApi.referralStats().then(setData).finally(() => setLoading(false))
-  }, [])
+  const reload = useCallback(() => {
+    setLoading(true)
+    adminApi.referralStats(period).then(setData).finally(() => setLoading(false))
+  }, [period])
+  useEffect(() => { reload() }, [reload])
 
   async function runAudit() {
     if (auditing) return
@@ -989,26 +992,46 @@ function ReferralsTab() {
       const r = await adminApi.referralsReaudit()
       setAuditMsg(`✅ Проверено ${r.total} · снято накрутки −${r.removed} · добавлено +${r.added}` +
         (r.skipped ? ` · пропущено ${r.skipped}` : ''))
-      adminApi.referralStats().then(setData).catch(() => {})
+      reload()
     } catch (e: any) {
       setAuditMsg(e?.message === 'already_running' ? '⏳ Аудит уже идёт' : `❌ ${e?.message || 'Ошибка'}`)
     } finally { setAuditing(false) }
   }
 
-  if (loading) return <p className="muted">Загрузка...</p>
-  if (!data) return <p className="muted">Ошибка загрузки</p>
+  const isToday = period === 'today'
+  const qualified = data ? (isToday ? data.qualified_today : data.qualified_total) : 0
+  const invited   = data ? (isToday ? data.invited_today   : data.invited_total)   : 0
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* Общая статистика */}
+      {/* Переключатель периода */}
+      <div style={{ display: 'flex', gap: 6 }}>
+        {(['today', 'all'] as const).map(p => (
+          <button key={p} onClick={() => setPeriod(p)} style={{
+            flex: 1, padding: '8px 4px', fontSize: 12, fontWeight: period === p ? 700 : 500,
+            background: period === p ? 'rgba(255,107,43,.2)' : 'var(--bg2)',
+            color: period === p ? 'var(--orange)' : 'var(--muted)',
+            border: period === p ? '1px solid rgba(255,107,43,.4)' : '1px solid var(--border)',
+            borderRadius: 10, cursor: 'pointer',
+          }}>{p === 'today' ? '📅 Сегодня' : '📊 Всё время'}</button>
+        ))}
+      </div>
+
+      {loading && <p className="muted">Загрузка...</p>}
+      {!loading && !data && <p className="muted">Ошибка загрузки</p>}
+      {!loading && data && (<>
+
+      {/* Общая статистика за период */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <div className="card" style={{ textAlign: 'center', padding: '12px 8px' }}>
-          <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>Сегодня приглашено</div>
-          <div style={{ fontWeight: 800, fontSize: 28, color: 'var(--orange)' }}>{data.invited_today}</div>
+          <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>{isToday ? 'Зачтено сегодня' : 'Зачтено всего'}</div>
+          <div style={{ fontWeight: 800, fontSize: 28, color: '#4CAF72' }}>{qualified}</div>
+          <div className="muted" style={{ fontSize: 10, marginTop: 2 }}>в таблице лидеров</div>
         </div>
         <div className="card" style={{ textAlign: 'center', padding: '12px 8px' }}>
-          <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>Всего через реф</div>
-          <div style={{ fontWeight: 800, fontSize: 28, color: 'var(--orange)' }}>{data.invited_total}</div>
+          <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>{isToday ? 'Приглашено сегодня' : 'Приглашено всего'}</div>
+          <div style={{ fontWeight: 800, fontSize: 28, color: 'var(--orange)' }}>{invited}</div>
+          <div className="muted" style={{ fontSize: 10, marginTop: 2 }}>всего перешли</div>
         </div>
       </div>
 
@@ -1054,7 +1077,7 @@ function ReferralsTab() {
             fontSize: 11, color: 'var(--muted)', fontWeight: 600,
           }}>
             <span>Реферер</span>
-            <span style={{ textAlign: 'center' }}>Запр.</span>
+            <span style={{ textAlign: 'center' }}>Зачт.</span>
             <span style={{ textAlign: 'center' }}>Купили</span>
             <span style={{ textAlign: 'right' }}>Звёзды</span>
           </div>
@@ -1091,6 +1114,7 @@ function ReferralsTab() {
           ))}
         </div>
       )}
+      </>)}
     </div>
   )
 }
