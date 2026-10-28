@@ -373,6 +373,18 @@ async def cmd_promo_stop(message: Message) -> None:
         await message.answer("ℹ️ Сейчас никакая проверка не выполняется.")
 
 
+@router.message(Command("refaudit", "ref_audit", "auditref"), IsAdmin())
+async def cmd_ref_audit(message: Message) -> None:
+    """Перераховує зараховані реферали (чистить накрутку в таблиці лідерів):
+    зараховано лише підписка на канал + реальне поповнення ≥1⭐."""
+    from lemur_shop.server import start_referral_reaudit
+    started = await start_referral_reaudit(message.bot, message.chat.id)
+    if started:
+        await message.answer("🔎 Запустил аудит рефералов в фоне (проверяю подписку + пополнение у каждого). Пришлю отчёт.")
+    else:
+        await message.answer("⏳ Аудит уже идёт, дождись отчёта.")
+
+
 # ─── Партнёрська програма ───────────────────────────────────────────────────────
 
 @router.message(Command("partner_add"), IsAdmin())

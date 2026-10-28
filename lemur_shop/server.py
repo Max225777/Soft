@@ -835,6 +835,7 @@ async def lifespan(app: FastAPI):
         BotCommand(command="unban",    description="✅ Розблокувати"),
         BotCommand(command="stats",    description="📊 Статистика"),
         BotCommand(command="promocheck", description="🔄 Перевірити промо (біо+нік)"),
+        BotCommand(command="refaudit",   description="🔎 Аудит рефералів"),
         BotCommand(command="myid",     description="🪪 Мій ID"),
     ]
 
@@ -1812,23 +1813,43 @@ async def api_get_code(order_id: int, user: User = Depends(get_current_user)):
     return {"code": code}
 
 
+# Тільки реальні платні поповнення зараховують реферала (не адмінські видачі/бонуси)
+PAID_TOPUP_METHODS = ("stars", "cryptobot", "heleket", "sbp")
+
+_SUBSCRIBED_STATUSES = ("creator", "administrator", "member", "restricted")
+
+
 async def _is_subscribed(user_id: int) -> bool:
-    """Чи підписаний юзер на канал. Лояльно: якщо бот не може перевірити
-    (помилка API / не адмін каналу) — повертаємо True, як і раніше в check-sub."""
+    """М'яка перевірка для UI-гейту (check-sub): якщо бот не може перевірити —
+    пропускаємо (True), щоб не блокувати магазин через збій API."""
     if not _bot or not settings.CHANNEL_USERNAME:
         return True
     try:
-        from aiogram.enums import ChatMemberStatus
         member = await _bot.get_chat_member(chat_id=settings.CHANNEL_USERNAME, user_id=user_id)
-        return member.status in (
-            ChatMemberStatus.CREATOR,
-            ChatMemberStatus.ADMINISTRATOR,
-            ChatMemberStatus.MEMBER,
-            ChatMemberStatus.RESTRICTED,
-        )
+        return str(getattr(member, "status", "")).lower().split(".")[-1] in _SUBSCRIBED_STATUSES
     except Exception as e:
-        log.warning("sub check error for user=%s: %s — lenient True", user_id, e)
+        log.warning("sub check (soft) error user=%s: %s — lenient True", user_id, e)
         return True
+
+
+async def _sub_status(user_id: int) -> bool | None:
+    """Трьохстанна перевірка підписки: True — підтверджено член, False —
+    підтверджено НЕ член (left/kicked), None — не вдалося перевірити (помилка)."""
+    if not _bot or not settings.CHANNEL_USERNAME:
+        return None
+    try:
+        member = await _bot.get_chat_member(chat_id=settings.CHANNEL_USERNAME, user_id=user_id)
+        st = str(getattr(member, "status", "")).lower().split(".")[-1]
+        return st in _SUBSCRIBED_STATUSES
+    except Exception as e:
+        log.warning("sub status error user=%s: %s", user_id, e)
+        return None
+
+
+async def _is_subscribed_strict(user_id: int) -> bool:
+    """ЖОРСТКА перевірка для зарахування реферала: True лише коли Telegram
+    ПІДТВЕРДИВ членство. Помилка / left / kicked → False (захист конкурсу)."""
+    return (await _sub_status(user_id)) is True
 
 
 async def qualify_referral_if_eligible(user_id: int) -> bool:
@@ -1843,12 +1864,13 @@ async def qualify_referral_if_eligible(user_id: int) -> bool:
                 return False
             has_topup = await s.scalar(
                 select(func.count()).select_from(TopUp).where(
-                    TopUp.user_id == user_id, TopUp.amount_stars >= 1
+                    TopUp.user_id == user_id, TopUp.amount_stars >= 1,
+                    TopUp.method.in_(PAID_TOPUP_METHODS),
                 )
             ) or 0
         if not has_topup:
             return False
-        if not await _is_subscribed(user_id):
+        if not await _is_subscribed_strict(user_id):
             return False
         async with AsyncSessionLocal() as s:
             async with s.begin():
@@ -1875,7 +1897,8 @@ async def _backfill_referral_qualification() -> None:
                     User.referred_by_id.isnot(None),
                     User.ref_qualified == False,
                     select(TopUp.id).where(
-                        TopUp.user_id == User.id, TopUp.amount_stars >= 1
+                        TopUp.user_id == User.id, TopUp.amount_stars >= 1,
+                        TopUp.method.in_(PAID_TOPUP_METHODS),
                     ).exists(),
                 )
             )
@@ -1892,6 +1915,97 @@ async def _backfill_referral_qualification() -> None:
         log.info("referral qualification backfill done: %d newly qualified", done)
     except Exception as e:
         log.warning("referral qualification backfill failed: %s", e)
+
+
+_ref_audit_running: bool = False
+
+
+async def reaudit_referrals() -> dict:
+    """Повний перерахунок ref_qualified по ВСІХ рефералах — чистить таблицю
+    лідерів від накрутки. Зараховано лише: реальне платне поповнення (≥1⭐) +
+    ПІДТВЕРДЖЕНА підписка на канал. Хто не відповідає — знімається з заліку.
+    При помилці перевірки підписки стан не чіпаємо (щоб не зняти через збій)."""
+    now = datetime.utcnow()
+    async with AsyncSessionLocal() as s:
+        rows = await s.execute(select(User.id, User.ref_qualified).where(User.referred_by_id.isnot(None)))
+        refs = [(r[0], bool(r[1])) for r in rows]
+    total = len(refs)
+    added = removed = kept = skipped = 0
+    for uid, was_q in refs:
+        try:
+            async with AsyncSessionLocal() as s:
+                paid = await s.scalar(
+                    select(func.count()).select_from(TopUp).where(
+                        TopUp.user_id == uid, TopUp.amount_stars >= 1,
+                        TopUp.method.in_(PAID_TOPUP_METHODS),
+                    )
+                ) or 0
+            if not paid:
+                target = False                      # немає платного поповнення → точно ні
+            else:
+                st = await _sub_status(uid)
+                if st is None:
+                    skipped += 1                     # не змогли перевірити підписку — не чіпаємо
+                    await asyncio.sleep(0.2)
+                    continue
+                target = bool(st)                    # є поповнення + підтверджена підписка
+            if target != was_q:
+                async with AsyncSessionLocal() as s:
+                    async with s.begin():
+                        u = await s.get(User, uid, with_for_update=True)
+                        if u:
+                            u.ref_qualified = target
+                if target:
+                    added += 1
+                else:
+                    removed += 1
+            else:
+                kept += 1
+        except Exception as e:
+            skipped += 1
+            log.warning("reaudit_referrals error user=%s: %s", uid, e)
+        await asyncio.sleep(0.2)
+    log.info("reaudit_referrals: total=%d added=%d removed=%d kept=%d skipped=%d",
+             total, added, removed, kept, skipped)
+    return {"total": total, "added": added, "removed": removed, "kept": kept, "skipped": skipped}
+
+
+async def start_referral_reaudit(bot, chat_id: int) -> bool:
+    """Запускає перерахунок рефералів у фоні, шле звіт у chat_id. False — вже йде."""
+    global _ref_audit_running
+    if _ref_audit_running:
+        return False
+    _ref_audit_running = True
+
+    async def _worker():
+        global _ref_audit_running
+        try:
+            r = await reaudit_referrals()
+            txt = (
+                f"🔎 <b>Аудит рефералов завершён</b>\n\n"
+                f"👥 Проверено рефералов: <b>{r['total']}</b>\n"
+                f"✅ Добавлено в зачёт: +{r['added']}\n"
+                f"🗑 Снято накрутки: −{r['removed']}\n"
+                f"➖ Без изменений: {r['kept']}\n"
+            )
+            if r.get("skipped"):
+                txt += f"⚠️ Пропущено (не удалось проверить подписку): {r['skipped']}\n"
+            txt += "\nТеперь в таблице лидеров только: подписка на канал + реальное пополнение ≥1⭐."
+            try:
+                await bot.send_message(chat_id, txt, parse_mode="HTML")
+            except Exception:
+                pass
+        except Exception as e:
+            log.warning("start_referral_reaudit worker error: %s", e)
+            try:
+                await bot.send_message(chat_id, f"❌ Ошибка аудита: <code>{str(e)[:300]}</code>", parse_mode="HTML")
+            except Exception:
+                pass
+        finally:
+            _ref_audit_running = False
+
+    asyncio.create_task(_worker())
+    return True
 
 
 @app.get("/api/check-sub")
