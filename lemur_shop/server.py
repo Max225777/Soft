@@ -3954,32 +3954,26 @@ async def api_admin_broadcast_status(admin: User = Depends(require_admin)):
 
 @app.get("/api/admin/referrals")
 async def api_admin_referrals(admin: User = Depends(require_admin), period: str = "all"):
+    from datetime import timedelta as _td
     async with AsyncSessionLocal() as s:
         today_start = today_start_utc()
-        is_today = period == "today"
+        yesterday_start = today_start - _td(days=1)
 
-        # Запрошені сьогодні (referred_by_id IS NOT NULL і created_at >= сьогодні)
-        invited_today = await s.scalar(
-            select(func.count()).where(
-                User.referred_by_id.isnot(None),
-                User.created_at >= today_start,
-            )
-        ) or 0
+        # Межі обраного періоду для фільтра по даті приєднання реферала
+        if period == "today":
+            win = [User.created_at >= today_start]
+        elif period == "yesterday":
+            win = [User.created_at >= yesterday_start, User.created_at < today_start]
+        else:  # all
+            win = []
 
-        # Всього запрошених через реф
-        invited_total = await s.scalar(
-            select(func.count()).where(User.referred_by_id.isnot(None))
+        base = [User.referred_by_id.isnot(None)]
+        # Приглашено (всі, хто перейшов) і зараховано (підписка+поповнення) за період
+        period_invited = await s.scalar(
+            select(func.count()).where(*base, *win)
         ) or 0
-
-        # Зараховані (підписка+поповнення) — усього і сьогодні
-        qualified_total = await s.scalar(
-            select(func.count()).where(User.referred_by_id.isnot(None), User.ref_qualified == True)
-        ) or 0
-        qualified_today = await s.scalar(
-            select(func.count()).where(
-                User.referred_by_id.isnot(None), User.ref_qualified == True,
-                User.created_at >= today_start,
-            )
+        period_qualified = await s.scalar(
+            select(func.count()).where(*base, User.ref_qualified == True, *win)
         ) or 0
 
         # Статистика виплат реферальних нагород
@@ -4002,18 +3996,16 @@ async def api_admin_referrals(admin: User = Depends(require_admin), period: str 
                 User.referred_by_id,
                 func.count(User.id).label("invited"),
             )
-            .where(User.referred_by_id.isnot(None), User.ref_qualified == True)
+            .where(User.referred_by_id.isnot(None), User.ref_qualified == True, *win)
+            .group_by(User.referred_by_id).order_by(func.count(User.id).desc()).limit(50)
         )
-        if is_today:
-            top_q = top_q.where(User.created_at >= today_start)
-        top_q = top_q.group_by(User.referred_by_id).order_by(func.count(User.id).desc()).limit(50)
         rows = await s.execute(top_q)
         referrer_rows = rows.all()
 
         _summary = {
-            "invited_today": invited_today, "invited_total": invited_total,
-            "qualified_today": qualified_today, "qualified_total": qualified_total,
-            "period": "today" if is_today else "all",
+            "period": period if period in ("today", "yesterday", "all") else "all",
+            "period_invited": period_invited,
+            "period_qualified": period_qualified,
             "payouts": {
                 "total_count": payouts_total_count, "total_stars": int(payouts_total_stars),
                 "today_count": payouts_today_count, "today_stars": int(payouts_today_stars),

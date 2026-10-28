@@ -974,7 +974,7 @@ function ReferralInvitedList({ referrerId }: { referrerId: number }) {
 function ReferralsTab() {
   const [data, setData] = useState<AdminReferralStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [period, setPeriod] = useState<'today' | 'all'>('all')
+  const [period, setPeriod] = useState<'today' | 'yesterday' | 'all'>('all')
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [auditing, setAuditing] = useState(false)
   const [auditMsg, setAuditMsg] = useState<string | null>(null)
@@ -998,22 +998,22 @@ function ReferralsTab() {
     } finally { setAuditing(false) }
   }
 
-  const isToday = period === 'today'
-  const qualified = data ? (isToday ? data.qualified_today : data.qualified_total) : 0
-  const invited   = data ? (isToday ? data.invited_today   : data.invited_total)   : 0
+  const periodWord = period === 'today' ? 'сегодня' : period === 'yesterday' ? 'вчера' : 'всего'
+  const qualified = data ? data.period_qualified : 0
+  const invited   = data ? data.period_invited : 0
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Переключатель периода */}
       <div style={{ display: 'flex', gap: 6 }}>
-        {(['today', 'all'] as const).map(p => (
+        {([['today', '📅 Сегодня'], ['yesterday', '🕐 Вчера'], ['all', '📊 Всё время']] as const).map(([p, lbl]) => (
           <button key={p} onClick={() => setPeriod(p)} style={{
             flex: 1, padding: '8px 4px', fontSize: 12, fontWeight: period === p ? 700 : 500,
             background: period === p ? 'rgba(255,107,43,.2)' : 'var(--bg2)',
             color: period === p ? 'var(--orange)' : 'var(--muted)',
             border: period === p ? '1px solid rgba(255,107,43,.4)' : '1px solid var(--border)',
             borderRadius: 10, cursor: 'pointer',
-          }}>{p === 'today' ? '📅 Сегодня' : '📊 Всё время'}</button>
+          }}>{lbl}</button>
         ))}
       </div>
 
@@ -1024,12 +1024,12 @@ function ReferralsTab() {
       {/* Общая статистика за период */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <div className="card" style={{ textAlign: 'center', padding: '12px 8px' }}>
-          <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>{isToday ? 'Зачтено сегодня' : 'Зачтено всего'}</div>
+          <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>Зачтено {periodWord}</div>
           <div style={{ fontWeight: 800, fontSize: 28, color: '#4CAF72' }}>{qualified}</div>
           <div className="muted" style={{ fontSize: 10, marginTop: 2 }}>в таблице лидеров</div>
         </div>
         <div className="card" style={{ textAlign: 'center', padding: '12px 8px' }}>
-          <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>{isToday ? 'Приглашено сегодня' : 'Приглашено всего'}</div>
+          <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>Приглашено {periodWord}</div>
           <div style={{ fontWeight: 800, fontSize: 28, color: 'var(--orange)' }}>{invited}</div>
           <div className="muted" style={{ fontSize: 10, marginTop: 2 }}>всего перешли</div>
         </div>
