@@ -494,9 +494,16 @@ async def _bio_promo_hourly_checker() -> None:
                 )).scalars().all()
             log.info("bio_promo hourly check: %d participants", len(promos))
             for promo in promos:
+                # Один get_chat на юзера (без 2с-ретраїв), щоб не спамити Telegram.
                 try:
-                    has_bio, tier = await _check_bio_tier(promo.user_id)
-                    has_name = await _check_name(promo.user_id)
+                    has_bio, tier, has_name = await _fetch_profile_flags(promo.user_id)
+                except Exception as e:
+                    # Помилка Telegram (напр. ліміт) — НЕ знімаємо промо, просто
+                    # пропускаємо до наступної години (інакше хибно деактивуємо).
+                    log.warning("bio_promo hourly skip user=%s (telegram): %s", promo.user_id, e)
+                    await asyncio.sleep(0.5)
+                    continue
+                try:
                     async with AsyncSessionLocal() as s:
                         p = await s.get(BioPromo, promo.user_id)
                         if p:
@@ -507,7 +514,7 @@ async def _bio_promo_hourly_checker() -> None:
                             p.name_last_check_at = now
                             await s.commit()
                 except Exception as e:
-                    log.warning("bio_promo hourly check error user=%s: %s", promo.user_id, e)
+                    log.warning("bio_promo hourly db error user=%s: %s", promo.user_id, e)
                 await asyncio.sleep(0.5)
         except asyncio.CancelledError:
             raise
@@ -4440,7 +4447,7 @@ async def bio_promo_check(body: BioPromoCheckBody | None = None, user: User = De
 
     if kind == "name":
         has_name = await _check_name(user.id)
-        stars_amount = 2
+        stars_amount = 1   # @LEMUR_SHOP у прізвищі — 1⭐/день (узгоджено з щоденною виплатою)
         rewarded = False
         async with AsyncSessionLocal() as s:
             async with s.begin():
@@ -4474,7 +4481,7 @@ async def bio_promo_check(body: BioPromoCheckBody | None = None, user: User = De
         }
 
     has_bio, tier = await _check_bio_tier(user.id)  # outside transaction
-    stars_amount = tier  # 0, 1, or 2
+    stars_amount = 1 if has_bio else 0   # фраза в біо — 1⭐/день (узгоджено з щоденною виплатою)
 
     rewarded = False
     async with AsyncSessionLocal() as s:
