@@ -411,6 +411,25 @@ export default function BioPromoButton({ lang, variant = 'button' }: Props) {
               )}
             </>)}
 
+            {(() => {
+              const need = tab === 'bio' ? (promo?.bio_needed ?? 3) : (promo?.name_needed ?? 1)
+              const elig = tab === 'bio' ? (promo?.bio_eligible ?? false) : (promo?.name_eligible ?? false)
+              const bought = promo?.purchases ?? 0
+              if (elig) return null
+              const lt = lang === 'ua'
+                ? `🔒 Відкриється після ${need} куплених TG-акаунтів (у тебе: ${bought}). Награди не нараховуються, поки не виконано умову.`
+                : lang === 'en'
+                ? `🔒 Unlocks after ${need} purchased TG accounts (you have ${bought}). No rewards until this is met.`
+                : `🔒 Откроется после ${need} купленных TG-аккаунтов (у тебя: ${bought}). Награды не начисляются, пока условие не выполнено.`
+              return (
+                <div style={{
+                  fontSize: 12.5, lineHeight: 1.5, color: '#FFB347', textAlign: 'center',
+                  background: 'rgba(255,179,71,.1)', border: '1px solid rgba(255,179,71,.3)',
+                  borderRadius: 10, padding: '10px 12px', marginBottom: 12,
+                }}>{lt}</div>
+              )
+            })()}
+
             {msg && (
               <div style={{
                 fontSize: 13, textAlign: 'center', marginBottom: 12,
@@ -418,14 +437,20 @@ export default function BioPromoButton({ lang, variant = 'button' }: Props) {
               }}>{msg}</div>
             )}
 
-            <button
-              className="btn btn-primary"
-              style={{ width: '100%', opacity: loading ? .6 : 1 }}
-              disabled={loading}
-              onClick={() => doCheck(tab)}
-            >
-              {loading ? L.checking : (tab === 'bio' ? (promo?.is_active ? L.recheck : L.check) : (promo?.name_active ? L.recheck : L.check))}
-            </button>
+            {(() => {
+              const elig = tab === 'bio' ? (promo?.bio_eligible ?? false) : (promo?.name_eligible ?? false)
+              const lockedLbl = lang === 'ua' ? '🔒 Недоступно' : lang === 'en' ? '🔒 Locked' : '🔒 Недоступно'
+              return (
+                <button
+                  className="btn btn-primary"
+                  style={{ width: '100%', opacity: (loading || !elig) ? .6 : 1 }}
+                  disabled={loading || !elig}
+                  onClick={() => doCheck(tab)}
+                >
+                  {!elig ? lockedLbl : loading ? L.checking : (tab === 'bio' ? (promo?.is_active ? L.recheck : L.check) : (promo?.name_active ? L.recheck : L.check))}
+                </button>
+              )
+            })()}
           </div>
         </div>,
         document.body

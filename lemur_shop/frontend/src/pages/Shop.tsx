@@ -171,6 +171,37 @@ const HERO_TEXT: Record<Lang, { t1: string; t2: string; steps: [string, string, 
   en: { t1: 'Telegram account', t2: 'in 2 minutes', steps: ['Pick a country', 'Get the code', 'Enjoy'], buyPill: 'Buy account', catalog: 'Catalog' },
 }
 
+// Инструкция по использованию TG-аккаунтов — общий блок (экран покупки + каталог)
+function AccountUsageBody() {
+  const ob: React.CSSProperties = {
+    display: 'inline-block', marginLeft: 6, padding: '1px 8px', borderRadius: 8,
+    fontSize: 11, fontWeight: 700, background: 'rgba(255,180,40,.15)', color: '#FFD166',
+    border: '1px solid rgba(255,180,40,.3)',
+  }
+  return (
+    <div style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text2)' }}>
+      Это инструкция по использованию TG-аккаунтов.
+      <div style={{ marginTop: 12, fontWeight: 700, color: '#4ade80' }}>✅ Сразу после входа — ОБЯЗАТЕЛЬНО:</div>
+      <div style={{ marginTop: 4 }}>1. Перепривязать почту на свою<span style={ob}>обязательно</span></div>
+      <div style={{ marginTop: 2 }}>2. Создать ключ восстановления<span style={ob}>обязательно</span></div>
+      <div style={{ marginTop: 2 }}>3. Поставить двухфакторку — облачный пароль (2FA)<span style={ob}>обязательно</span></div>
+      <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--muted)' }}>
+        Сделайте всё это в первые 24 часа после входа — иначе аккаунт можно потерять.
+      </div>
+      <div style={{ marginTop: 12, fontWeight: 700, color: '#ef4444' }}>⛔ Запрещено (иначе бан / потеря аккаунта):</div>
+      <div style={{ marginTop: 4 }}>1. Менять аватарку, юзернейм, имя — вообще любые данные аккаунта</div>
+      <div>2. Писать кому-то первым или вести подозрительную активность</div>
+      <div style={{
+        marginTop: 14, padding: '10px 12px', borderRadius: 10,
+        background: 'rgba(255,180,40,.1)', border: '1px solid rgba(255,180,40,.3)',
+        fontWeight: 700, color: '#FFD166',
+      }}>
+        🌐 Вход на аккаунт — только через VPN/прокси страны аккаунта!
+      </div>
+    </div>
+  )
+}
+
 type CatSort = 'pop' | 'exp' | 'cheap' | 'az' | 'za'
 
 const SORT_CHIPS: Record<Lang, { key: CatSort; label: string }[]> = {
@@ -644,6 +675,23 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
             <span style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>(⭐{me?.balance_stars ?? 0})</span>
           </div>
         </div>
+
+        {/* Инструкция по использованию аккаунтов (сворачиваемая) */}
+        <details style={{
+          background: 'linear-gradient(135deg, #0d1520 0%, #111a2e 100%)',
+          border: '1px solid rgba(42,171,238,.25)', borderRadius: 16,
+          padding: '12px 14px', marginBottom: 14,
+        }}>
+          <summary style={{
+            cursor: 'pointer', fontWeight: 800, fontSize: 14, color: 'var(--text)',
+            listStyle: 'none', display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            📘 Инструкция по использованию аккаунтов
+          </summary>
+          <div style={{ marginTop: 10 }}>
+            <AccountUsageBody />
+          </div>
+        </details>
 
         {/* Search */}
         <div className="search-wrap">
@@ -1355,28 +1403,7 @@ export default function Shop({ lang, me, onGoToBalance, onGoToProfile, onBuy }: 
           <div style={{ fontSize: 30 }}>📘</div>
           <div style={{ fontWeight: 800, fontSize: 17 }}>Инструкция по использованию</div>
         </div>
-        <div style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text2)' }}>
-          Здравствуйте! Это инструкция по использованию TG-аккаунтов.
-          <div style={{ marginTop: 12, fontWeight: 700, color: '#4ade80' }}>✅ В первые 24 часа после входа можно:</div>
-          <div style={{ marginTop: 4 }}>
-            1. Ставить 2FA (двухфакторную защиту)
-            <span style={{ display: 'inline-block', marginLeft: 6, padding: '1px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: 'rgba(255,180,40,.15)', color: '#FFD166', border: '1px solid rgba(255,180,40,.3)' }}>обязательно</span>
-          </div>
-          <div style={{ marginTop: 2 }}>
-            2. Привязывать почту для входа
-            <span style={{ display: 'inline-block', marginLeft: 6, padding: '1px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: 'rgba(148,163,184,.15)', color: '#94a3b8', border: '1px solid rgba(148,163,184,.3)' }}>необязательно</span>
-          </div>
-          <div style={{ marginTop: 12, fontWeight: 700, color: '#ef4444' }}>⛔ Нельзя:</div>
-          <div style={{ marginTop: 4 }}>1. Ставить аватарки, юзернеймы, имена — вообще менять данные аккаунта</div>
-          <div>2. Писать кому-то первым или вести подозрительную активность</div>
-          <div style={{
-            marginTop: 14, padding: '10px 12px', borderRadius: 10,
-            background: 'rgba(255,180,40,.1)', border: '1px solid rgba(255,180,40,.3)',
-            fontWeight: 700, color: '#FFD166',
-          }}>
-            🌐 Вход на аккаунт — только через VPN/прокси страны аккаунта!
-          </div>
-        </div>
+        <AccountUsageBody />
 
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, cursor: 'pointer', fontSize: 13, color: 'var(--muted)' }}>
           <input type="checkbox" checked={dontShowInstr} onChange={e => setDontShowInstr(e.target.checked)} style={{ width: 16, height: 16 }} />

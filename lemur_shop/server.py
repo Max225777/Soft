@@ -557,6 +557,7 @@ async def run_promo_recheck() -> dict:
     bio_activated = bio_deactivated = 0
     name_activated = name_deactivated = 0
     bio_active_now = name_active_now = 0
+    bio_paid_now = name_paid_now = 0   # активні ТА відкриті покупками (реально платимо)
     errors = 0
     cancelled = False
 
@@ -570,6 +571,7 @@ async def run_promo_recheck() -> dict:
                 p = await s.get(BioPromo, promo.user_id)
                 if not p:
                     continue
+                purchases = await _tg_purchase_count(promo.user_id, s)
                 was_bio = bool(p.is_active)
                 was_name = bool(p.name_active)
                 if has_bio and not was_bio:
@@ -587,8 +589,12 @@ async def run_promo_recheck() -> dict:
                 p.name_last_check_at = now
                 if has_bio:
                     bio_active_now += 1
+                    if purchases >= PROMO_BIO_MIN_PURCHASES:
+                        bio_paid_now += 1
                 if has_name:
                     name_active_now += 1
+                    if purchases >= PROMO_NAME_MIN_PURCHASES:
+                        name_paid_now += 1
                 await s.commit()
             checked += 1
         except Exception as e:
@@ -596,13 +602,18 @@ async def run_promo_recheck() -> dict:
             log.warning("promo recheck error user=%s: %s", promo.user_id, e)
         await asyncio.sleep(0.2)
 
-    log.info("promo recheck done: total=%d checked=%d cancelled=%s bio +%d/-%d (now %d), name +%d/-%d (now %d), errors=%d",
-             total, checked, cancelled, bio_activated, bio_deactivated, bio_active_now,
-             name_activated, name_deactivated, name_active_now, errors)
+    daily_stars = bio_paid_now + name_paid_now
+    daily_rub = await _stars_to_rub(daily_stars)
+    log.info("promo recheck done: total=%d checked=%d cancelled=%s bio +%d/-%d (now %d, paid %d), name +%d/-%d (now %d, paid %d), daily=%d⭐",
+             total, checked, cancelled, bio_activated, bio_deactivated, bio_active_now, bio_paid_now,
+             name_activated, name_deactivated, name_active_now, name_paid_now, daily_stars)
     return {
         "total": total, "checked": checked, "cancelled": cancelled,
-        "bio_activated": bio_activated, "bio_deactivated": bio_deactivated, "bio_active_now": bio_active_now,
-        "name_activated": name_activated, "name_deactivated": name_deactivated, "name_active_now": name_active_now,
+        "bio_activated": bio_activated, "bio_deactivated": bio_deactivated,
+        "bio_active_now": bio_active_now, "bio_paid_now": bio_paid_now,
+        "name_activated": name_activated, "name_deactivated": name_deactivated,
+        "name_active_now": name_active_now, "name_paid_now": name_paid_now,
+        "daily_stars": daily_stars, "daily_rub": daily_rub,
         "errors": errors,
     }
 
@@ -612,14 +623,16 @@ def _promo_report_text(r: dict) -> str:
     txt = (
         f"{head}\n\n"
         f"👥 Проверено: <b>{r.get('checked', 0)}</b> из {r.get('total', 0)}\n\n"
-        f"📝 <b>Био (фраза в описании):</b>\n"
+        f"📝 <b>Био (фраза в описании)</b> — от {PROMO_BIO_MIN_PURCHASES} покупок:\n"
         f"   ✅ стало активно: +{r['bio_activated']}\n"
         f"   ❌ отвалилось: −{r['bio_deactivated']}\n"
-        f"   🟢 сейчас активно: <b>{r['bio_active_now']}</b>\n\n"
-        f"🏷 <b>Фамилия (@LEMUR_SHOP):</b>\n"
+        f"   🟢 активно: <b>{r['bio_active_now']}</b>, из них с правом выплаты: <b>{r.get('bio_paid_now', 0)}</b>\n\n"
+        f"🏷 <b>Фамилия (@LEMUR_SHOP)</b> — от {PROMO_NAME_MIN_PURCHASES} покупки:\n"
         f"   ✅ стало активно: +{r['name_activated']}\n"
         f"   ❌ отвалилось: −{r['name_deactivated']}\n"
-        f"   🟢 сейчас активно: <b>{r['name_active_now']}</b>"
+        f"   🟢 активно: <b>{r['name_active_now']}</b>, из них с правом выплаты: <b>{r.get('name_paid_now', 0)}</b>\n\n"
+        f"💸 <b>К выплате в день: {r.get('daily_stars', 0)}⭐</b> (~{r.get('daily_rub', 0)}₽)\n"
+        f"ℹ️ «С правом выплаты» = выполнено условие по покупкам TG-аккаунтов."
     )
     if r.get("errors"):
         txt += f"\n\n⚠️ Не удалось проверить: {r['errors']}"
@@ -665,9 +678,60 @@ def stop_promo_recheck() -> bool:
     return True
 
 
+# Гейтинг промо за кількістю куплених TG-акаунтів
+PROMO_NAME_MIN_PURCHASES = 1   # @LEMUR_SHOP у прізвищі — від 1 купленого акаунта
+PROMO_BIO_MIN_PURCHASES  = 3   # фраза в описі — від 3 куплених акаунтів
+_PROMO_LAST_REWARD_KEY = "bio_promo_last_reward_date"
+
+
+async def _tg_purchase_count(user_id: int, s=None) -> int:
+    """Скільки TG-акаунтів користувач реально купив (delivered, категорії акаунтів)."""
+    _acc_cats = list(CATEGORIES.keys())
+    async def _run(sess):
+        return await sess.scalar(
+            select(func.count()).select_from(Order).where(
+                Order.user_id == user_id, Order.status == "delivered",
+                Order.category.in_(_acc_cats),
+            )
+        ) or 0
+    if s is not None:
+        return await _run(s)
+    async with AsyncSessionLocal() as sess:
+        return await _run(sess)
+
+
+async def _stars_to_rub(stars: int) -> int:
+    """Приблизний еквівалент у рублях для звіту."""
+    try:
+        rate = float(await get_rate("RUB"))
+    except Exception:
+        rate = 0.0
+    return int(round(stars * settings.STAR_DISPLAY_USD * rate))
+
+
+async def _promo_reward_done_date() -> str | None:
+    """Дата останньої щоденної промо-виплати з БД (переживає рестарти Render)."""
+    from lemur_shop.db.models import AppSetting
+    async with AsyncSessionLocal() as s:
+        row = await s.get(AppSetting, _PROMO_LAST_REWARD_KEY)
+        return row.value if row else None
+
+
+async def _set_promo_reward_done_date(value: str) -> None:
+    from lemur_shop.db.models import AppSetting
+    async with AsyncSessionLocal() as s:
+        async with s.begin():
+            row = await s.get(AppSetting, _PROMO_LAST_REWARD_KEY)
+            if row:
+                row.value = value
+            else:
+                s.add(AppSetting(key=_PROMO_LAST_REWARD_KEY, value=value))
+
+
 async def _bio_promo_midnight_rewarder() -> None:
-    """Once per UTC calendar day: reward ⭐ to every user whose bio is active.
-    Polls every 60 s so server restarts never miss a day (no long sleep until midnight).
+    """Раз на календарну добу (UTC) нараховує ⭐ активним учасникам промо.
+    Дата останнього запуску зберігається в БД — тому РЕСТАРТ Render НЕ призводить
+    до повторної виплати чи повторного звіту адміну того ж дня.
     """
     from datetime import date as _date
     _last_run_date: _date | None = None
@@ -676,9 +740,18 @@ async def _bio_promo_midnight_rewarder() -> None:
         try:
             now = datetime.utcnow()
             today = now.date()
+            today_iso = today.isoformat()
 
             if today != _last_run_date:
+                # Чи вже виплачували сьогодні (по БД) — щоб рестарт не дублював звіт
+                done = await _promo_reward_done_date()
+                if done == today_iso:
+                    _last_run_date = today
+                    await asyncio.sleep(60)
+                    continue
+
                 today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                _acc_cats = list(CATEGORIES.keys())
 
                 async with AsyncSessionLocal() as s:
                     promos = (await s.execute(
@@ -693,11 +766,10 @@ async def _bio_promo_midnight_rewarder() -> None:
                     "en": "⭐ <b>+{stars}⭐!</b>\n\nDaily reward for the promo in your profile.",
                 }
 
-                # Лічильники для щоденного звіту адміну
-                rewarded_users = 0   # скільки користувачів отримали хоч щось
-                bio_rewarded   = 0   # з них — за фразу в біо
-                name_rewarded  = 0   # з них — за @LEMUR_SHOP у прізвищі
-                total_given    = 0   # усього нараховано ⭐
+                rewarded_users = 0
+                bio_rewarded   = 0
+                name_rewarded  = 0
+                total_given    = 0
 
                 for promo in promos:
                     user_lang = "ru"
@@ -715,23 +787,24 @@ async def _bio_promo_midnight_rewarder() -> None:
                                 user = await s.get(User, p.user_id)
                                 if not user or user.is_banned:
                                     continue
-                                # Промо в біо/описанні — 1⭐/день
-                                if p.is_active and not (p.last_rewarded_at and p.last_rewarded_at >= today_start):
-                                    bio_stars = 1
-                                    user.balance_stars += bio_stars
-                                    user.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD)) * bio_stars
+                                purchases = await _tg_purchase_count(p.user_id, s)
+                                # Фраза в описі — 1⭐/день, лише від 3 куплених акаунтів
+                                if (p.is_active and purchases >= PROMO_BIO_MIN_PURCHASES
+                                        and not (p.last_rewarded_at and p.last_rewarded_at >= today_start)):
+                                    user.balance_stars += 1
+                                    user.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD))
                                     p.last_rewarded_at = now
-                                    p.total_rewarded += bio_stars
-                                    given += bio_stars
+                                    p.total_rewarded += 1
+                                    given += 1
                                     gave_bio = True
-                                # Промо @LEMUR_SHOP у прізвищі — 1⭐/день
-                                if p.name_active and not (p.name_last_rewarded_at and p.name_last_rewarded_at >= today_start):
-                                    name_stars = 1
-                                    user.balance_stars += name_stars
-                                    user.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD)) * name_stars
+                                # @LEMUR_SHOP у прізвищі — 1⭐/день, лише від 1 купленого акаунта
+                                if (p.name_active and purchases >= PROMO_NAME_MIN_PURCHASES
+                                        and not (p.name_last_rewarded_at and p.name_last_rewarded_at >= today_start)):
+                                    user.balance_stars += 1
+                                    user.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD))
                                     p.name_last_rewarded_at = now
-                                    p.name_total_rewarded += name_stars
-                                    given += name_stars
+                                    p.name_total_rewarded += 1
+                                    given += 1
                                     gave_name = True
                                 user_lang = user.lang or "ru"
                         if given > 0:
@@ -751,16 +824,19 @@ async def _bio_promo_midnight_rewarder() -> None:
                         log.warning("bio_promo daily reward error user=%s: %s", promo.user_id, e)
                     await asyncio.sleep(0.3)
 
-                # Щоденний звіт адмінам: скільки людей і скільки нараховано
+                # Фіксуємо дату ПЕРЕД звітом — щоб навіть при збої звіту не повторити виплату
+                await _set_promo_reward_done_date(today_iso)
+
                 if _bot and settings.ADMIN_IDS:
                     channel = settings.CHANNEL_USERNAME.lstrip("@")
+                    rub = await _stars_to_rub(total_given)
                     report = (
                         f"📊 <b>Ежедневная промо-выплата</b>\n\n"
                         f"👥 Пользователей начислено: <b>{rewarded_users}</b>\n"
                         f"📝 За фразу в био: <b>{bio_rewarded}</b> (×1⭐)\n"
                         f"🏷 За @{channel} в фамилии: <b>{name_rewarded}</b> (×1⭐)\n"
-                        f"⭐ Всего начислено: <b>{total_given}⭐</b>\n"
-                        f"📅 {today}"
+                        f"⭐ Всего начислено: <b>{total_given}⭐</b> (~{rub}₽)\n"
+                        f"📅 {today_iso}"
                     )
                     for admin_id in settings.ADMIN_IDS:
                         try:
@@ -770,7 +846,7 @@ async def _bio_promo_midnight_rewarder() -> None:
 
                 _last_run_date = today
                 log.info("bio_promo daily reward done for %s: users=%d bio=%d name=%d total=%d⭐",
-                         today, rewarded_users, bio_rewarded, name_rewarded, total_given)
+                         today_iso, rewarded_users, bio_rewarded, name_rewarded, total_given)
         except asyncio.CancelledError:
             raise
         except Exception as e:
@@ -4550,10 +4626,16 @@ async def api_wheel_room(room_id: int, user: User = Depends(get_current_user)):
 async def bio_promo_status(user: User = Depends(get_current_user)):
     async with AsyncSessionLocal() as s:
         promo = await s.get(BioPromo, user.id)
+        purchases = await _tg_purchase_count(user.id, s)
+    gate = {
+        "purchases": purchases,
+        "name_eligible": purchases >= PROMO_NAME_MIN_PURCHASES, "name_needed": PROMO_NAME_MIN_PURCHASES,
+        "bio_eligible":  purchases >= PROMO_BIO_MIN_PURCHASES,  "bio_needed":  PROMO_BIO_MIN_PURCHASES,
+    }
     if not promo:
         return {"joined": False, "is_active": False, "reward_tier": 0, "total_rewarded": 0,
                 "hours_until_next": None, "name_active": False, "name_total_rewarded": 0,
-                "name_hours_until_next": None}
+                "name_hours_until_next": None, **gate}
     return {
         "joined": True,
         "is_active": promo.is_active,
@@ -4564,6 +4646,7 @@ async def bio_promo_status(user: User = Depends(get_current_user)):
         "name_active": promo.name_active,
         "name_total_rewarded": promo.name_total_rewarded,
         "name_hours_until_next": _hours_until_midnight() if promo.name_active else None,
+        **gate,
     }
 
 
@@ -4578,9 +4661,11 @@ async def bio_promo_check(body: BioPromoCheckBody | None = None, user: User = De
     now = datetime.utcnow()
     kind = (body.kind if body else "bio") or "bio"
 
+    purchases = await _tg_purchase_count(user.id)
+
     if kind == "name":
+        eligible = purchases >= PROMO_NAME_MIN_PURCHASES
         has_name = await _check_name(user.id)
-        stars_amount = 1   # @LEMUR_SHOP у прізвищі — 1⭐/день (узгоджено з щоденною виплатою)
         rewarded = False
         async with AsyncSessionLocal() as s:
             async with s.begin():
@@ -4592,30 +4677,32 @@ async def bio_promo_check(body: BioPromoCheckBody | None = None, user: User = De
                     s.add(promo)
                 promo.name_active = has_name
                 promo.name_last_check_at = now
-                can_reward = has_name and (
+                # Нараховуємо лише якщо відкрито покупками + є @LEMUR_SHOP + вікно 24г
+                can_reward = eligible and has_name and (
                     promo.name_last_rewarded_at is None
                     or (now - promo.name_last_rewarded_at).total_seconds() >= 86400
                 )
                 if can_reward:
                     u = await s.get(User, user.id, with_for_update=True)
                     if u and not u.is_banned:
-                        u.balance_stars += stars_amount
-                        u.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD)) * stars_amount
+                        u.balance_stars += 1
+                        u.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD))
                         promo.name_last_rewarded_at = now
-                        promo.name_total_rewarded += stars_amount
+                        promo.name_total_rewarded += 1
                         rewarded = True
         return {
             "joined": True, "kind": "name",
             "is_active": has_name,
+            "eligible": eligible, "purchases": purchases, "needed": PROMO_NAME_MIN_PURCHASES,
             "rewarded": rewarded,
-            "stars_rewarded": stars_amount if rewarded else 0,
+            "stars_rewarded": 1 if rewarded else 0,
             "total_rewarded": promo.name_total_rewarded,
-            "hours_until_next": _hours_until_midnight() if has_name else None,
+            "hours_until_next": _hours_until_midnight() if (has_name and eligible) else None,
         }
 
+    # kind == "bio"
+    eligible = purchases >= PROMO_BIO_MIN_PURCHASES
     has_bio, tier = await _check_bio_tier(user.id)  # outside transaction
-    stars_amount = 1 if has_bio else 0   # фраза в біо — 1⭐/день (узгоджено з щоденною виплатою)
-
     rewarded = False
     async with AsyncSessionLocal() as s:
         async with s.begin():
@@ -4630,28 +4717,28 @@ async def bio_promo_check(body: BioPromoCheckBody | None = None, user: User = De
             promo.reward_tier = tier
             promo.last_check_at = now
 
-            # Give instant stars on connect — protected by 24h anti-abuse window
-            can_reward = has_bio and (
+            can_reward = eligible and has_bio and (
                 promo.last_rewarded_at is None
                 or (now - promo.last_rewarded_at).total_seconds() >= 86400
             )
             if can_reward:
                 u = await s.get(User, user.id, with_for_update=True)
                 if u and not u.is_banned:
-                    u.balance_stars += stars_amount
-                    u.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD)) * stars_amount
+                    u.balance_stars += 1
+                    u.balance_usd += Decimal(str(settings.STAR_DISPLAY_USD))
                     promo.last_rewarded_at = now
-                    promo.total_rewarded += stars_amount
+                    promo.total_rewarded += 1
                     rewarded = True
 
     return {
         "joined": True, "kind": "bio",
         "is_active": has_bio,
         "reward_tier": tier,
+        "eligible": eligible, "purchases": purchases, "needed": PROMO_BIO_MIN_PURCHASES,
         "rewarded": rewarded,
-        "stars_rewarded": stars_amount if rewarded else 0,
+        "stars_rewarded": 1 if rewarded else 0,
         "total_rewarded": promo.total_rewarded,
-        "hours_until_next": _hours_until_midnight() if has_bio else None,
+        "hours_until_next": _hours_until_midnight() if (has_bio and eligible) else None,
     }
 
 

@@ -161,6 +161,11 @@ export interface BioPromoStatus {
   hours_until_next: number | null; last_rewarded_at: string | null
   rewarded?: boolean; stars_rewarded?: number
   name_active?: boolean; name_total_rewarded?: number; name_hours_until_next?: number | null
+  // Доступ по покупкам TG-аккаунтов
+  purchases?: number
+  name_eligible?: boolean; name_needed?: number
+  bio_eligible?: boolean; bio_needed?: number
+  eligible?: boolean; needed?: number
 }
 
 export const bioPromoApi = {
