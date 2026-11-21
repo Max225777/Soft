@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     WEBAPP_URL: str = ""   # https://your-domain.com — URL задеплоєного Mini App
 
     CHANNEL_USERNAME: str = "@LEMUR_SHOP"
-    SUPPORT_USERNAME: str = "@LEMUR_MANEGER"
+    SUPPORT_USERNAME: str = "@lemurshopsupport"
     # Публічний канал з відгуками покупців (для банку — реальні відгуки)
     REVIEWS_CHANNEL_USERNAME: str = "@LEMUR_SHOP_REP"
     # E-mail підтримки (необов'язково; якщо порожньо — показуємо лише юзернейм)
